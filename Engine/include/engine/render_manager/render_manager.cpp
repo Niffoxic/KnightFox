@@ -8,6 +8,7 @@
 #include "components/factory/factory.h"
 #include "components/adapter/adapter.h"
 #include "components/monitor/monitor.h"
+#include "components/device/device.h"
 
 #pragma region IMPL
 
@@ -29,6 +30,7 @@ private:
 	std::unique_ptr<KFEFactory> m_pFactory{ nullptr };
 	std::unique_ptr<KFEAdapter> m_pAdapter{ nullptr };
 	std::unique_ptr<KFEMonitor> m_pMonitor{ nullptr };
+	std::unique_ptr<KFEDevice>  m_pDevice { nullptr };
 };
 
 #pragma endregion
@@ -77,6 +79,7 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pFactory = std::make_unique<KFEFactory>();
 	m_pAdapter = std::make_unique<KFEAdapter>();
 	m_pMonitor = std::make_unique<KFEMonitor>();
+	m_pDevice  = std::make_unique<KFEDevice> ();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -100,9 +103,28 @@ bool kfe::KFERenderManager::Impl::Initialize()
 		return false;
 	}
 
+	KFE_DEVICE_CREATE_DESC deviceDesc{};
+	deviceDesc.Adapter	 = m_pAdapter.get();
+	deviceDesc.debugName = "KnightDxDebugger";
+	deviceDesc.Factory   = m_pFactory.get();
+	deviceDesc.Monitor   = m_pMonitor.get();
+	
+#if defined(_DEBUG) || defined(DEBUG)
+	deviceDesc.Flags =	EDeviceCreateFlags::EnableDebugLayer |
+						EDeviceCreateFlags::EnableGPUBasedValidation |
+						EDeviceCreateFlags::EnableStablePowerState;
+#endif
+
+	if (!m_pDevice->Initialize(deviceDesc))
+	{
+		LOG_ERROR("Failed to Initialize Device");
+		return false;
+	}
+
 #if defined(_DEBUG) || defined(DEBUG)
 	m_pAdapter->LogAdapters();
 	m_pMonitor->LogOutputs ();
+	m_pDevice->LogDevice   ();
 #endif
 
 	LOG_SUCCESS("RenderManager: All Components initialized!");
