@@ -10,6 +10,11 @@
 #include "components/monitor/monitor.h"
 #include "components/device/device.h"
 
+//~ Memory Managements
+#include "memory_management/commands/command_queue/graphics_queue/graphics_queue.h"
+#include "memory_management/commands/command_queue/compute_queue/compute_queue.h"
+#include "memory_management/commands/command_queue/copy_queue/copy_queue.h"
+
 #pragma region IMPL
 
 class kfe::KFERenderManager::Impl
@@ -24,6 +29,10 @@ public:
 	void FrameEnd  ();
 
 private:
+	bool InitializeComponents();
+	bool InitializeQueues	 ();
+
+private:
 	KFEWindows* m_pWindows{ nullptr };
 
 	//~ Components
@@ -31,6 +40,11 @@ private:
 	std::unique_ptr<KFEAdapter> m_pAdapter{ nullptr };
 	std::unique_ptr<KFEMonitor> m_pMonitor{ nullptr };
 	std::unique_ptr<KFEDevice>  m_pDevice { nullptr };
+
+	//~ Queues
+	std::unique_ptr<KFEGraphicsCmdQ> m_pGraphicsQueue{ nullptr };
+	std::unique_ptr<KFEComputeCmdQ>  m_pComputeQueue { nullptr };
+	std::unique_ptr<KFECopyCmdQ>	 m_pCopyQueue	 { nullptr };
 };
 
 #pragma endregion
@@ -76,58 +90,30 @@ std::string kfe::KFERenderManager::GetName() const noexcept
 kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	: m_pWindows(windows)
 {
+	//~ Create Components
 	m_pFactory = std::make_unique<KFEFactory>();
 	m_pAdapter = std::make_unique<KFEAdapter>();
 	m_pMonitor = std::make_unique<KFEMonitor>();
 	m_pDevice  = std::make_unique<KFEDevice> ();
+
+	//~ Create Dx Queues
+	m_pGraphicsQueue = std::make_unique<KFEGraphicsCmdQ>();
+	m_pComputeQueue  = std::make_unique<KFEComputeCmdQ> ();
+	m_pCopyQueue	 = std::make_unique<KFECopyCmdQ>	();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
 {
-	if (!m_pFactory->Initialize())
+	if (!InitializeComponents())
 	{
-		LOG_ERROR("Failed to Initialize Factory");
 		return false;
 	}
 
-	auto strategy = std::make_unique<AdapterStrategyBestVram>();
-	if (!m_pAdapter->Initialize(m_pFactory.get(), strategy.get()))
+	if (!InitializeQueues())
 	{
-		LOG_ERROR("Failed to Initialize Factory");
 		return false;
 	}
 
-	if (!m_pMonitor->Initialize(m_pAdapter.get())) 
-	{
-		LOG_ERROR("Failed to Initialize Monitor");
-		return false;
-	}
-
-	KFE_DEVICE_CREATE_DESC deviceDesc{};
-	deviceDesc.Adapter	 = m_pAdapter.get();
-	deviceDesc.debugName = "KnightDxDebugger";
-	deviceDesc.Factory   = m_pFactory.get();
-	deviceDesc.Monitor   = m_pMonitor.get();
-	
-#if defined(_DEBUG) || defined(DEBUG)
-	deviceDesc.Flags =	EDeviceCreateFlags::EnableDebugLayer |
-						EDeviceCreateFlags::EnableGPUBasedValidation |
-						EDeviceCreateFlags::EnableStablePowerState;
-#endif
-
-	if (!m_pDevice->Initialize(deviceDesc))
-	{
-		LOG_ERROR("Failed to Initialize Device");
-		return false;
-	}
-
-#if defined(_DEBUG) || defined(DEBUG)
-	m_pAdapter->LogAdapters();
-	m_pMonitor->LogOutputs ();
-	m_pDevice->LogDevice   ();
-#endif
-
-	LOG_SUCCESS("RenderManager: All Components initialized!");
 	return true;
 }
 
@@ -144,4 +130,77 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 void kfe::KFERenderManager::Impl::FrameEnd()
 {
 
+}
+
+bool kfe::KFERenderManager::Impl::InitializeComponents()
+{
+	if (!m_pFactory->Initialize())
+	{
+		LOG_ERROR("Failed to Initialize Factory");
+		return false;
+	}
+
+	auto strategy = std::make_unique<AdapterStrategyBestVram>();
+	if (!m_pAdapter->Initialize(m_pFactory.get(), strategy.get()))
+	{
+		LOG_ERROR("Failed to Initialize Factory");
+		return false;
+	}
+
+	if (!m_pMonitor->Initialize(m_pAdapter.get()))
+	{
+		LOG_ERROR("Failed to Initialize Monitor");
+		return false;
+	}
+
+	KFE_DEVICE_CREATE_DESC deviceDesc{};
+	deviceDesc.Adapter = m_pAdapter.get();
+	deviceDesc.debugName = "KnightDxDebugger";
+	deviceDesc.Factory = m_pFactory.get();
+	deviceDesc.Monitor = m_pMonitor.get();
+
+#if defined(_DEBUG) || defined(DEBUG)
+	deviceDesc.Flags = EDeviceCreateFlags::EnableDebugLayer |
+		EDeviceCreateFlags::EnableGPUBasedValidation |
+		EDeviceCreateFlags::EnableStablePowerState;
+#endif
+
+	if (!m_pDevice->Initialize(deviceDesc))
+	{
+		LOG_ERROR("Failed to Initialize Device");
+		return false;
+	}
+
+#if defined(_DEBUG) || defined(DEBUG)
+	m_pAdapter->LogAdapters();
+	m_pMonitor->LogOutputs ();
+	m_pDevice-> LogDevice  ();
+#endif
+
+	LOG_SUCCESS("RenderManager: All Components initialized!");
+	return true;
+}
+
+bool kfe::KFERenderManager::Impl::InitializeQueues()
+{
+	if (!m_pGraphicsQueue->Initialize(m_pDevice.get()))
+	{
+		LOG_ERROR("Failed To Initialize Graphics Queue");
+		return false;
+	}
+
+	if (!m_pComputeQueue->Initialize(m_pDevice.get()))
+	{
+		LOG_ERROR("Failed To Initialize Compute Queue");
+		return false;
+	}
+
+	if (!m_pCopyQueue->Initialize(m_pDevice.get()))
+	{
+		LOG_ERROR("Failed To Initialize Copy Queue");
+		return false;
+	}
+
+	LOG_SUCCESS("RenderManager: All Queues initialized!");
+	return true;
 }
