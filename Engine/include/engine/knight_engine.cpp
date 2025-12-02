@@ -147,7 +147,7 @@ void kfe::IKFEngine::Impl::CreateUtilities()
 {
 #ifdef _DEBUG
 	KFE_LOGGER_CREATE_DESC logDesc{};
-	logDesc.LogPrefix = "SweetLog";
+	logDesc.LogPrefix = "GameLog";
 	logDesc.EnableTerminal = true;
 	logDesc.LogPath = "logs";
 	INIT_GLOBAL_LOGGER(&logDesc);

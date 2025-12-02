@@ -13,7 +13,7 @@ typedef struct DIRECTORY_AND_FILE_NAME
 enum class EScreenState : bool
 {
 	FullScreen = 0,
-	Windowed = 1,
+	Windowed   = 1,
 };
 
 template<typename T>
