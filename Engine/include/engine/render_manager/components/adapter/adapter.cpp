@@ -160,7 +160,11 @@ bool kfe::KFEAdapter::Impl::Initialize(const kfe::KFEFactory* factory,
 		m_mapAdapterInfos[index] = info;
 	}
 
-	if (adaptersInfo.empty()) return false;
+	if (adaptersInfo.empty())
+	{
+		LOG_ERROR("No Adapter Information Found!");
+		return false;
+	} 
 
 	// Use strategy to select which adapter index to use
 	std::optional<UINT> selectedIndexOpt = strategy->SelectAdapterIndex(adaptersInfo);
@@ -249,7 +253,7 @@ void kfe::KFEAdapter::Impl::LogAdapters() const noexcept
 		return;
 	}
 
-	LOG_INFO("========== DXGI ADAPTERS ==========");
+	LOG_INFO("DXGI ADAPTERS");
 
 	for (const auto& [index, info] : m_mapAdapterInfos)
 	{
@@ -285,8 +289,6 @@ void kfe::KFEAdapter::Impl::LogAdapters() const noexcept
 			LOG_SUCCESS(">>> SELECTED ADAPTER <<<");
 		}
 	}
-
-	LOG_INFO("===================================");
 }
 
 //~ Strategies

@@ -19,6 +19,9 @@ namespace kfe
 		 KFEFactory();
 		~KFEFactory();
 
+		KFEFactory			 (const KFEFactory&) = delete;
+		KFEFactory& operator=(const KFEFactory&) = delete;
+
 		[[nodiscard]] bool			 Initialize		   ();
 		[[nodiscard]] IDXGIFactory7* GetNative		   () const noexcept;
 		[[nodiscard]] bool			 IsTearingSupported() const noexcept;

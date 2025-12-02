@@ -21,10 +21,11 @@ namespace kfe
 		Unknown
 	};
 
+	//~ define adapter
 	struct AdapterInfo
 	{
 		UINT                    Index{ 0u };
-		DXGI_ADAPTER_DESC1      Desc {};
+		DXGI_ADAPTER_DESC1      Desc{};
 		EAdapterType AdapterType{ EAdapterType::Unknown };
 	};
 

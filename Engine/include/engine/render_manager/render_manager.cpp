@@ -7,6 +7,7 @@
 //~ Components
 #include "components/factory/factory.h"
 #include "components/adapter/adapter.h"
+#include "components/monitor/monitor.h"
 
 #pragma region IMPL
 
@@ -27,6 +28,7 @@ private:
 	//~ Components
 	std::unique_ptr<KFEFactory> m_pFactory{ nullptr };
 	std::unique_ptr<KFEAdapter> m_pAdapter{ nullptr };
+	std::unique_ptr<KFEMonitor> m_pMonitor{ nullptr };
 };
 
 #pragma endregion
@@ -74,6 +76,7 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 {
 	m_pFactory = std::make_unique<KFEFactory>();
 	m_pAdapter = std::make_unique<KFEAdapter>();
+	m_pMonitor = std::make_unique<KFEMonitor>();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -91,9 +94,15 @@ bool kfe::KFERenderManager::Impl::Initialize()
 		return false;
 	}
 
+	if (!m_pMonitor->Initialize(m_pAdapter.get())) 
+	{
+		LOG_ERROR("Failed to Initialize Monitor");
+		return false;
+	}
 
 #if defined(_DEBUG) || defined(DEBUG)
 	m_pAdapter->LogAdapters();
+	m_pMonitor->LogOutputs ();
 #endif
 
 	LOG_SUCCESS("RenderManager: All Components initialized!");
