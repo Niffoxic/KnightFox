@@ -48,13 +48,3 @@ struct KFE_WinSize
 using KFE_WinSizeU = KFE_WinSize<UINT>;
 using KFE_WinSizeF = KFE_WinSize<float>;
 using KFE_WinSizeI = KFE_WinSize<int>;
-
-//~ Init Types
-typedef struct _KFE_WINDOW_CREATE_DESC
-{
-	_In_					 std::string  WindowTitle{ "KnightEngine" };
-	_Field_range_(100, 1920) UINT		  Width { 800u };
-	_Field_range_(100, 1080) UINT		  Height { 800u };
-	_Field_range_(0, 200)    UINT		  IconId { 0u };
-	_In_					 EScreenState ScreenState{ EScreenState::Windowed };
-} KFE_WINDOW_CREATE_DESC;

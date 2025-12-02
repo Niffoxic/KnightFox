@@ -30,7 +30,7 @@
     <ClInclude Include="include\engine\windows_manager\windows_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\interface\interface_manager.h">
+    <ClInclude Include="include\engine\core\interface\interface_frame.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\engine\windows_manager\inputs\keyboard_inputs.h">
@@ -63,12 +63,6 @@
     <ClInclude Include="include\engine\core\event_system\events\windows_events.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\dependency\dependency_resolver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\engine\core\time\timer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -99,12 +93,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="include\engine\core\event_system\queue\event_queue.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="include\engine\core\dependency\dependency_resolver.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="include\engine\core\time\timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
