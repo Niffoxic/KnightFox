@@ -28,7 +28,5 @@ namespace kfe
 
 		virtual void OnFrameBegin(_In_ float deltaTime) = 0;
 		virtual void OnFrameEnd()						= 0;
-
-		virtual std::string GetName() const noexcept = 0;
 	};
 }
