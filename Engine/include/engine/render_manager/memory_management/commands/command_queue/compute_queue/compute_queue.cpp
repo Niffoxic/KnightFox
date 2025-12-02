@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "graphics_queue.h"
+#include "compute_queue.h"
 
 #include <wrl.h>
 #include <d3d12.h>
@@ -9,10 +9,10 @@
 #include "engine/render_manager/components/device/device.h"
 
 //~ Impl Decalaration
-class kfe::KFEGraphicsCmdQ::Impl 
+class kfe::KFEComputeCmdQ::Impl
 {
 public:
-	 Impl() = default;
+	Impl() = default;
 	~Impl() = default;
 
 	[[nodiscard]] bool Initialize(const KFEDevice* device);
@@ -24,38 +24,38 @@ public:
 private:
 	bool											m_bInitialized{ false };
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue>	    m_pQueue{ nullptr };
-	constexpr static inline D3D12_COMMAND_LIST_TYPE m_type  { D3D12_COMMAND_LIST_TYPE_DIRECT };
+	constexpr static inline D3D12_COMMAND_LIST_TYPE m_type{ D3D12_COMMAND_LIST_TYPE_COMPUTE };
 };
 
 //~ Main Implementation
-kfe::KFEGraphicsCmdQ::KFEGraphicsCmdQ()
-	: m_impl(std::make_unique<kfe::KFEGraphicsCmdQ::Impl>())
+kfe::KFEComputeCmdQ::KFEComputeCmdQ()
+	: m_impl(std::make_unique<kfe::KFEComputeCmdQ::Impl>())
 {}
 
-kfe::KFEGraphicsCmdQ::~KFEGraphicsCmdQ() = default;
+kfe::KFEComputeCmdQ::~KFEComputeCmdQ() = default;
 
-bool kfe::KFEGraphicsCmdQ::Initialize(const KFEDevice* device)
+bool kfe::KFEComputeCmdQ::Initialize(const KFEDevice* device)
 {
 	return m_impl->Initialize(device);
 }
 
-bool kfe::KFEGraphicsCmdQ::Release() noexcept
+bool kfe::KFEComputeCmdQ::Release() noexcept
 {
 	return m_impl->Release();
 }
 
-bool kfe::KFEGraphicsCmdQ::IsInitialized() const noexcept
+bool kfe::KFEComputeCmdQ::IsInitialized() const noexcept
 {
 	return m_impl->IsInitialized();
 }
 
-ID3D12CommandQueue* kfe::KFEGraphicsCmdQ::GetNative() const noexcept
+ID3D12CommandQueue* kfe::KFEComputeCmdQ::GetNative() const noexcept
 {
 	return m_impl->GetNative();
 }
 
 //~ Impl Implementation
-bool kfe::KFEGraphicsCmdQ::Impl::Initialize(const KFEDevice* device)
+bool kfe::KFEComputeCmdQ::Impl::Initialize(const KFEDevice* device)
 {
 	if (!device || !device->GetNative())
 	{
@@ -66,9 +66,9 @@ bool kfe::KFEGraphicsCmdQ::Impl::Initialize(const KFEDevice* device)
 	auto* native = device->GetNative();
 
 	D3D12_COMMAND_QUEUE_DESC desc{};
-	desc.Flags	  = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	desc.NodeMask = 0u;
-	desc.Type	  = m_type;
+	desc.Type = m_type;
 
 	HRESULT hr = native->CreateCommandQueue(&desc, IID_PPV_ARGS(&m_pQueue));
 	if (FAILED(hr))
@@ -80,24 +80,24 @@ bool kfe::KFEGraphicsCmdQ::Impl::Initialize(const KFEDevice* device)
 		return false;
 	}
 
-	LOG_SUCCESS("Graphics Queue Initialized!");
+	LOG_SUCCESS("Compute Queue Initialized!");
 	m_bInitialized = true;
 	return true;
 }
 
-bool kfe::KFEGraphicsCmdQ::Impl::Release() noexcept
+bool kfe::KFEComputeCmdQ::Impl::Release() noexcept
 {
 	m_pQueue.Reset();
 	m_bInitialized = false;
 	return true;
 }
 
-ID3D12CommandQueue* kfe::KFEGraphicsCmdQ::Impl::GetNative() const noexcept
+ID3D12CommandQueue* kfe::KFEComputeCmdQ::Impl::GetNative() const noexcept
 {
 	return m_pQueue.Get();
 }
 
-bool kfe::KFEGraphicsCmdQ::Impl::IsInitialized() const noexcept
+bool kfe::KFEComputeCmdQ::Impl::IsInitialized() const noexcept
 {
 	return m_bInitialized;
 }

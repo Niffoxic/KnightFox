@@ -12,6 +12,7 @@
 
 //~ Memory Managements
 #include "memory_management/commands/command_queue/graphics_queue/graphics_queue.h"
+#include "memory_management/commands/command_queue/compute_queue/compute_queue.h"
 
 #pragma region IMPL
 
@@ -41,6 +42,7 @@ private:
 
 	//~ Queues
 	std::unique_ptr<KFEGraphicsCmdQ> m_pGraphicsQueue{ nullptr };
+	std::unique_ptr<KFEComputeCmdQ>  m_pComputeQueue { nullptr };
 };
 
 #pragma endregion
@@ -94,6 +96,7 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 
 	//~ Create Dx Queues
 	m_pGraphicsQueue = std::make_unique<KFEGraphicsCmdQ>();
+	m_pComputeQueue  = std::make_unique<KFEComputeCmdQ> ();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -180,6 +183,12 @@ bool kfe::KFERenderManager::Impl::InitializeQueues()
 	if (!m_pGraphicsQueue->Initialize(m_pDevice.get()))
 	{
 		LOG_ERROR("Failed To Initialize Graphics Queue");
+		return false;
+	}
+
+	if (!m_pComputeQueue->Initialize(m_pDevice.get()))
+	{
+		LOG_ERROR("Failed To Initialize Compute Queue");
 		return false;
 	}
 
