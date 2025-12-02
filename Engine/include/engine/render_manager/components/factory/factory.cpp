@@ -16,10 +16,9 @@ public:
 	 Impl() = default;
 	~Impl() = default;
 
-	[[nodiscard]] bool Initialize();
-	IDXGIFactory7* GetFactory() const noexcept;
-
-	[[nodiscard]] bool IsTearingSupported() const noexcept;
+	[[nodiscard]] bool			 Initialize		   ();
+	[[nodiscard]] IDXGIFactory7* GetNative		   () const noexcept;
+	[[nodiscard]] bool			 IsTearingSupported() const noexcept;
 
 private:
 	Microsoft::WRL::ComPtr<IDXGIFactory7> m_pFactory{ nullptr };
@@ -27,17 +26,19 @@ private:
 };
 
 kfe::KFEFactory::KFEFactory()
-	: m_impl(std::make_shared<kfe::KFEFactory::Impl>())
+	: m_impl(std::make_unique<kfe::KFEFactory::Impl>())
 {}
+
+kfe::KFEFactory::~KFEFactory() = default;
 
 bool kfe::KFEFactory::Initialize()
 {
 	return m_impl->Initialize();
 }
 
-IDXGIFactory7* kfe::KFEFactory::GetFactory() const noexcept
+IDXGIFactory7* kfe::KFEFactory::GetNative() const noexcept
 {
-	return m_impl->GetFactory();
+	return m_impl->GetNative();
 }
 
 bool kfe::KFEFactory::IsTearingSupported() const noexcept
@@ -77,7 +78,7 @@ bool kfe::KFEFactory::Impl::Initialize()
 	return true;
 }
 
-IDXGIFactory7* kfe::KFEFactory::Impl::GetFactory() const noexcept
+IDXGIFactory7* kfe::KFEFactory::Impl::GetNative() const noexcept
 {
 	return m_pFactory.Get();
 }

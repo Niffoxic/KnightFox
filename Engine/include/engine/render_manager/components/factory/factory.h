@@ -1,27 +1,30 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include <memory>
 
-class IDXGIFactory7;
+struct IDXGIFactory7;
 
 namespace kfe
 {
-	class KFEFactory
+	/// <summary>
+	/// Creates DXGI Factory and Tests Feature Supports
+	/// - Currently Tests Feature For
+	///		1. Tearing
+	/// </summary>
+	class KFE_API KFEFactory
 	{
 	public:
 		 KFEFactory();
-		~KFEFactory() = default;
+		~KFEFactory();
 
-		[[nodiscard]] bool Initialize();
-		IDXGIFactory7* GetFactory() const noexcept;
-
-		[[nodiscard]] bool IsTearingSupported() const noexcept;
+		[[nodiscard]] bool			 Initialize		   ();
+		[[nodiscard]] IDXGIFactory7* GetNative		   () const noexcept;
+		[[nodiscard]] bool			 IsTearingSupported() const noexcept;
 
 	private:
 		class Impl;
-		std::shared_ptr<Impl>		GetImpl		()		 { return m_impl; }
-		std::shared_ptr<const Impl> GetConstImpl() const { return m_impl; }
-
-		std::shared_ptr<Impl> m_impl{ nullptr };
+		std::unique_ptr<Impl> m_impl;
 	};
 } // namespace kfe

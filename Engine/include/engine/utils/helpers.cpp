@@ -13,6 +13,25 @@
 #include "helpers.h"
 #include <Windows.h>
 #include <limits>
+#include <algorithm>
+#include <cwctype>
+#include <cctype>
+
+_Use_decl_annotations_
+KFE_API std::string kfe_helpers::ToLowerAscii(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
+
+_Use_decl_annotations_
+KFE_API std::wstring kfe_helpers::ToLowerAscii(std::wstring s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+        [](wchar_t c) { return static_cast<wchar_t>(std::towlower(c)); });
+    return s;
+}
 
 _Use_decl_annotations_
 KFE_API std::string kfe_helpers::WideToAnsi(std::wstring_view wstr)

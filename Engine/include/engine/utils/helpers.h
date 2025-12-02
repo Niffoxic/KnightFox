@@ -20,6 +20,13 @@
 
 namespace kfe_helpers
 {
+    //~ String related helpers
+    _NODISCARD _Check_return_
+    KFE_API std::string ToLowerAscii(std::string s);
+
+    _NODISCARD _Check_return_
+    KFE_API std::wstring ToLowerAscii(std::wstring s);
+
     _NODISCARD _Check_return_
     KFE_API std::string  WideToAnsi(_In_ std::wstring_view wstr);
     

@@ -6,6 +6,7 @@
 
 //~ Components
 #include "components/factory/factory.h"
+#include "components/adapter/adapter.h"
 
 #pragma region IMPL
 
@@ -25,6 +26,7 @@ private:
 
 	//~ Components
 	std::unique_ptr<KFEFactory> m_pFactory{ nullptr };
+	std::unique_ptr<KFEAdapter> m_pAdapter{ nullptr };
 };
 
 #pragma endregion
@@ -71,6 +73,7 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	: m_pWindows(windows)
 {
 	m_pFactory = std::make_unique<KFEFactory>();
+	m_pAdapter = std::make_unique<KFEAdapter>();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -80,6 +83,18 @@ bool kfe::KFERenderManager::Impl::Initialize()
 		LOG_ERROR("Failed to Initialize Factory");
 		return false;
 	}
+
+	auto strategy = std::make_unique<AdapterStrategyBestVram>();
+	if (!m_pAdapter->Initialize(m_pFactory.get(), strategy.get()))
+	{
+		LOG_ERROR("Failed to Initialize Factory");
+		return false;
+	}
+
+
+#if defined(_DEBUG) || defined(DEBUG)
+	m_pAdapter->LogAdapters();
+#endif
 
 	LOG_SUCCESS("RenderManager: All Components initialized!");
 	return true;
