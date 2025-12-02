@@ -16,7 +16,7 @@
 
 #include "EngineAPI.h"
 
-#include "engine/core/interface/interface_frame.h"
+#include "engine/core/interface/interface_manager.h"
 #include "engine/core/common_types.h"
 
 #include <windows.h>
@@ -25,15 +25,6 @@
 
 namespace kfe
 {
-	typedef struct _KFE_WINDOW_CREATE_DESC
-	{
-		_In_					 std::string  WindowTitle{ "KnightEngine" };
-		_Field_range_(100, 1920) UINT		  Width		 { 800u };
-		_Field_range_(100, 1080) UINT		  Height	 { 800u };
-		_Field_range_(0, 200)    UINT		  IconId	 { 0u };
-		_In_					 EScreenState ScreenState{ EScreenState::Windowed };
-	} KFE_WINDOW_CREATE_DESC;
-
 	enum class EProcessedMessage: bool
 	{
 		Alive       = 0,
@@ -63,6 +54,8 @@ namespace kfe
 		void OnFrameBegin(_In_ float deltaTime) override;
 		void OnFrameEnd  () override;
 
+		std::string GetName() const noexcept override { return "WindowsManager"; }
+
 		//~ Queries
 		_NODISCARD _Ret_maybenull_ HWND		 GetWindowsHandle  () const;
 		_NODISCARD _Ret_maybenull_ HINSTANCE GetWindowsInstance() const;
@@ -81,7 +74,7 @@ namespace kfe
 		class Impl;
 		std::shared_ptr<Impl>		GetImpl		()		 { return m_impl; }
 		std::shared_ptr<const Impl> GetConstImpl() const { return m_impl; }
-		
+
 		std::shared_ptr<Impl> m_impl{ nullptr };
 	};
 } // namespace kfe
