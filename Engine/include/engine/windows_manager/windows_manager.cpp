@@ -66,195 +66,6 @@ public:
 	UINT			m_nIconID		  { 0u };
 };
 
-_Use_decl_annotations_
-kfe::KFEWindows::Impl::Impl(const KFE_WINDOW_CREATE_DESC& desc)
-{
-	m_nWindowsHeight = desc.Height;
-	m_nWindowsWidth  = desc.Width;
-	m_szWindowTitle  = desc.WindowTitle;
-	m_nIconID		 = desc.IconId;
-	m_eScreenState   = desc.ScreenState;
-}
-
-_Use_decl_annotations_
-bool kfe::KFEWindows::Impl::InitWindowScreen()
-{
-	m_pWindowsInstance = GetModuleHandle(nullptr);
-
-    WNDCLASSEX wc{};
-    wc.cbSize = sizeof(WNDCLASSEX);
-    wc.style = CS_OWNDC;
-    wc.lpfnWndProc = WindowProcSetup;
-    wc.cbClsExtra = 0;
-    wc.cbWndExtra = sizeof(LONG_PTR);
-    wc.hInstance = m_pWindowsInstance;
-
-    //~ Set Icon
-    if (m_nIconID)
-    {
-        wc.hIcon   = LoadIcon(m_pWindowsInstance, MAKEINTRESOURCE(m_nIconID));
-        wc.hIconSm = LoadIcon(m_pWindowsInstance, MAKEINTRESOURCE(m_nIconID));
-    }
-    else
-    {
-        wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
-        wc.hIconSm = LoadIcon(nullptr, IDI_APPLICATION);
-    }
-    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wc.lpszMenuName  = nullptr;
-    auto wstr        = kfe_helpers::AnsiToWide(m_szWindowTitle);
-    wc.lpszClassName = wstr.c_str();
-
-    if (!RegisterClassEx(&wc))
-    {
-        THROW_WIN();
-        return false;
-    }
-
-    DWORD style = WS_OVERLAPPEDWINDOW;
-
-    RECT rect
-    { 0, 0,
-      static_cast<LONG>(m_nWindowsWidth),
-      static_cast<LONG>(m_nWindowsHeight)
-    };
-
-    if (!AdjustWindowRect(&rect, style, FALSE))
-    {
-        THROW_WIN("Failed to adjust windows rect!");
-        return false;
-    }
-
-    int adjustedWidth = rect.right - rect.left;
-    int adjustedHeight = rect.bottom - rect.top;
-
-    m_pWindowsHandle = CreateWindowEx(
-        0,
-        wc.lpszClassName,
-        wstr.c_str(),
-        style,
-        CW_USEDEFAULT, CW_USEDEFAULT,
-        adjustedWidth, adjustedHeight,
-        nullptr,
-        nullptr,
-        m_pWindowsInstance,
-        this);
-
-    if (!m_pWindowsHandle)
-    {
-        THROW_WIN();
-        return false;
-    }
-
-    ShowWindow(m_pWindowsHandle, SW_SHOW);
-    UpdateWindow(m_pWindowsHandle);
-
-    return true;
-}
-
-_Use_decl_annotations_
-LRESULT kfe::KFEWindows::Impl::MessageHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    switch (msg)
-    {
-    case WM_SIZE:
-    {
-        m_nWindowsWidth = LOWORD(lParam);
-        m_nWindowsHeight = HIWORD(lParam);
-        EventQueue::Post<KFE_WINDOW_RESIZED_EVENT>({ m_nWindowsWidth, m_nWindowsHeight });
-        return S_OK;
-    }
-    case WM_ENTERSIZEMOVE: // clicked mouse on title bar
-    case WM_KILLFOCUS:
-    {
-        EventQueue::Post<KFE_WINDOW_PAUSE_EVENT>({ true });
-        return S_OK;
-    }
-    case WM_EXITSIZEMOVE: // not clicking anymore
-    case WM_SETFOCUS:
-    {
-        EventQueue::Post<KFE_WINDOW_PAUSE_EVENT>({ false });
-        return S_OK;
-    }
-    case WM_CLOSE:
-    {
-        PostQuitMessage(0);
-        return S_OK;
-    }
-    default:
-        return DefWindowProc(hwnd, msg, wParam, lParam);
-    }
-    return S_OK;
-}
-
-_Use_decl_annotations_
-LRESULT kfe::KFEWindows::Impl::WindowProcSetup(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    if (msg == WM_NCCREATE)
-    {
-        CREATESTRUCT* create = reinterpret_cast<CREATESTRUCT*>(lParam);
-        KFEWindows::Impl* that = reinterpret_cast<KFEWindows::Impl*>(create->lpCreateParams);
-
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(that));
-        SetWindowLongPtr(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&WindowProcThunk));
-
-        return that->MessageHandler(hwnd, msg, wParam, lParam);
-    }
-
-    return DefWindowProc(hwnd, msg, wParam, lParam);
-}
-
-_Use_decl_annotations_
-LRESULT kfe::KFEWindows::Impl::WindowProcThunk(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    if (auto that = reinterpret_cast<KFEWindows::Impl*>(GetWindowLongPtr(hwnd, GWLP_USERDATA)))
-    {
-        return that->MessageHandler(hwnd, msg, wParam, lParam);
-    }
-    return DefWindowProc(hwnd, msg, wParam, lParam);
-}
-
-_Use_decl_annotations_
-void kfe::KFEWindows::Impl::TransitionToFullScreen()
-{
-    if (m_eScreenState != EScreenState::FullScreen) return;
-
-    auto handle = m_pWindowsHandle;
-    if (!handle) return;
-    GetWindowPlacement(handle, &m_WindowPlacement);
-
-    SetWindowLong(handle, GWL_STYLE, WS_POPUP);
-    SetWindowPos(
-        handle,
-        HWND_TOP,
-        0, 0,
-        GetSystemMetrics(SM_CXSCREEN),
-        GetSystemMetrics(SM_CYSCREEN),
-        SWP_FRAMECHANGED | SWP_SHOWWINDOW
-    );
-}
-
-_Use_decl_annotations_
-void kfe::KFEWindows::Impl::TransitionToWindowedScreen() const
-{
-    if (m_eScreenState != EScreenState::Windowed) return;
-
-    auto handle = m_pWindowsHandle;
-    if (!handle) return;
-
-    SetWindowLong(handle, GWL_STYLE, WS_OVERLAPPEDWINDOW);
-    SetWindowPlacement(handle, &m_WindowPlacement);
-    SetWindowPos
-    (
-        handle,
-        nullptr,
-        0, 0,
-        0, 0,
-        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW
-    );
-}
-
 #pragma endregion
 
 kfe::KFEWindows::KFEWindows()
@@ -388,4 +199,192 @@ void kfe::KFEWindows::SetWindowMessageOnTitle(const std::string& message) const
         auto wstr = kfe_helpers::AnsiToWide(convert);
         SetWindowText(handle, wstr.c_str());
     }
+}
+
+//~ KFE IMPL
+_Use_decl_annotations_
+kfe::KFEWindows::Impl::Impl(const KFE_WINDOW_CREATE_DESC& desc)
+{
+    m_nWindowsHeight = desc.Height;
+    m_nWindowsWidth  = desc.Width;
+    m_szWindowTitle  = desc.WindowTitle;
+    m_nIconID        = desc.IconId;
+    m_eScreenState   = desc.ScreenState;
+}
+
+_Use_decl_annotations_
+bool kfe::KFEWindows::Impl::InitWindowScreen()
+{
+    m_pWindowsInstance = GetModuleHandle(nullptr);
+
+    WNDCLASSEX wc{};
+    wc.cbSize       = sizeof(WNDCLASSEX);
+    wc.style        = CS_OWNDC;
+    wc.lpfnWndProc  = WindowProcSetup;
+    wc.cbClsExtra   = 0;
+    wc.cbWndExtra   = sizeof(LONG_PTR);
+    wc.hInstance    = m_pWindowsInstance;
+
+    //~ Set Icon
+    if (m_nIconID)
+    {
+        wc.hIcon   = LoadIcon(m_pWindowsInstance, MAKEINTRESOURCE(m_nIconID));
+        wc.hIconSm = LoadIcon(m_pWindowsInstance, MAKEINTRESOURCE(m_nIconID));
+    }
+    else
+    {
+        wc.hIcon   = LoadIcon(nullptr, IDI_APPLICATION);
+        wc.hIconSm = LoadIcon(nullptr, IDI_APPLICATION);
+    }
+    wc.hCursor       = LoadCursor(nullptr, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.lpszMenuName  = nullptr;
+    auto wstr        = kfe_helpers::AnsiToWide(m_szWindowTitle);
+    wc.lpszClassName = wstr.c_str();
+
+    if (!RegisterClassEx(&wc))
+    {
+        THROW_WIN();
+        return false;
+    }
+
+    DWORD style = WS_OVERLAPPEDWINDOW;
+
+    RECT rect
+    { 0, 0,
+      static_cast<LONG>(m_nWindowsWidth),
+      static_cast<LONG>(m_nWindowsHeight)
+    };
+
+    if (!AdjustWindowRect(&rect, style, FALSE))
+    {
+        THROW_WIN("Failed to adjust windows rect!");
+        return false;
+    }
+
+    int adjustedWidth  = rect.right - rect.left;
+    int adjustedHeight = rect.bottom - rect.top;
+
+    m_pWindowsHandle = CreateWindowEx(
+        0,
+        wc.lpszClassName,
+        wstr.c_str(),
+        style,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        adjustedWidth, adjustedHeight,
+        nullptr,
+        nullptr,
+        m_pWindowsInstance,
+        this);
+
+    if (!m_pWindowsHandle)
+    {
+        THROW_WIN();
+        return false;
+    }
+
+    ShowWindow  (m_pWindowsHandle, SW_SHOW);
+    UpdateWindow(m_pWindowsHandle);
+
+    return true;
+}
+
+_Use_decl_annotations_
+LRESULT kfe::KFEWindows::Impl::MessageHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case WM_SIZE:
+    {
+        m_nWindowsWidth  = LOWORD(lParam);
+        m_nWindowsHeight = HIWORD(lParam);
+        EventQueue::Post<KFE_WINDOW_RESIZED_EVENT>({ m_nWindowsWidth, m_nWindowsHeight });
+        return S_OK;
+    }
+    case WM_ENTERSIZEMOVE: // clicked mouse on title bar
+    case WM_KILLFOCUS:
+    {
+        EventQueue::Post<KFE_WINDOW_PAUSE_EVENT>({ true });
+        return S_OK;
+    }
+    case WM_EXITSIZEMOVE: // not clicking anymore
+    case WM_SETFOCUS:
+    {
+        EventQueue::Post<KFE_WINDOW_PAUSE_EVENT>({ false });
+        return S_OK;
+    }
+    case WM_CLOSE:
+    {
+        PostQuitMessage(0);
+        return S_OK;
+    }
+    default:
+        return DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+    return S_OK;
+}
+
+_Use_decl_annotations_
+LRESULT kfe::KFEWindows::Impl::WindowProcSetup(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    if (msg == WM_NCCREATE)
+    {
+        CREATESTRUCT* create   = reinterpret_cast<CREATESTRUCT*>(lParam);
+        KFEWindows::Impl* that = reinterpret_cast<KFEWindows::Impl*>(create->lpCreateParams);
+
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(that));
+        SetWindowLongPtr(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&WindowProcThunk));
+
+        return that->MessageHandler(hwnd, msg, wParam, lParam);
+    }
+
+    return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+_Use_decl_annotations_
+LRESULT kfe::KFEWindows::Impl::WindowProcThunk(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    if (auto that = reinterpret_cast<KFEWindows::Impl*>(GetWindowLongPtr(hwnd, GWLP_USERDATA)))
+    {
+        return that->MessageHandler(hwnd, msg, wParam, lParam);
+    }
+    return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+void kfe::KFEWindows::Impl::TransitionToFullScreen()
+{
+    if (m_eScreenState != EScreenState::FullScreen) return;
+
+    auto handle = m_pWindowsHandle;
+    if (!handle) return;
+    GetWindowPlacement(handle, &m_WindowPlacement);
+
+    SetWindowLong(handle, GWL_STYLE, WS_POPUP);
+    SetWindowPos(
+        handle,
+        HWND_TOP,
+        0, 0,
+        GetSystemMetrics(SM_CXSCREEN),
+        GetSystemMetrics(SM_CYSCREEN),
+        SWP_FRAMECHANGED | SWP_SHOWWINDOW
+    );
+}
+
+void kfe::KFEWindows::Impl::TransitionToWindowedScreen() const
+{
+    if (m_eScreenState != EScreenState::Windowed) return;
+
+    auto handle = m_pWindowsHandle;
+    if (!handle) return;
+
+    SetWindowLong(handle, GWL_STYLE, WS_OVERLAPPEDWINDOW);
+    SetWindowPlacement(handle, &m_WindowPlacement);
+    SetWindowPos
+    (
+        handle,
+        nullptr,
+        0, 0,
+        0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW
+    );
 }

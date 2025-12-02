@@ -157,6 +157,7 @@
     <ClInclude Include="include\engine\core\exception\win_exception.h" />
     <ClInclude Include="include\engine\core\interface\interface_manager.h" />
     <ClInclude Include="include\engine\core\time\timer.h" />
+    <ClInclude Include="include\engine\render_manager\render_manager.h" />
     <ClInclude Include="include\engine\utils\file_system\file_system.h" />
     <ClInclude Include="include\engine\utils\helpers.h" />
     <ClInclude Include="include\engine\knight_engine.h" />
@@ -171,6 +172,7 @@
     <ClCompile Include="include\engine\core\dependency\dependency_resolver.cpp" />
     <ClCompile Include="include\engine\core\event_system\queue\event_queue.cpp" />
     <ClCompile Include="include\engine\core\time\timer.cpp" />
+    <ClCompile Include="include\engine\render_manager\render_manager.cpp" />
     <ClCompile Include="include\engine\utils\file_system\file_system.cpp" />
     <ClCompile Include="include\engine\utils\helpers.cpp" />
     <ClCompile Include="include\engine\knight_engine.cpp" />

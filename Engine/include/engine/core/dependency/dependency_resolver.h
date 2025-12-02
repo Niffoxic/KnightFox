@@ -50,12 +50,7 @@ namespace kfe
 		bool UpdateLoopEnd() const;
 		bool Shutdown();
 
-		template<typename... Args>
-		void AddDependency(_In_ IManager* late, _In_opt_ Args... early)
-		{
-			auto& deps = GetImpl()->m_connections[late];
-			((early ? deps.push_front(early) : void()), ...);
-		}
+		void AddDependency(_In_ IManager* kid, _In_ IManager* parent);
 
 	private:
 		class Impl;

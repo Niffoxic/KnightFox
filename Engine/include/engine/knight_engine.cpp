@@ -2,6 +2,7 @@
 #include "knight_engine.h"
 
 #include "windows_manager/windows_manager.h"
+#include "render_manager/render_manager.h"
 #include "utils/logger/logger.h"
 
 #include "core/dependency/dependency_resolver.h"
@@ -19,6 +20,7 @@ class kfe::IKFEngine::Impl
 public:
 	 Impl() = default;
 	~Impl() = default;
+
 	_NODISCARD _Check_return_
 	bool CreateManagers(_In_ const KFE_ENGINE_CREATE_DESC& desc);
 
@@ -41,16 +43,103 @@ public:
 	KFETimer* GetTimer() const;
 
 private:
-	std::unique_ptr<KFEWindows> m_pWindowsManager{ nullptr };
+	std::unique_ptr<KFEWindows>		  m_pWindowsManager{ nullptr };
+	std::unique_ptr<KFERenderManager> m_pRendeManager  { nullptr };
+
+	//~ Tools and Utilities
 	std::unique_ptr<KFETimer>	m_pTimer		 { nullptr };
 
+	//~ configurations
 	bool			   m_bEnginePaused{ false };
 	DependencyResolver m_dependecyResolver{};
 };
 
+#pragma endregion
+
+_Use_decl_annotations_
+kfe::IKFEngine::IKFEngine(const KFE_ENGINE_CREATE_DESC& desc)
+	: m_impl(std::make_shared<kfe::IKFEngine::Impl>())
+{
+	if (!m_impl->CreateManagers(desc))
+	{
+		LOG_ERROR("Failed to Create Managers!");
+	}
+
+	m_impl->CreateUtilities		();
+	m_impl->SetManagerDependency();
+	m_impl->SubscribeToEvents	();
+}
+
+kfe::IKFEngine::~IKFEngine()
+{
+	if (!m_impl->Shutdown())
+	{
+		LOG_ERROR("Failed to shutdown smoothly!");
+	}
+#if defined(DEBUG) || defined(_DEBUG)
+	gLogger->Close();
+#endif
+}
+
+bool kfe::IKFEngine::Init()
+{
+	if (!m_impl->Init())
+	{
+		LOG_ERROR("Failed to initialize manager!");
+		THROW_MSG("Failed to initialize manager!");
+		return false;
+	}
+
+	if (!InitApplication())
+	{
+		LOG_ERROR("Failed to initialize application!");
+		THROW_MSG("Failed to initialize application!");
+		return false;
+	}
+
+	return true;
+}
+
+HRESULT kfe::IKFEngine::Execute()
+{
+	LOG_INFO("Starting Game Loop!");
+	BeginPlay();
+	while (true)
+	{
+		float dt = m_impl->GetTimer()->Tick();
+		
+		if (m_impl->IsEnginePaused())
+		{
+			dt = 0.0f;
+		}
+
+		auto msg = m_impl->ProcessMessage();
+
+		if (msg == EProcessedMessage::QuitInvoked)
+		{
+			LOG_INFO("Closing Application!");
+			m_impl->Shutdown();
+			return S_OK;
+		}
+		m_impl->FrameBegin(dt);
+		Tick(dt);
+		m_impl->FrameEnd();
+
+#if defined(DEBUG) || defined(_DEBUG)
+		m_impl->DisplayFPS(dt);
+#endif
+		EventQueue::DispatchAll();
+	}
+	return S_OK;
+}
+
+//~ IMP Implementation
+
+_Use_decl_annotations_
 bool kfe::IKFEngine::Impl::CreateManagers(const KFE_ENGINE_CREATE_DESC& desc)
 {
 	m_pWindowsManager = std::make_unique<KFEWindows>(desc.WindowsDesc);
+	m_pRendeManager   = std::make_unique<KFERenderManager>(m_pWindowsManager.get());
 	return true;
 }
 
@@ -58,9 +147,9 @@ void kfe::IKFEngine::Impl::CreateUtilities()
 {
 #ifdef _DEBUG
 	KFE_LOGGER_CREATE_DESC logDesc{};
-	logDesc.LogPrefix		= "SweetLog";
-	logDesc.EnableTerminal	= true;
-	logDesc.LogPath			= "logs";
+	logDesc.LogPrefix = "SweetLog";
+	logDesc.EnableTerminal = true;
+	logDesc.LogPath = "logs";
 	INIT_GLOBAL_LOGGER(&logDesc);
 #endif
 
@@ -70,6 +159,11 @@ void kfe::IKFEngine::Impl::CreateUtilities()
 void kfe::IKFEngine::Impl::SetManagerDependency()
 {
 	m_dependecyResolver.Register(m_pWindowsManager.get());
+	m_dependecyResolver.Register(m_pRendeManager.get());
+
+	m_dependecyResolver.AddDependency(
+		m_pRendeManager.get(),
+		m_pWindowsManager.get());
 }
 
 void kfe::IKFEngine::Impl::SubscribeToEvents()
@@ -158,83 +252,4 @@ void kfe::IKFEngine::Impl::DisplayFPS(float dt) const
 kfe::KFETimer* kfe::IKFEngine::Impl::GetTimer() const
 {
 	return m_pTimer.get();
-}
-
-#pragma endregion
-
-_Use_decl_annotations_
-kfe::IKFEngine::IKFEngine(const KFE_ENGINE_CREATE_DESC& desc)
-	: m_impl(std::make_shared<kfe::IKFEngine::Impl>())
-{
-	if (!m_impl->CreateManagers(desc))
-	{
-		LOG_ERROR("Failed to Create Managers!");
-	}
-
-	m_impl->CreateUtilities		();
-	m_impl->SetManagerDependency();
-	m_impl->SubscribeToEvents	();
-}
-
-kfe::IKFEngine::~IKFEngine()
-{
-	if (!m_impl->Shutdown())
-	{
-		LOG_ERROR("Failed to shutdown smoothly!");
-	}
-#if defined(DEBUG) || defined(_DEBUG)
-	gLogger->Close();
-#endif
-}
-
-bool kfe::IKFEngine::Init()
-{
-	if (!m_impl->Init())
-	{
-		LOG_ERROR("Failed to initialize manager!");
-		THROW_MSG("Failed to initialize manager!");
-		return false;
-	}
-
-	if (!InitApplication())
-	{
-		LOG_ERROR("Failed to initialize application!");
-		THROW_MSG("Failed to initialize application!");
-		return false;
-	}
-
-	return true;
-}
-
-HRESULT kfe::IKFEngine::Execute()
-{
-	LOG_INFO("Starting Game Loop!");
-	BeginPlay();
-	while (true)
-	{
-		float dt = m_impl->GetTimer()->Tick();
-		
-		if (m_impl->IsEnginePaused())
-		{
-			dt = 0.0f;
-		}
-
-		auto msg = m_impl->ProcessMessage();
-
-		if (msg == EProcessedMessage::QuitInvoked)
-		{
-			LOG_INFO("Closing Application!");
-			m_impl->Shutdown();
-			return S_OK;
-		}
-		m_impl->FrameBegin(dt);
-		Tick(dt);
-		m_impl->FrameEnd();
-
-#if defined(DEBUG) || defined(_DEBUG)
-		m_impl->DisplayFPS(dt);
-#endif
-		EventQueue::DispatchAll();
-	}
-	return S_OK;
 }
