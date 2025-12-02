@@ -1,1 +1,0 @@
-@call "C:\Program Files (x86)\PVS-Studio\x64\PVS-Studio.exe" --cfg "C:\Users\u5756151\Desktop\Workspace\KnightFox\Engine\windows_manager.cpp.PVS-Studio.cfg"
