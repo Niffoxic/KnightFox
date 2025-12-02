@@ -87,6 +87,12 @@
     <ClInclude Include="include\engine\render_manager\components\monitor\monitor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\engine\render_manager\components\swap_chain\swap_chain.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\graphics_queue\graphics_queue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -138,6 +144,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="include\engine\render_manager\components\monitor\monitor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="include\engine\render_manager\components\swap_chain\swap_chain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\graphics_queue\graphics_queue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
