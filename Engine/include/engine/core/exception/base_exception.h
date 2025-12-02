@@ -56,7 +56,7 @@ namespace kfe
 }
 
 #define THROW() \
-	throw kfe::BaseException(__FILE__, __LINE__, __FUNCTION__)
+	throw pixel_engine::BaseException(__FILE__, __LINE__, __FUNCTION__)
 
 #define THROW_MSG(msg) \
-	throw kfe::BaseException(__FILE__, __LINE__, __FUNCTION__, msg)
+	throw pixel_engine::BaseException(__FILE__, __LINE__, __FUNCTION__, msg)

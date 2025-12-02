@@ -1,15 +1,3 @@
-// This is a personal academic project. Dear PVS-Studio, please check it.
-// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
-
-
-/*
- *  -----------------------------------------------------------------------------
- *  Project   : PixelFox (WMG Warwick - Module 2)
- *  Author    : Niffoxic (a.k.a Harsh Dubey)
- *  License   : MIT
- *  -----------------------------------------------------------------------------
- */
-
 #pragma once
 #include "EngineAPI.h"
 #include <sal.h>
@@ -55,7 +43,3 @@ namespace kfe
 		class Impl;
 		std::shared_ptr<Impl>		GetImpl		()		 { return m_impl; }
 		std::shared_ptr<const Impl> GetConstImpl() const { return m_impl; }
-
-		std::shared_ptr<Impl>		m_impl{ nullptr };
-	};
-} // namespace kfe
