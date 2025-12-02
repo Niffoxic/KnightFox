@@ -51,13 +51,6 @@ bool kfe::KFEFactory::Impl::Initialize()
 {
 #if defined(DEBUG) || defined(_DEBUG)
 	UINT flags = DXGI_CREATE_FACTORY_DEBUG;
-
-	//~ debug layer
-	Microsoft::WRL::ComPtr<ID3D12Debug> debugger{};
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugger))))
-	{
-		debugger->EnableDebugLayer();
-	}
 #else
 	UINT flags = 0u;
 #endif

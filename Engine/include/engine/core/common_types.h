@@ -4,6 +4,10 @@
 #include <sal.h>
 #include <windows.h>
 
+#ifndef SAFE_RELEASE
+	#define SAFE_RELEASE(x) if(x){ x->Release(); x = nullptr; }
+#endif
+
 typedef struct DIRECTORY_AND_FILE_NAME
 {
     _In_ std::string DirectoryNames;
