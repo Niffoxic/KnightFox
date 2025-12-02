@@ -1,7 +1,7 @@
 #include "game.h"
 
 GameApplication::GameApplication(const kfe::KFE_ENGINE_CREATE_DESC& desc)
-	: kfe::IKFEngine(desc)
+: kfe::IKFEngine(desc)
 {
 }
 
