@@ -96,6 +96,9 @@
     <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\compute_queue\compute_queue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\copy_queue\copy_queue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -156,6 +159,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\compute_queue\compute_queue.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\copy_queue\copy_queue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
