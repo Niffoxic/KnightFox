@@ -2,6 +2,7 @@
 
 #include <string>
 #include <sal.h>
+#include <windows.h>
 
 typedef struct DIRECTORY_AND_FILE_NAME
 {

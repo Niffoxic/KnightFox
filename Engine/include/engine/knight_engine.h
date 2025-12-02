@@ -28,7 +28,7 @@ namespace kfe
 	{
 	public:
 		IKFEngine(_In_ const KFE_ENGINE_CREATE_DESC& desc);
-		~IKFEngine();
+		virtual ~IKFEngine();
 
 		IKFEngine(_In_ const IKFEngine&) = delete;
 		IKFEngine(_Inout_ IKFEngine&&)   = delete;
