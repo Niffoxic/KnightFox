@@ -125,7 +125,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;Shcore.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -145,7 +145,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;Shcore.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -163,6 +163,7 @@
     <ClInclude Include="include\engine\render_manager\components\adapter\adapter.h" />
     <ClInclude Include="include\engine\render_manager\components\device\device.h" />
     <ClInclude Include="include\engine\render_manager\components\factory\factory.h" />
+    <ClInclude Include="include\engine\render_manager\components\monitor\monitor.h" />
     <ClInclude Include="include\engine\render_manager\render_manager.h" />
     <ClInclude Include="include\engine\utils\file_system\file_system.h" />
     <ClInclude Include="include\engine\utils\helpers.h" />
@@ -181,6 +182,7 @@
     <ClCompile Include="include\engine\render_manager\components\adapter\adapter.cpp" />
     <ClCompile Include="include\engine\render_manager\components\device\device.cpp" />
     <ClCompile Include="include\engine\render_manager\components\factory\factory.cpp" />
+    <ClCompile Include="include\engine\render_manager\components\monitor\monitor.cpp" />
     <ClCompile Include="include\engine\render_manager\render_manager.cpp" />
     <ClCompile Include="include\engine\utils\file_system\file_system.cpp" />
     <ClCompile Include="include\engine\utils\helpers.cpp" />
