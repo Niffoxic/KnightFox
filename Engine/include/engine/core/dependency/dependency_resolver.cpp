@@ -151,7 +151,7 @@ bool kfe::DependencyResolver::UpdateLoopStart(float deltaTime) const
 
     if (m_impl->m_initOrder.empty()) { return true; }
 
-    for (auto it = m_impl->m_initOrder.begin(); it != m_impl->m_initOrder.end(); ++it)
+    for (auto it = m_impl->m_initOrder.rbegin(); it != m_impl->m_initOrder.rend(); ++it)
     {
         kfe::IManager* mgr = *it;
         if (first_update)
@@ -172,7 +172,7 @@ bool kfe::DependencyResolver::UpdateLoopEnd() const
 
     if (m_impl->m_initOrder.empty()) { return true; }
 
-    for (auto it = m_impl->m_initOrder.rbegin(); it != m_impl->m_initOrder.rend(); ++it)
+    for (auto it = m_impl->m_initOrder.begin(); it != m_impl->m_initOrder.end(); ++it)
     {
         kfe::IManager* mgr = *it;
         if (first_update)
@@ -205,4 +205,11 @@ bool kfe::DependencyResolver::Shutdown()
         }
     }
     return flag;
+}
+
+_Use_decl_annotations_
+void kfe::DependencyResolver::AddDependency(IManager* kid, IManager* parent)
+{
+    auto& deps = GetImpl()->m_connections[kid];
+    deps.push_back(parent);
 }
