@@ -81,6 +81,7 @@ kfe::IKFEngine::~IKFEngine()
 #endif
 }
 
+_Use_decl_annotations_
 bool kfe::IKFEngine::Init()
 {
 	if (!m_impl->Init())
@@ -100,6 +101,7 @@ bool kfe::IKFEngine::Init()
 	return true;
 }
 
+_Use_decl_annotations_
 HRESULT kfe::IKFEngine::Execute()
 {
 	LOG_INFO("Starting Game Loop!");

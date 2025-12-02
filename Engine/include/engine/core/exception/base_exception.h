@@ -47,11 +47,11 @@ namespace kfe
 		}
 
 	protected:
-		std::string			m_szFilePath;
-		std::string			m_szFunctionName;
-		std::string			m_szErrorMessage;
-		mutable std::string m_szWhatBuffer;
-		int					m_nLineNumber;
+		std::string			m_szFilePath    {};
+		std::string			m_szFunctionName{};
+		std::string			m_szErrorMessage{};
+		mutable std::string m_szWhatBuffer  {};
+		int					m_nLineNumber   { -1 };
 	};
 }
 
