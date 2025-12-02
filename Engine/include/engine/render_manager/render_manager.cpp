@@ -2,6 +2,10 @@
 #include "render_manager.h"
 
 #include "engine/windows_manager/windows_manager.h"
+#include "engine/utils/logger/logger.h"
+
+//~ Components
+#include "components/factory/factory.h"
 
 #pragma region IMPL
 
@@ -18,6 +22,9 @@ public:
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
+
+	//~ Components
+	std::unique_ptr<KFEFactory> m_pFactory{ nullptr };
 };
 
 #pragma endregion
@@ -62,10 +69,19 @@ std::string kfe::KFERenderManager::GetName() const noexcept
 //~ Impl 
 kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	: m_pWindows(windows)
-{}
+{
+	m_pFactory = std::make_unique<KFEFactory>();
+}
 
 bool kfe::KFERenderManager::Impl::Initialize()
 {
+	if (!m_pFactory->Initialize())
+	{
+		LOG_ERROR("Failed to Initialize Factory");
+		return false;
+	}
+
+	LOG_SUCCESS("RenderManager: All Components initialized!");
 	return true;
 }
 
