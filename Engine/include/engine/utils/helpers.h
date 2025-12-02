@@ -1,0 +1,138 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
+/*
+ *  -----------------------------------------------------------------------------
+ *  Project   : PixelFox (WMG Warwick - Module 2)
+ *  Author    : Niffoxic (a.k.a Harsh Dubey)
+ *  License   : MIT
+ *  -----------------------------------------------------------------------------
+ */
+
+#pragma once
+
+#include "EngineAPI.h"
+#include <string>
+#include <string_view>
+#include <Windows.h>
+
+#include "engine/core/common_types.h"
+
+namespace kfe_helpers
+{
+    _NODISCARD _Check_return_
+    KFE_API std::string  WideToAnsi(_In_ std::wstring_view wstr);
+    
+    _NODISCARD _Check_return_
+    KFE_API std::wstring AnsiToWide(_In_ std::string_view str);
+
+    _NODISCARD
+    inline std::string WideToAnsi(_In_opt_ const wchar_t* str)
+    {
+        return WideToAnsi(std::wstring_view(str ? str : L""));
+    }
+
+    _NODISCARD
+    inline std::wstring AnsiToWide(_In_opt_ const char* str)
+    {
+        return AnsiToWide(std::string_view(str ? str : ""));
+    }
+
+    _NODISCARD
+    inline std::string WideToAnsi(_In_ const std::wstring& wstr)
+    {
+        return WideToAnsi(std::wstring_view(wstr));
+    }
+
+    _NODISCARD
+    inline std::wstring AnsiToWide(_In_ const std::string& str)
+    {
+        return AnsiToWide(std::string_view(str));
+    }
+
+    //~ File Utilities
+    _NODISCARD _Check_return_
+    KFE_API bool IsPathExists(_In_ const std::wstring& path);
+
+    _NODISCARD _Check_return_
+    KFE_API bool IsPathExists(_In_ const std::string& path);
+
+    _NODISCARD _Check_return_
+    KFE_API bool IsDirectory (_In_ const std::string& path);
+
+    _NODISCARD _Check_return_
+    KFE_API bool IsFile      (_In_ const std::string& path);
+
+    _NODISCARD _Check_return_
+    KFE_API bool CopyFiles(_In_ const std::string& source,
+                           _In_ const std::string& destination,
+                           _In_ bool               overwrite = true);
+
+    _NODISCARD _Check_return_
+    KFE_API bool MoveFiles(_In_ const std::string& source,
+                           _In_ const std::string& destination);
+
+    _NODISCARD _Check_return_
+    KFE_API DIRECTORY_AND_FILE_NAME SplitPathFile(_In_ const std::string& fullPath);
+
+    template<typename... Args>
+    _NODISCARD _Check_return_ __forceinline
+    bool DeleteFiles(Args&&... args) 
+    {
+        bool allSuccess = true;
+
+        auto tryDelete = [&](const auto& path)
+            {
+                std::wstring w_path(path.begin(), path.end());
+                if (!DeleteFileW(w_path.c_str()))
+                    allSuccess = false;
+            };
+
+        (tryDelete(std::forward<Args>(args)), ...);
+        return allSuccess;
+    }
+
+    template<typename... Args>
+    _NODISCARD _Check_return_ __forceinline
+    bool CreateDirectories(Args&&... args)
+    {
+        bool allSuccess = true;
+
+        auto tryCreate = [&](const auto& pathStr)
+            {
+                std::wstring w_path(pathStr.begin(), pathStr.end());
+
+                std::wstring current;
+                for (size_t i = 0; i < w_path.length(); ++i)
+                {
+                    wchar_t ch = w_path[i];
+                    current += ch;
+
+                    if (ch == L'\\' || ch == L'/')
+                    {
+                        if (!current.empty() && !IsPathExists(current))
+                        {
+                            if (!CreateDirectoryW(current.c_str(), nullptr) &&
+                                GetLastError() != ERROR_ALREADY_EXISTS)
+                            {
+                                allSuccess = false;
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                if (!IsPathExists(current))
+                {
+                    if (!CreateDirectoryW(current.c_str(), nullptr) &&
+                        GetLastError() != ERROR_ALREADY_EXISTS)
+                    {
+                        allSuccess = false;
+                    }
+                }
+            };
+
+        (tryCreate(std::forward<Args>(args)), ...);
+        return allSuccess;
+    }
+} // namespace kfe_helpers

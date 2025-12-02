@@ -1,0 +1,50 @@
+#pragma once
+
+#include <string>
+#include <sal.h>
+
+typedef struct DIRECTORY_AND_FILE_NAME
+{
+    _In_ std::string DirectoryNames;
+    _In_ std::string FileName;
+} DIRECTORY_AND_FILE_NAME;
+
+enum class EScreenState : bool
+{
+	FullScreen = 0,
+	Windowed = 1,
+};
+
+template<typename T>
+struct KFE_WinSize 
+{
+	T Width {};
+	T Height{};
+
+
+	KFE_WinSize() = default;
+
+	KFE_WinSize(T width, T height)
+		: Width(width), Height(height)
+	{}
+
+	template<typename Type>
+	_Check_return_ _NODISCARD
+	Type As()
+	{
+		return KFE_WinSize<Type>(static_cast<Type>(Width),
+								 static_cast<Type>(Height));
+	}
+
+	_Check_return_ _NODISCARD
+	float AspectRatio() const
+	{
+		return (Height == 0)
+			? 0.0f
+			: static_cast<float>(Width) / static_cast<float>(Height);
+	}
+};
+
+using KFE_WinSizeU = KFE_WinSize<UINT>;
+using KFE_WinSizeF = KFE_WinSize<float>;
+using KFE_WinSizeI = KFE_WinSize<int>;
