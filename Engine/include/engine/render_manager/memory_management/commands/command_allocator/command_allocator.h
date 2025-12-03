@@ -5,11 +5,12 @@
 #include <memory>
 #include <cstdint>
 
-#include "engine/core/key_generator/key_generator.h"
+#include "engine/core/common_types.h"
+#include "engine/core/core.h"
 
-class ID3D12CommandAllocator;
-class ID3D12Fence;
-enum  D3D12_COMMAND_LIST_TYPE;
+struct ID3D12CommandAllocator;
+struct ID3D12Fence;
+enum   D3D12_COMMAND_LIST_TYPE;
 
 namespace kfe 
 {
@@ -34,36 +35,43 @@ namespace kfe
 	class KFE_API KFECommandAllocator
 	{
 		KEYGEN_CLASS();
+
 	public:
 		 KFECommandAllocator();
 		~KFECommandAllocator();
 
-		[[nodiscard]] bool Initialize(const KFE_CA_CREATE_DESC& desc);
+		KFECommandAllocator(const KFECommandAllocator&) = delete;
+		KFECommandAllocator(KFECommandAllocator&&) noexcept;
 
-		// if Reset is possible then clean data else returns false
-		[[nodiscard]] bool Reset();
+		KFECommandAllocator& operator=(const KFECommandAllocator&) = delete;
+		KFECommandAllocator& operator=(KFECommandAllocator&&) noexcept;
 
-		// if Reset is not possible force the cpu to wait and then reset.
-		[[nodiscard]] bool ForceReset();
+		// Initialize allocator
+		NODISCARD bool Initialize(_In_ const KFE_CA_CREATE_DESC& desc);
 
-		// blocks thread making CPU Idle until GPU is Finished
-		// works only if a valid fence and fence value is attached
-		[[nodiscard]] bool ForceWait();
+		// If reset is possible, resets. Otherwise returns false
+		NODISCARD bool Reset	 ();
 
-		// non blocking completion check: true if FV is already passed else false
-		[[nodiscard]] bool IsFree() const;
+		// If Reset is not possible, force CPU wait + reset
+		NODISCARD bool ForceReset();
 
-		// attach a fence desc to indicate when to free and safe handling
-		[[nodiscard]] bool AttachFence(const KFE_CA_ATTACH_FENCE& fence);
+		// Hard blocking: waits until GPU finishes (needs valid fence)
+		NODISCARD bool ForceWait ();
 
-		// hard block untill all the allocators processed and then released resources
-		[[nodiscard]] bool ForceDestroy();
+		// Non-blocking: true if fence has passed
+		NODISCARD bool IsFree	 () const noexcept;
 
-		// CPU block free destroy, only destroys itself if safe
-		[[nodiscard]] bool Destroy();
+		// Attach fence for safe recycling
+		NODISCARD bool AttachFence(_In_ const KFE_CA_ATTACH_FENCE& fence);
 
-		// returns DirectX Command Allocator
-		[[nodiscard]] ID3D12CommandAllocator* GetNative() const;
+		// Hard destroy: always blocks
+		NODISCARD bool ForceDestroy();
+
+		// Safe destroy: destroys only if GPU completed
+		NODISCARD bool Destroy	   ();
+
+		// Returns the native DX12 allocator
+		NODISCARD _Ret_maybenull_ ID3D12CommandAllocator* GetNative() const noexcept;
 
 	private:
 		class Impl;

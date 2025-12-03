@@ -19,6 +19,7 @@
 
 //~ Tests
 #include "memory_management/commands/command_allocator/command_allocator.h"
+#include "memory_management/pool/allocator_pool/allocator_pool.h"
 
 #pragma region IMPL
 
@@ -53,7 +54,8 @@ private:
 	std::unique_ptr<KFECopyCmdQ>	 m_pCopyQueue	 { nullptr };
 
 	//~ Test Commands
-	std::unique_ptr<KFECommandAllocator> m_pAllocator{ nullptr };
+	std::unique_ptr<KFECommandAllocator>	 m_pAllocator	 { nullptr };
+	std::unique_ptr<KFECommandAllocatorPool> m_pAllocatorPool{ nullptr };
 };
 
 #pragma endregion
@@ -111,7 +113,8 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pCopyQueue	 = std::make_unique<KFECopyCmdQ>	();
 
 	//~ tests
-	m_pAllocator = std::make_unique<KFECommandAllocator>();
+	m_pAllocator	 = std::make_unique<KFECommandAllocator>();
+	m_pAllocatorPool = std::make_unique<KFECommandAllocatorPool>();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -232,6 +235,19 @@ bool kfe::KFERenderManager::Impl::InitializeCommands()
 	if (!m_pAllocator->Initialize(allocatorDesc))
 	{
 		LOG_ERROR("Failed To Initialize Test Command Allocator");
+		return false;
+	}
+
+	KFE_CA_POOL_CREATE_DESC pool{};
+	pool.BlockMaxTime  = 5u;
+	pool.CmdListType   = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	pool.Device		   = m_pDevice.get();
+	pool.InitialCounts = 100u;
+	pool.MaxCounts	   = 1000u;
+
+	if (!m_pAllocatorPool->Initialize(pool))
+	{
+		LOG_ERROR("Failed To Initialize Test Command Pool");
 		return false;
 	}
 

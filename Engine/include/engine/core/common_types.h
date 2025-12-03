@@ -2,23 +2,34 @@
 
 #include <string>
 #include <sal.h>
+#include <functional>
 #include <windows.h>
+
+#include "key_generator/key_generator.h"
 
 #ifndef SAFE_RELEASE
 	#define SAFE_RELEASE(x) if(x){ x->Release(); x = nullptr; }
 #endif
 
-typedef struct DIRECTORY_AND_FILE_NAME
-{
-    _In_ std::string DirectoryNames;
-    _In_ std::string FileName;
-} DIRECTORY_AND_FILE_NAME;
-
-enum class EScreenState : bool
+//~ States
+enum class EScreenState : uint8_t
 {
 	FullScreen = 0,
 	Windowed   = 1,
 };
+
+enum class EOccupiedState : uint8_t
+{
+	Free	 = 0,
+	Occupied = 1,
+};
+
+//~ Queries
+typedef struct DIRECTORY_AND_FILE_NAME
+{
+	_In_ std::string DirectoryNames;
+	_In_ std::string FileName;
+} DIRECTORY_AND_FILE_NAME;
 
 template<typename T>
 struct KFE_WinSize 
@@ -50,16 +61,27 @@ struct KFE_WinSize
 	}
 };
 
+typedef struct _KFE_WINDOW_CREATE_DESC
+{
+	_In_					 std::string  WindowTitle{ "KnightEngine" };
+	_Field_range_(100, 1920) UINT		  Width		 { 800u };
+	_Field_range_(100, 1080) UINT		  Height	 { 800u };
+	_Field_range_(0, 200)    UINT		  IconId	 { 0u };
+	_In_					 EScreenState ScreenState{ EScreenState::Windowed };
+} KFE_WINDOW_CREATE_DESC;
+
+//~ Type Defines
 using KFE_WinSizeU = KFE_WinSize<UINT>;
 using KFE_WinSizeF = KFE_WinSize<float>;
 using KFE_WinSizeI = KFE_WinSize<int>;
 
-//~ Init Types
-typedef struct _KFE_WINDOW_CREATE_DESC
+//~ Callbacks
+using CallBack_IdBool	  = std::function<void(kfe::KID, bool)>;
+
+struct OccupancyInfo
 {
-	_In_					 std::string  WindowTitle{ "KnightEngine" };
-	_Field_range_(100, 1920) UINT		  Width { 800u };
-	_Field_range_(100, 1080) UINT		  Height { 800u };
-	_Field_range_(0, 200)    UINT		  IconId { 0u };
-	_In_					 EScreenState ScreenState{ EScreenState::Windowed };
-} KFE_WINDOW_CREATE_DESC;
+	kfe::KID	   Id;
+	EOccupiedState State;
+};
+using CallBack_IdOccupied = std::function<void(const OccupancyInfo)>;
+

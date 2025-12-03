@@ -8,11 +8,12 @@
 #include <wrl/client.h>
 #include <windows.h>
 
-//~ Impl Declaration
+#pragma region Impl_Declaration
+
 class kfe::KFECommandAllocator::Impl
 {
 public:
-	 Impl() = default;
+	Impl () = default;
 	~Impl()
 	{ 
 		if (!ForceDestroy())
@@ -21,24 +22,23 @@ public:
 		}
 	}
 
-	[[nodiscard]] bool Initialize (const KFE_CA_CREATE_DESC& desc);
-	[[nodiscard]] bool AttachFence(const KFE_CA_ATTACH_FENCE& fence);
+	NODISCARD bool Initialize (_In_ const KFE_CA_CREATE_DESC& desc);
+	NODISCARD bool AttachFence(_In_ const KFE_CA_ATTACH_FENCE& fence);
 
-	[[nodiscard]] bool Reset	    ();
-	[[nodiscard]] bool ForceReset   ();
-	[[nodiscard]] bool ForceWait    ();
-	[[nodiscard]] bool IsFree	    () const;
-	[[nodiscard]] bool ForceDestroy ();
-	[[nodiscard]] bool Destroy      ();
-	[[nodiscard]] bool IsInitialized() const noexcept;
+	NODISCARD bool Reset		();
+	NODISCARD bool ForceReset	();
+	NODISCARD bool ForceWait	();
+	NODISCARD bool IsFree		() const noexcept;
+	NODISCARD bool ForceDestroy	();
+	NODISCARD bool Destroy		();
+	NODISCARD bool IsInitialized() const noexcept;
 
-	[[nodiscard]] ID3D12CommandAllocator* GetNative() const;
+	NODISCARD _Ret_maybenull_ ID3D12CommandAllocator* GetNative() const;
 
 private:
-	[[nodiscard]] bool CreateAllocator  (const KFE_CA_CREATE_DESC& desc);
-	[[nodiscard]] bool CreateEventHandle();
-
-	[[nodiscard]] bool BlockThread() const;
+	NODISCARD bool CreateAllocator(_In_ const KFE_CA_CREATE_DESC& desc);
+	NODISCARD bool CreateEventHandle();
+	NODISCARD bool BlockThread		() const;
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_pCommandAllocator{ nullptr };
@@ -47,61 +47,80 @@ private:
 	uint64_t     m_nBlockMaxTime {    5u   };
 	HANDLE		 m_waitHandle	 { nullptr };
 	bool		 m_bInitialized  {  false  };
+
 };
 
-//~ KFE Command Allocator Implementation
+#pragma endregion
+
+#pragma region CommandAllocator_Implementation
 kfe::KFECommandAllocator::KFECommandAllocator()
 	: m_impl(std::make_unique<kfe::KFECommandAllocator::Impl>())
 {}
 
 kfe::KFECommandAllocator::~KFECommandAllocator() = default;
 
+kfe::KFECommandAllocator::KFECommandAllocator(KFECommandAllocator&&) noexcept = default;
+kfe::KFECommandAllocator& kfe::KFECommandAllocator::operator=(KFECommandAllocator&&) noexcept = default;
+
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Initialize(const KFE_CA_CREATE_DESC& desc)
 {
 	return m_impl->Initialize(desc);
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Reset()
 {
 	return m_impl->Reset();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::ForceReset()
 {
 	return m_impl->ForceReset();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::ForceWait()
 {
 	return m_impl->ForceWait();
 }
 
-bool kfe::KFECommandAllocator::IsFree() const
+_Use_decl_annotations_
+bool kfe::KFECommandAllocator::IsFree() const noexcept
 {
 	return m_impl->IsFree();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::AttachFence(const KFE_CA_ATTACH_FENCE& fence)
 {
 	return m_impl->AttachFence(fence);
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::ForceDestroy()
 {
 	return m_impl->ForceDestroy();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Destroy()
 {
 	return m_impl->Destroy();
 }
 
-ID3D12CommandAllocator* kfe::KFECommandAllocator::GetNative() const
+_Use_decl_annotations_
+ID3D12CommandAllocator* kfe::KFECommandAllocator::GetNative() const noexcept
 {
 	return m_impl->GetNative();
 }
 
-//~ Impl Implementation
+#pragma endregion
+
+#pragma region Impl_Implementation
+
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::Initialize(const KFE_CA_CREATE_DESC& desc)
 {
 	if (m_bInitialized) return true;
@@ -123,6 +142,7 @@ bool kfe::KFECommandAllocator::Impl::Initialize(const KFE_CA_CREATE_DESC& desc)
 	return true;
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::Reset()
 {
 	if (!IsFree()) return false;
@@ -130,6 +150,7 @@ bool kfe::KFECommandAllocator::Impl::Reset()
 	return true;
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::ForceReset()
 {
 	if (!IsInitialized()) return false;
@@ -138,6 +159,7 @@ bool kfe::KFECommandAllocator::Impl::ForceReset()
 	return Reset();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::ForceWait()
 {
 	if (!IsInitialized()) return false;
@@ -152,7 +174,8 @@ bool kfe::KFECommandAllocator::Impl::ForceWait()
 	return BlockThread();
 }
 
-bool kfe::KFECommandAllocator::Impl::IsFree() const
+_Use_decl_annotations_
+bool kfe::KFECommandAllocator::Impl::IsFree() const noexcept
 {
 	if (!IsInitialized()) return false;
 	if (m_nWaitUntil == 0u) return true;
@@ -167,6 +190,7 @@ bool kfe::KFECommandAllocator::Impl::IsFree() const
 	return false;
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::AttachFence(const KFE_CA_ATTACH_FENCE& fence)
 {
 	if (!fence.Fence) return false;
@@ -178,6 +202,7 @@ bool kfe::KFECommandAllocator::Impl::AttachFence(const KFE_CA_ATTACH_FENCE& fenc
 	return true;
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::ForceDestroy()
 {
 	if (!IsInitialized()) return true;
@@ -186,6 +211,7 @@ bool kfe::KFECommandAllocator::Impl::ForceDestroy()
 	return true;
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::Destroy()
 {
 	if (!IsInitialized()) return true;
@@ -193,7 +219,6 @@ bool kfe::KFECommandAllocator::Impl::Destroy()
 
 	m_pAttachedFence = nullptr;
 	m_nWaitUntil	 = 0u;
-
 	m_pCommandAllocator.Reset();
 
 	if (m_waitHandle)
@@ -206,11 +231,13 @@ bool kfe::KFECommandAllocator::Impl::Destroy()
 	return true;
 }
 
+_Use_decl_annotations_
 ID3D12CommandAllocator* kfe::KFECommandAllocator::Impl::GetNative() const
 {
 	return m_pCommandAllocator.Get();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::CreateAllocator(const KFE_CA_CREATE_DESC& desc)
 {
 	if (!desc.Device || !desc.Device->GetNative())
@@ -240,6 +267,7 @@ bool kfe::KFECommandAllocator::Impl::CreateAllocator(const KFE_CA_CREATE_DESC& d
 	return true;
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::CreateEventHandle()
 {
 	if (m_waitHandle) return true;
@@ -262,6 +290,7 @@ bool kfe::KFECommandAllocator::Impl::CreateEventHandle()
 	return true;
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::BlockThread() const
 {
 	if (!m_waitHandle)
@@ -287,7 +316,10 @@ bool kfe::KFECommandAllocator::Impl::BlockThread() const
 	}
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocator::Impl::IsInitialized() const noexcept
 {
 	return m_pCommandAllocator && m_bInitialized;
 }
+
+#pragma endregion
