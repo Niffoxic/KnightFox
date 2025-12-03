@@ -84,4 +84,3 @@ struct OccupancyInfo
 	EOccupiedState State;
 };
 using CallBack_IdOccupied = std::function<void(const OccupancyInfo)>;
-

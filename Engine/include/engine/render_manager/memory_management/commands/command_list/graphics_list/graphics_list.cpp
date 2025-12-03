@@ -65,26 +65,31 @@ bool kfe::KFEGraphicsCommandList::Initialize(const KFE_GFX_COMMAND_LIST_CREATE_D
 	return m_impl->Initialize(desc);
 }
 
+_Use_decl_annotations_
 bool kfe::KFEGraphicsCommandList::Reset(const KFE_RESET_COMMAND_LIST& reset)
 {
 	return m_impl->Reset(reset);
 }
 
+_Use_decl_annotations_
 bool kfe::KFEGraphicsCommandList::Close() noexcept
 {
 	return m_impl->Close();
 }
 
+_Use_decl_annotations_
 bool kfe::KFEGraphicsCommandList::Destroy() noexcept
 {
 	return m_impl->Destroy();
 }
 
+_Use_decl_annotations_
 ID3D12GraphicsCommandList* kfe::KFEGraphicsCommandList::GetNative() const noexcept
 {
 	return m_impl->GetNative();
 }
 
+_Use_decl_annotations_
 bool kfe::KFEGraphicsCommandList::IsInitialized() const noexcept
 {
 	return m_impl->IsInitialized();
@@ -210,6 +215,7 @@ bool kfe::KFEGraphicsCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& rese
 	return true;
 }
 
+_Use_decl_annotations_
 bool kfe::KFEGraphicsCommandList::Impl::Close() noexcept
 {
 	if (!m_pList)
@@ -226,6 +232,7 @@ bool kfe::KFEGraphicsCommandList::Impl::Close() noexcept
 	return true;
 }
 
+_Use_decl_annotations_
 bool kfe::KFEGraphicsCommandList::Impl::Destroy() noexcept
 {
 	if (!m_bInitialized)
@@ -245,11 +252,13 @@ bool kfe::KFEGraphicsCommandList::Impl::Destroy() noexcept
 	return true;
 }
 
+_Use_decl_annotations_
 ID3D12GraphicsCommandList* kfe::KFEGraphicsCommandList::Impl::GetNative() const noexcept
 {
 	return m_pList.Get();
 }
 
+_Use_decl_annotations_
 bool kfe::KFEGraphicsCommandList::Impl::IsInitialized() const noexcept
 {
 	return m_bInitialized;

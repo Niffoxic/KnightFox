@@ -8,39 +8,37 @@
 
 enum   D3D12_COMMAND_LIST_TYPE;
 struct ID3D12GraphicsCommandList;
-struct ID3D12PipelineState;
-struct ID3D12Fence;
 
 namespace kfe
 {
     class KFEDevice;
 
     // Graphics command list creation descriptor
-    typedef struct _KFE_GFX_COMMAND_LIST_CREATE_DESC
+    typedef struct _KFE_COMPUTE_COMMAND_LIST_CREATE_DESC
     {
         KFEDevice*   Device;
-        uint64_t     BlockMaxTime { 5u };
+        uint64_t     BlockMaxTime{ 5u };
         uint64_t     InitialCounts{ 3u };
-        uint64_t     MaxCounts    { 10u };
-    } KFE_GFX_COMMAND_LIST_CREATE_DESC;
+        uint64_t     MaxCounts{ 10u };
+    } KFE_COMPUTE_COMMAND_LIST_CREATE_DESC;
 
     /// <summary>
     /// DirectX 12 Graphics Command List
     /// </summary>
-    class KFE_API KFEGraphicsCommandList
+    class KFE_API KFEComputeCommandList
     {
     public:
-         KFEGraphicsCommandList() noexcept;
-        ~KFEGraphicsCommandList() noexcept;
+        KFEComputeCommandList() noexcept;
+        ~KFEComputeCommandList() noexcept;
 
-        KFEGraphicsCommandList(const KFEGraphicsCommandList&)            = delete;
-        KFEGraphicsCommandList& operator=(const KFEGraphicsCommandList&) = delete;
+        KFEComputeCommandList(const KFEComputeCommandList&) = delete;
+        KFEComputeCommandList& operator=(const KFEComputeCommandList&) = delete;
 
-        KFEGraphicsCommandList(KFEGraphicsCommandList&&)            noexcept;
-        KFEGraphicsCommandList& operator=(KFEGraphicsCommandList&&) noexcept;
+        KFEComputeCommandList(KFEComputeCommandList&&)            noexcept;
+        KFEComputeCommandList& operator=(KFEComputeCommandList&&) noexcept;
 
         // Initialize the graphics command list
-        NODISCARD bool Initialize(_In_ const KFE_GFX_COMMAND_LIST_CREATE_DESC& desc);
+        NODISCARD bool Initialize(_In_ const KFE_COMPUTE_COMMAND_LIST_CREATE_DESC& desc);
 
         // Reset the command list with a fresh allocator from the pool.
         NODISCARD bool Reset(_In_ const KFE_RESET_COMMAND_LIST& reset);
