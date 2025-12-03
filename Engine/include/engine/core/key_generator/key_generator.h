@@ -18,7 +18,7 @@ namespace kfe
             return s_counter.fetch_add(1u, std::memory_order_relaxed) + 1u;
         }
 
-        static void Reset(KID start = 0u) noexcept
+        static void Reset(KID start = 10u) noexcept
         {
             s_counter.store(start, std::memory_order_relaxed);
         }
@@ -30,7 +30,7 @@ namespace kfe
 
 #define KEYGEN_CLASS()                                          \
 private:                                                        \
-    ::kfe::KID m_AssignedKey_{ 0u };                            \
+    ::kfe::KID m_AssignedKey_{ 10u };                           \
 public:                                                         \
     void AssignKey() {                                          \
         if (!m_AssignedKey_) {                                  \

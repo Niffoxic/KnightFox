@@ -19,6 +19,7 @@
 
 //~ Tests
 #include "memory_management/commands/command_allocator/command_allocator.h"
+#include "memory_management/commands/command_list/graphics_list/graphics_list.h"
 #include "memory_management/pool/allocator_pool/allocator_pool.h"
 
 #pragma region IMPL
@@ -56,6 +57,7 @@ private:
 	//~ Test Commands
 	std::unique_ptr<KFECommandAllocator>	 m_pAllocator	 { nullptr };
 	std::unique_ptr<KFECommandAllocatorPool> m_pAllocatorPool{ nullptr };
+	std::unique_ptr<KFEGraphicsCommandList>  m_pGfxList		 { nullptr };
 };
 
 #pragma endregion
@@ -115,6 +117,7 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	//~ tests
 	m_pAllocator	 = std::make_unique<KFECommandAllocator>();
 	m_pAllocatorPool = std::make_unique<KFECommandAllocatorPool>();
+	m_pGfxList		 = std::make_unique<KFEGraphicsCommandList>();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -248,6 +251,17 @@ bool kfe::KFERenderManager::Impl::InitializeCommands()
 	if (!m_pAllocatorPool->Initialize(pool))
 	{
 		LOG_ERROR("Failed To Initialize Test Command Pool");
+		return false;
+	}
+
+	KFE_GFX_COMMAND_LIST_CREATE_DESC graphics{};
+	graphics.BlockMaxTime	= 5u;
+	graphics.Device			= m_pDevice.get();
+	graphics.InitialCounts	= 3u;
+	graphics.MaxCounts		= 10u;
+	if (!m_pGfxList->Initialize(graphics))
+	{
+		LOG_ERROR("Failed To Initialize Test Graphics Command List");
 		return false;
 	}
 

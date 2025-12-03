@@ -168,6 +168,7 @@
     <ClInclude Include="include\engine\render_manager\components\monitor\monitor.h" />
     <ClInclude Include="include\engine\render_manager\components\swap_chain\swap_chain.h" />
     <ClInclude Include="include\engine\render_manager\memory_management\commands\command_allocator\command_allocator.h" />
+    <ClInclude Include="include\engine\render_manager\memory_management\commands\command_list\graphics_list\graphics_list.h" />
     <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\compute_queue\compute_queue.h" />
     <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\copy_queue\copy_queue.h" />
     <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\graphics_queue\graphics_queue.h" />
@@ -194,6 +195,7 @@
     <ClCompile Include="include\engine\render_manager\components\monitor\monitor.cpp" />
     <ClCompile Include="include\engine\render_manager\components\swap_chain\swap_chain.cpp" />
     <ClCompile Include="include\engine\render_manager\memory_management\commands\command_allocator\command_allocator.cpp" />
+    <ClCompile Include="include\engine\render_manager\memory_management\commands\command_list\graphics_list\graphics_list.cpp" />
     <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\compute_queue\compute_queue.cpp" />
     <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\copy_queue\copy_queue.cpp" />
     <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\graphics_queue\graphics_queue.cpp" />

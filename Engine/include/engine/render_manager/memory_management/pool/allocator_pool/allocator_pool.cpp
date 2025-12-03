@@ -70,9 +70,9 @@ private:
 private:
 	D3D12_COMMAND_LIST_TYPE m_type	 { D3D12_COMMAND_LIST_TYPE_DIRECT };
 	KFEDevice*				m_pDevice{ nullptr };
-	AllocatorPool			m_mapAllocators		{};
+	AllocatorPool			m_mapAllocators	   {};
 	PoolTrack			    m_mapAllocatorState{};
-	std::unordered_set<KID> m_pendingDestroy	{};
+	std::unordered_set<KID> m_pendingDestroy   {};
 
 	UINT m_nWaitTime   { 5u };
 	UINT m_nMaxCounts  { 10u };
@@ -217,7 +217,9 @@ kfe::KFECommandAllocator* kfe::KFECommandAllocatorPool::Impl::GetCommandAllocato
 	KID id = GetFreePool();
 	if (id == 0u) return nullptr;
 
-	m_mapAllocatorState[id] = EAllocState::Working;
+	LOG_WARNING("I'm giving {}, Allocator!", id);
+
+	m_mapAllocatorState   [id] = EAllocState::Working;
 	return m_mapAllocators[id].get();
 }
 
@@ -428,6 +430,7 @@ void kfe::KFECommandAllocatorPool::Impl::UpdateAllocators()
 	DestroyPendings();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::Impl::CreateAllocator()
 {
 	if (m_mapAllocators.size() >= m_nMaxCounts)
@@ -446,8 +449,8 @@ bool kfe::KFECommandAllocatorPool::Impl::CreateAllocator()
 
 	KFE_CA_CREATE_DESC desc{};
 	desc.BlockMaxTime = m_nWaitTime;
-	desc.CmdListType = m_type;
-	desc.Device = m_pDevice;
+	desc.CmdListType  = m_type;
+	desc.Device		  = m_pDevice;
 
 	if (!alloc->Initialize(desc))
 	{
@@ -459,7 +462,7 @@ bool kfe::KFECommandAllocatorPool::Impl::CreateAllocator()
 
 	KID id = alloc->GetAssignedKey();
 	m_mapAllocatorState[id] = EAllocState::Free;
-	m_mapAllocators[id]		= std::move(alloc);
+	m_mapAllocators    [id]	= std::move(alloc);
 
 	return true;
 }
