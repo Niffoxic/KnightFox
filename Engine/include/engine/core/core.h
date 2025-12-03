@@ -1,4 +1,10 @@
 #pragma once
+#include "EngineAPI.h"
+
+#include <string>
+
+#include "engine/core/key_generator/key_generator.h"
+#include "engine/core/exception/base_exception.h"
 
 // Detect MSVC + SAL
 #if defined(_MSC_VER)
@@ -188,3 +194,53 @@
 #define KFE_IN_CSTR             KFE_IN_STR const char*
 #define KFE_OUT_COM_PTR(T)      KFE_COM_OUT T**
 #define KFE_OUT_COM_PTR_OPT(T)  KFE_COM_OUT_OPT T**
+
+namespace kfe
+{
+    class __declspec(novtable) KFE_API IKFEObject
+    {
+    public:
+        IKFEObject() noexcept
+            : m_AssignedKey(KeyGenerator::Next())
+        {
+        }
+
+        explicit IKFEObject(KFE_IN const KID existingKey) noexcept
+            : m_AssignedKey(existingKey)
+        {
+        }
+
+        virtual ~IKFEObject() = default;
+
+        // Copy = clone with a fresh ID
+        IKFEObject(const IKFEObject&)
+            : m_AssignedKey(KeyGenerator::Next())
+        {
+        }
+
+        IKFEObject& operator=(const IKFEObject&)
+        {
+            m_AssignedKey = KeyGenerator::Next();
+            return *this;
+        }
+
+        // Move keeps the ID
+        IKFEObject(IKFEObject&&)            noexcept = default;
+        IKFEObject& operator=(IKFEObject&&) noexcept = default;
+
+        NODISCARD KID GetAssignedKey() const
+        {
+            if (!KeyGenerator::IsValid(m_AssignedKey))
+            {
+                THROW_MSG("Dangerous usage of IKFEObject: assigned ID is not valid!");
+            }
+            return m_AssignedKey;
+        }
+
+        NODISCARD virtual std::string GetName()        const noexcept = 0;
+        NODISCARD virtual std::string GetDescription() const noexcept = 0;
+
+    private:
+        KID m_AssignedKey;
+    };
+} // namespace kfe

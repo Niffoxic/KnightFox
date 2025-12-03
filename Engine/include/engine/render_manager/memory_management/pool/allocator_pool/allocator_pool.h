@@ -24,8 +24,8 @@ namespace kfe
 	} KFE_CA_POOL_CREATE_DESC;
 
 	/// <summary>
-		/// Command Allocator Pool
-		/// </summary>
+	/// Command Allocator Pool
+	/// </summary>
 	class KFE_API KFECommandAllocatorPool
 	{
 	public:

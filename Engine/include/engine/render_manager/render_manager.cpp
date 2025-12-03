@@ -19,6 +19,9 @@
 
 //~ Tests
 #include "memory_management/commands/command_allocator/command_allocator.h"
+#include "memory_management/commands/command_list/graphics_list/graphics_list.h"
+#include "memory_management/commands/command_list/copy_list/copy_list.h"
+#include "memory_management/commands/command_list/compute_list/compute_list.h"
 #include "memory_management/pool/allocator_pool/allocator_pool.h"
 
 #pragma region IMPL
@@ -56,6 +59,9 @@ private:
 	//~ Test Commands
 	std::unique_ptr<KFECommandAllocator>	 m_pAllocator	 { nullptr };
 	std::unique_ptr<KFECommandAllocatorPool> m_pAllocatorPool{ nullptr };
+	std::unique_ptr<KFEGraphicsCommandList>  m_pGfxList		 { nullptr };
+	std::unique_ptr<KFEComputeCommandList>   m_pComputeList  { nullptr };
+	std::unique_ptr<KFECopyCommandList>		 m_pCopyList	 { nullptr };
 };
 
 #pragma endregion
@@ -113,8 +119,11 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pCopyQueue	 = std::make_unique<KFECopyCmdQ>	();
 
 	//~ tests
-	m_pAllocator	 = std::make_unique<KFECommandAllocator>();
+	m_pAllocator	 = std::make_unique<KFECommandAllocator>	();
 	m_pAllocatorPool = std::make_unique<KFECommandAllocatorPool>();
+	m_pGfxList		 = std::make_unique<KFEGraphicsCommandList>	();
+	m_pComputeList	 = std::make_unique<KFEComputeCommandList>	();
+	m_pCopyList		 = std::make_unique<KFECopyCommandList>		();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -248,6 +257,41 @@ bool kfe::KFERenderManager::Impl::InitializeCommands()
 	if (!m_pAllocatorPool->Initialize(pool))
 	{
 		LOG_ERROR("Failed To Initialize Test Command Pool");
+		return false;
+	}
+
+	KFE_GFX_COMMAND_LIST_CREATE_DESC graphics{};
+	graphics.BlockMaxTime	= 5u;
+	graphics.Device			= m_pDevice.get();
+	graphics.InitialCounts	= 3u;
+	graphics.MaxCounts		= 10u;
+	if (!m_pGfxList->Initialize(graphics))
+	{
+		LOG_ERROR("Failed To Initialize Test Graphics Command List");
+		return false;
+	}
+
+	KFE_COMPUTE_COMMAND_LIST_CREATE_DESC compute{};
+	compute.BlockMaxTime	= 5u;
+	compute.Device			= m_pDevice.get();
+	compute.InitialCounts	= 3u;
+	compute.MaxCounts		= 10u;
+
+	if (!m_pComputeList->Initialize(compute))
+	{
+		LOG_ERROR("Failed To Initialize Test Compute Command List");
+		return false;
+	}
+
+	KFE_COPY_COMMAND_LIST_CREATE_DESC copy{};
+	copy.BlockMaxTime  = 5u;
+	copy.Device		   = m_pDevice.get();
+	copy.InitialCounts = 3u;
+	copy.MaxCounts	   = 10u;
+
+	if (!m_pCopyList->Initialize(copy))
+	{
+		LOG_ERROR("Failed To Initialize Test Copy Command List");
 		return false;
 	}
 
