@@ -32,19 +32,21 @@ namespace kfe
 	/// <summary>
 	/// DirectX Command allocator Wrapper
 	/// </summary>
-	class KFE_API KFECommandAllocator
+	class KFE_API KFECommandAllocator final: public IKFEObject
 	{
-		KEYGEN_CLASS();
-
 	public:
 		 KFECommandAllocator();
-		~KFECommandAllocator();
+		 ~KFECommandAllocator() noexcept override;
 
 		KFECommandAllocator(const KFECommandAllocator&) = delete;
 		KFECommandAllocator(KFECommandAllocator&&) noexcept;
 
 		KFECommandAllocator& operator=(const KFECommandAllocator&) = delete;
 		KFECommandAllocator& operator=(KFECommandAllocator&&) noexcept;
+
+		//~ Inherited IKObjects
+		std::string GetName		  () const noexcept override;
+		std::string GetDescription() const noexcept override;
 
 		// Initialize allocator
 		NODISCARD bool Initialize(_In_ const KFE_CA_CREATE_DESC& desc);

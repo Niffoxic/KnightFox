@@ -25,7 +25,7 @@ namespace kfe
     /// <summary>
     /// DirectX 12 Copy Command List
     /// </summary>
-    class KFE_API KFECopyCommandList
+    class KFE_API KFECopyCommandList final: public IKFEObject
     {
     public:
         KFECopyCommandList() noexcept;
@@ -36,6 +36,9 @@ namespace kfe
 
         KFECopyCommandList(KFECopyCommandList&&)            noexcept;
         KFECopyCommandList& operator=(KFECopyCommandList&&) noexcept;
+
+        std::string GetName       () const noexcept override;
+        std::string GetDescription() const noexcept override;
 
         // Initialize the copy command list
         NODISCARD bool Initialize(_In_ const KFE_COPY_COMMAND_LIST_CREATE_DESC& desc);

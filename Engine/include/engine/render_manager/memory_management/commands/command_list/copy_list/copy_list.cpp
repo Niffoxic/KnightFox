@@ -59,6 +59,16 @@ kfe::KFECopyCommandList::~KFECopyCommandList() = default;
 kfe::KFECopyCommandList::KFECopyCommandList(KFECopyCommandList&&)                    noexcept = default;
 kfe::KFECopyCommandList& kfe::KFECopyCommandList::operator=(KFECopyCommandList&&)   noexcept = default;
 
+std::string kfe::KFECopyCommandList::GetName() const noexcept
+{
+    return "KFECopyCommandList";
+}
+
+std::string kfe::KFECopyCommandList::GetDescription() const noexcept
+{
+    return "DirectX 12 Copy Command List";
+}
+
 _Use_decl_annotations_
 bool kfe::KFECopyCommandList::Initialize(const KFE_COPY_COMMAND_LIST_CREATE_DESC& desc)
 {

@@ -27,7 +27,7 @@ namespace kfe
     /// <summary>
     /// DirectX 12 Graphics Command List
     /// </summary>
-    class KFE_API KFEGraphicsCommandList
+    class KFE_API KFEGraphicsCommandList final: public IKFEObject
     {
     public:
          KFEGraphicsCommandList() noexcept;
@@ -38,6 +38,9 @@ namespace kfe
 
         KFEGraphicsCommandList(KFEGraphicsCommandList&&)            noexcept;
         KFEGraphicsCommandList& operator=(KFEGraphicsCommandList&&) noexcept;
+
+        std::string GetName       () const noexcept override;
+        std::string GetDescription() const noexcept override;
 
         // Initialize the graphics command list
         NODISCARD bool Initialize(_In_ const KFE_GFX_COMMAND_LIST_CREATE_DESC& desc);

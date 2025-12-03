@@ -25,17 +25,21 @@ namespace kfe
     /// <summary>
     /// DirectX 12 Compute Command List
     /// </summary>
-    class KFE_API KFEComputeCommandList
+    class KFE_API KFEComputeCommandList final : public IKFEObject
     {
     public:
-        KFEComputeCommandList() noexcept;
-        ~KFEComputeCommandList() noexcept;
+         KFEComputeCommandList() noexcept;
+        ~KFEComputeCommandList() noexcept override;
 
         KFEComputeCommandList(const KFEComputeCommandList&) = delete;
         KFEComputeCommandList& operator=(const KFEComputeCommandList&) = delete;
 
         KFEComputeCommandList(KFEComputeCommandList&&)            noexcept;
         KFEComputeCommandList& operator=(KFEComputeCommandList&&) noexcept;
+
+        // Inherited via IKFEObject
+        std::string GetName       () const noexcept override;
+        std::string GetDescription() const noexcept override;
 
         // Initialize the graphics command list
         NODISCARD bool Initialize(_In_ const KFE_COMPUTE_COMMAND_LIST_CREATE_DESC& desc);

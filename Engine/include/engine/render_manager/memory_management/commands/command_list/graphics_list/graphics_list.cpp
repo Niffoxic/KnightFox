@@ -59,6 +59,16 @@ kfe::KFEGraphicsCommandList::~KFEGraphicsCommandList() = default;
 kfe::KFEGraphicsCommandList::KFEGraphicsCommandList(KFEGraphicsCommandList&&)				  noexcept = default;
 kfe::KFEGraphicsCommandList& kfe::KFEGraphicsCommandList::operator=(KFEGraphicsCommandList&&) noexcept = default;
 
+std::string kfe::KFEGraphicsCommandList::GetName() const noexcept
+{
+	return "KFEGraphicsCommandList";
+}
+
+std::string kfe::KFEGraphicsCommandList::GetDescription() const noexcept
+{
+	return "DirectX 12: Graphics Command List";
+}
+
 _Use_decl_annotations_
 bool kfe::KFEGraphicsCommandList::Initialize(const KFE_GFX_COMMAND_LIST_CREATE_DESC& desc)
 {

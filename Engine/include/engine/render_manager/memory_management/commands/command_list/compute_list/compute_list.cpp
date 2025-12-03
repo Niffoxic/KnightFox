@@ -100,6 +100,16 @@ void kfe::KFEComputeCommandList::Update() noexcept
     m_impl->Update();
 }
 
+std::string kfe::KFEComputeCommandList::GetName() const noexcept
+{
+    return "KFEComputeCommandList";
+}
+
+std::string kfe::KFEComputeCommandList::GetDescription() const noexcept
+{
+    return "DirectX 12 Compute Command List";
+}
+
 #pragma endregion
 
 #pragma region Impl_Implementation

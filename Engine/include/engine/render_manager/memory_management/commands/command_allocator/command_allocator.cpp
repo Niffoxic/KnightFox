@@ -57,7 +57,7 @@ kfe::KFECommandAllocator::KFECommandAllocator()
 	: m_impl(std::make_unique<kfe::KFECommandAllocator::Impl>())
 {}
 
-kfe::KFECommandAllocator::~KFECommandAllocator() = default;
+kfe::KFECommandAllocator::~KFECommandAllocator() noexcept = default;
 
 kfe::KFECommandAllocator::KFECommandAllocator(KFECommandAllocator&&) noexcept = default;
 kfe::KFECommandAllocator& kfe::KFECommandAllocator::operator=(KFECommandAllocator&&) noexcept = default;
@@ -114,6 +114,16 @@ _Use_decl_annotations_
 ID3D12CommandAllocator* kfe::KFECommandAllocator::GetNative() const noexcept
 {
 	return m_impl->GetNative();
+}
+
+std::string kfe::KFECommandAllocator::GetName() const noexcept
+{
+	return "KFECommandAllocator";
+}
+
+std::string kfe::KFECommandAllocator::GetDescription() const noexcept
+{
+	return "DirectX12 Command Allocator";
 }
 
 #pragma endregion
