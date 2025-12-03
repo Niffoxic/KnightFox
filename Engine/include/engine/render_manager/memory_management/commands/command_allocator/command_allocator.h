@@ -19,6 +19,7 @@ namespace kfe
 	{
 		KFEDevice*				Device;
 		D3D12_COMMAND_LIST_TYPE	CmdListType;
+		uint64_t				BlockMaxTime{ 5u };
 	} KFE_CA_CREATE_DESC;
 
 	typedef struct _KFE_CA_ATTACH_FENCE

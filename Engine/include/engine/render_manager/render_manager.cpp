@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "render_manager.h"
 
+#include <d3d12.h>
+
 #include "engine/windows_manager/windows_manager.h"
 #include "engine/utils/logger/logger.h"
 
@@ -14,6 +16,9 @@
 #include "memory_management/commands/command_queue/graphics_queue/graphics_queue.h"
 #include "memory_management/commands/command_queue/compute_queue/compute_queue.h"
 #include "memory_management/commands/command_queue/copy_queue/copy_queue.h"
+
+//~ Tests
+#include "memory_management/commands/command_allocator/command_allocator.h"
 
 #pragma region IMPL
 
@@ -31,6 +36,7 @@ public:
 private:
 	bool InitializeComponents();
 	bool InitializeQueues	 ();
+	bool InitializeCommands  ();
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -45,6 +51,9 @@ private:
 	std::unique_ptr<KFEGraphicsCmdQ> m_pGraphicsQueue{ nullptr };
 	std::unique_ptr<KFEComputeCmdQ>  m_pComputeQueue { nullptr };
 	std::unique_ptr<KFECopyCmdQ>	 m_pCopyQueue	 { nullptr };
+
+	//~ Test Commands
+	std::unique_ptr<KFECommandAllocator> m_pAllocator{ nullptr };
 };
 
 #pragma endregion
@@ -100,6 +109,9 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pGraphicsQueue = std::make_unique<KFEGraphicsCmdQ>();
 	m_pComputeQueue  = std::make_unique<KFEComputeCmdQ> ();
 	m_pCopyQueue	 = std::make_unique<KFECopyCmdQ>	();
+
+	//~ tests
+	m_pAllocator = std::make_unique<KFECommandAllocator>();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -110,6 +122,11 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	}
 
 	if (!InitializeQueues())
+	{
+		return false;
+	}
+
+	if (!InitializeCommands())
 	{
 		return false;
 	}
@@ -202,5 +219,22 @@ bool kfe::KFERenderManager::Impl::InitializeQueues()
 	}
 
 	LOG_SUCCESS("RenderManager: All Queues initialized!");
+	return true;
+}
+
+bool kfe::KFERenderManager::Impl::InitializeCommands()
+{
+	KFE_CA_CREATE_DESC allocatorDesc{};
+	allocatorDesc.BlockMaxTime = 5u;
+	allocatorDesc.CmdListType  = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	allocatorDesc.Device	   = m_pDevice.get();
+
+	if (!m_pAllocator->Initialize(allocatorDesc))
+	{
+		LOG_ERROR("Failed To Initialize Test Command Allocator");
+		return false;
+	}
+
+	LOG_SUCCESS("RenderManager: All Commands initialized!");
 	return true;
 }
