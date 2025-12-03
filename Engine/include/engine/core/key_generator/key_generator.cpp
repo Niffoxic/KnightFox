@@ -3,5 +3,5 @@
 
 namespace kfe
 {
-    std::atomic<KeyGenerator::key_type> KeyGenerator::s_counter{ 0u };
+    std::atomic<KID> KeyGenerator::s_counter{ 0u };
 }

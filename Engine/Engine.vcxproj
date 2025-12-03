@@ -152,6 +152,7 @@
     <ClInclude Include="EngineAPI.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="include\engine\core\common_types.h" />
+    <ClInclude Include="include\engine\core\core.h" />
     <ClInclude Include="include\engine\core\dependency\dependency_resolver.h" />
     <ClInclude Include="include\engine\core\event_system\events\windows_events.h" />
     <ClInclude Include="include\engine\core\event_system\queue\event_queue.h" />
@@ -170,6 +171,7 @@
     <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\compute_queue\compute_queue.h" />
     <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\copy_queue\copy_queue.h" />
     <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\graphics_queue\graphics_queue.h" />
+    <ClInclude Include="include\engine\render_manager\memory_management\pool\allocator_pool\allocator_pool.h" />
     <ClInclude Include="include\engine\render_manager\render_manager.h" />
     <ClInclude Include="include\engine\utils\file_system\file_system.h" />
     <ClInclude Include="include\engine\utils\helpers.h" />
@@ -195,6 +197,7 @@
     <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\compute_queue\compute_queue.cpp" />
     <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\copy_queue\copy_queue.cpp" />
     <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\graphics_queue\graphics_queue.cpp" />
+    <ClCompile Include="include\engine\render_manager\memory_management\pool\allocator_pool\allocator_pool.cpp" />
     <ClCompile Include="include\engine\render_manager\render_manager.cpp" />
     <ClCompile Include="include\engine\utils\file_system\file_system.cpp" />
     <ClCompile Include="include\engine\utils\helpers.cpp" />
@@ -209,6 +212,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

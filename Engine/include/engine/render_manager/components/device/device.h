@@ -4,7 +4,7 @@
 
 #include <memory>
 
-class ID3D12Device;
+struct ID3D12Device;
 
 namespace kfe
 {
