@@ -13,7 +13,7 @@ namespace kfe
 {
     class KFEDevice;
 
-    // Graphics command list creation descriptor
+    // Compute command list creation descriptor
     typedef struct _KFE_COMPUTE_COMMAND_LIST_CREATE_DESC
     {
         KFEDevice*   Device;
@@ -23,7 +23,7 @@ namespace kfe
     } KFE_COMPUTE_COMMAND_LIST_CREATE_DESC;
 
     /// <summary>
-    /// DirectX 12 Graphics Command List
+    /// DirectX 12 Compute Command List
     /// </summary>
     class KFE_API KFEComputeCommandList
     {
