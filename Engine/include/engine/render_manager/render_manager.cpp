@@ -11,6 +11,7 @@
 #include "components/adapter/adapter.h"
 #include "components/monitor/monitor.h"
 #include "components/device/device.h"
+#include "components/swap_chain/swap_chain.h"
 
 //~ Memory Managements
 #include "memory_management/commands/command_queue/graphics_queue/graphics_queue.h"
@@ -46,10 +47,11 @@ private:
 	KFEWindows* m_pWindows{ nullptr };
 
 	//~ Components
-	std::unique_ptr<KFEFactory> m_pFactory{ nullptr };
-	std::unique_ptr<KFEAdapter> m_pAdapter{ nullptr };
-	std::unique_ptr<KFEMonitor> m_pMonitor{ nullptr };
-	std::unique_ptr<KFEDevice>  m_pDevice { nullptr };
+	std::unique_ptr<KFEFactory>    m_pFactory  { nullptr };
+	std::unique_ptr<KFEAdapter>    m_pAdapter  { nullptr };
+	std::unique_ptr<KFEMonitor>    m_pMonitor  { nullptr };
+	std::unique_ptr<KFEDevice>     m_pDevice   { nullptr };
+	std::unique_ptr<KFESwapChain>  m_pSwapChain{ nullptr };
 
 	//~ Queues
 	std::unique_ptr<KFEGraphicsCmdQ> m_pGraphicsQueue{ nullptr };
@@ -108,10 +110,11 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	: m_pWindows(windows)
 {
 	//~ Create Components
-	m_pFactory = std::make_unique<KFEFactory>();
-	m_pAdapter = std::make_unique<KFEAdapter>();
-	m_pMonitor = std::make_unique<KFEMonitor>();
-	m_pDevice  = std::make_unique<KFEDevice> ();
+	m_pFactory   = std::make_unique<KFEFactory>  ();
+	m_pAdapter   = std::make_unique<KFEAdapter>  ();
+	m_pMonitor   = std::make_unique<KFEMonitor>  ();
+	m_pDevice    = std::make_unique<KFEDevice>   ();
+	m_pSwapChain = std::make_unique<KFESwapChain>();
 
 	//~ Create Dx Queues
 	m_pGraphicsQueue = std::make_unique<KFEGraphicsCmdQ>();
@@ -140,6 +143,31 @@ bool kfe::KFERenderManager::Impl::Initialize()
 
 	if (!InitializeCommands())
 	{
+		return false;
+	}
+
+	KFE_SWAP_CHAIN_CREATE_DESC swap{};
+	swap.Monitor		= m_pMonitor.get();
+	swap.Factory		= m_pFactory.get();
+	swap.GraphicsQueue	= m_pGraphicsQueue.get();
+	swap.Windows		= m_pWindows;
+
+	swap.BufferCount		= 4u;
+	swap.BackBufferFormat	= DXGI_FORMAT_R8G8B8A8_UNORM;
+	swap.DepthStencilFormat = DXGI_FORMAT_D32_FLOAT;
+
+	swap.WindowSize		= m_pWindows->GetWinSize();
+	swap.SwapEffect		= DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swap.BufferUsage	= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swap.SwapChainFlags = 0u;
+
+	swap.EnableVSync  = false;
+	swap.AllowTearing = true;
+	swap.WindowState  = EScreenState::Windowed;
+
+	if (!m_pSwapChain->Initialize(swap))
+	{
+		LOG_ERROR("Failed to Create Swapchain!");
 		return false;
 	}
 

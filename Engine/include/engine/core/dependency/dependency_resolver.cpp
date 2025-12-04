@@ -91,11 +91,11 @@ void kfe::DependencyResolver::Impl::GraphDFS(
     post.push_back(node);
 }
 
-_Use_decl_annotations_
 kfe::DependencyResolver::DependencyResolver()
 	: m_impl(std::make_unique<kfe::DependencyResolver::Impl>())
 {}
 
+_Use_decl_annotations_
 void kfe::DependencyResolver::Register(kfe::IManager* instance)
 {
 	if (instance && !m_impl->m_registeredManagers.contains(instance))
@@ -127,17 +127,14 @@ bool kfe::DependencyResolver::Init()
     const std::size_t total = m_impl->m_initOrder.size();
 
     std::size_t i = 0;
-    for (auto it = m_impl->m_initOrder.begin(); it != m_impl->m_initOrder.end(); ++it, ++i)
+    for (auto it = m_impl->m_initOrder.rbegin(); it != m_impl->m_initOrder.rend(); ++it, ++i)
     {
         kfe::IManager* mgr = *it;
+        LOG_INFO("initializing: {}", mgr->GetName());
         if (!mgr->Initialize())
         {
             LOG_ERROR("Failed to initialize manager: {}", mgr->GetName());
             return false;
-        }
-        else
-        {
-            LOG_INFO("initializing: {}", mgr->GetName());
         }
     }
     return true;

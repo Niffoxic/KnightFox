@@ -92,6 +92,7 @@ kfe::KFECommandAllocatorPool::~KFECommandAllocatorPool() noexcept = default;
 kfe::KFECommandAllocatorPool::KFECommandAllocatorPool(KFECommandAllocatorPool&&)				 noexcept = default;
 kfe::KFECommandAllocatorPool& kfe::KFECommandAllocatorPool::operator=(KFECommandAllocatorPool&&) noexcept = default;
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::Initialize(const KFE_CA_POOL_CREATE_DESC& desc)
 {
 	return m_impl->Initialize(desc);
@@ -102,76 +103,91 @@ void kfe::KFECommandAllocatorPool::UpdateAllocators()
 	m_impl->UpdateAllocators();
 }
 
+_Use_decl_annotations_
 kfe::KFECommandAllocator* kfe::KFECommandAllocatorPool::GetCommandAllocatorWait()
 {
 	return m_impl->GetCommandAllocatorWait();
 }
 
+_Use_decl_annotations_
 kfe::KFECommandAllocator* kfe::KFECommandAllocatorPool::GetCommandAllocatorCreate()
 {
 	return m_impl->GetCommandAllocatorCreate();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::IsAllBusy() const noexcept
 {
 	return m_impl->IsAllBusy();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::IsFreeAll() const noexcept
 {
 	return m_impl->IsFreeAll();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::IsFreeAny() const noexcept
 {
 	return m_impl->IsFreeAny();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::DestroyAll()
 {
 	return m_impl->DestroyAll();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::DestroyAllForce()
 {
 	return m_impl->DestroyAllForce();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::WaitAll()
 {
 	return m_impl->WaitAll();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::WaitAny()
 {
 	return m_impl->WaitAny();
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::IsBusy(KID id) const noexcept
 {
 	return m_impl->IsBusy(id);
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::IsFree(KID id) const noexcept
 {
 	return m_impl->IsFree(id);
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::Destroy(KID id)
 {
 	return m_impl->Destroy(id);
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::DestroyForce(KID id)
 {
 	return m_impl->DestroyForce(id);
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::Wait(KID id)
 {
 	return m_impl->Wait(id);
 }
 
+_Use_decl_annotations_
 bool kfe::KFECommandAllocatorPool::IsInitialized() const noexcept
 {
 	return m_impl->IsInitialized();
@@ -292,9 +308,15 @@ bool kfe::KFECommandAllocatorPool::Impl::DestroyAllForce()
 		LOG_WARNING("No allocators in pool. Nothing to delete.");
 		return true;
 	}
+	UINT poolSize = m_mapAllocators.size();
 
 	if (!WaitAll   ()) return false;
 	if (!DestroyAll()) return false;
+
+	UINT newPoolSize = m_mapAllocators.size();
+	LOG_SUCCESS("Destroyed {}/{} Allocators from the pool!",
+		poolSize - newPoolSize ,
+		poolSize);
 	return true;
 }
 

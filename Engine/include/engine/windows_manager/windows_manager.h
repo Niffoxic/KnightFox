@@ -72,9 +72,6 @@ namespace kfe
 
 	private:
 		class Impl;
-		std::shared_ptr<Impl>		GetImpl		()		 { return m_impl; }
-		std::shared_ptr<const Impl> GetConstImpl() const { return m_impl; }
-
-		std::shared_ptr<Impl> m_impl{ nullptr };
+		std::unique_ptr<Impl> m_impl{ nullptr };
 	};
 } // namespace kfe
