@@ -11,12 +11,6 @@
 #include "pch.h"
 #include "engine/render_manager/components/factory.h"
 
-#include <vector>
-#include <memory>
-#include <wrl.h>
-#include <dxgi1_6.h>
-#include <d3d12.h>
-
 #include "engine/system/exception/dx_exception.h"
 #include "engine/utils/logger.h"
 

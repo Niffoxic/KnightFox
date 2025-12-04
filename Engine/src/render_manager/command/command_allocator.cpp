@@ -14,10 +14,6 @@
 #include "engine/render_manager/components/device.h"
 #include "engine/utils/logger.h"
 
-#include <d3d12.h>
-#include <wrl/client.h>
-#include <windows.h>
-
 #pragma region Impl_Declaration
 
 class kfe::KFECommandAllocator::Impl
@@ -33,7 +29,7 @@ public:
 	}
 
 	NODISCARD bool Initialize (_In_ const KFE_CA_CREATE_DESC& desc);
-	NODISCARD bool AttachFence(_In_ const KFE_CA_ATTACH_FENCE& fence);
+	NODISCARD bool AttachFence(_In_ const KFE_CA_ATTACH_FENCE fence);
 
 	NODISCARD bool Reset		();
 	NODISCARD bool ForceReset	();
@@ -103,7 +99,7 @@ bool kfe::KFECommandAllocator::IsFree() const noexcept
 }
 
 _Use_decl_annotations_
-bool kfe::KFECommandAllocator::AttachFence(const KFE_CA_ATTACH_FENCE& fence)
+bool kfe::KFECommandAllocator::AttachFence(const KFE_CA_ATTACH_FENCE fence)
 {
 	return m_impl->AttachFence(fence);
 }
@@ -211,7 +207,7 @@ bool kfe::KFECommandAllocator::Impl::IsFree() const noexcept
 }
 
 _Use_decl_annotations_
-bool kfe::KFECommandAllocator::Impl::AttachFence(const KFE_CA_ATTACH_FENCE& fence)
+bool kfe::KFECommandAllocator::Impl::AttachFence(const KFE_CA_ATTACH_FENCE fence)
 {
 	if (!fence.Fence) return false;
 	if (!IsFree())    return false;

@@ -24,65 +24,61 @@ namespace kfe
 {
     class KFEDevice;
 
-    typedef struct _KFE_RTV_HEAP_CREATE_DESC
+    typedef struct _KFE_RESOURCE_HEAP_CREATE_DESC
     {
-        KFEDevice*      Device;
-        std::uint32_t   DescriptorCounts;
-        const char*     DebugName;
-    } KFE_RTV_HEAP_CREATE_DESC;
+        KFEDevice*    Device;
+        std::uint32_t DescriptorCounts;
+        const char*   DebugName;
+    } KFE_RESOURCE_HEAP_CREATE_DESC;
 
     /// <summary>
-    /// Wrapper around a D3D12 RTV descriptor heap
+    /// Wrapper around a D3D12 CBV SRV UAV descriptor heap.
     /// </summary>
-    class KFE_API KFERTVHeap final : public IKFEObject
+    class KFE_API KFEResourceHeap final : public IKFEObject
     {
     public:
-         KFERTVHeap() noexcept;
-        ~KFERTVHeap() noexcept override;
+         KFEResourceHeap() noexcept;
+        ~KFEResourceHeap() noexcept override;
 
-        KFERTVHeap(const KFERTVHeap&) = delete;
-        KFERTVHeap(KFERTVHeap&&) noexcept;
+        KFEResourceHeap(const KFEResourceHeap&) = delete;
+        KFEResourceHeap(KFEResourceHeap&&) noexcept;
 
-        KFERTVHeap& operator=(const KFERTVHeap&) = delete;
-        KFERTVHeap& operator=(KFERTVHeap&&) noexcept;
+        KFEResourceHeap& operator=(const KFEResourceHeap&) = delete;
+        KFEResourceHeap& operator=(KFEResourceHeap&&) noexcept;
 
         // Inherited via IKFEObject
         std::string GetName       () const noexcept override;
         std::string GetDescription() const noexcept override;
 
-        /// Initializes the RTV descriptor heap.
-        /// If already initialized, implementation may destroy and recreate, or fail and return false.
-        NODISCARD bool Initialize(const KFE_RTV_HEAP_CREATE_DESC& desc);
+        /// Initializes the CBV SRV UAV descriptor heap
+        /// If already initialized, implementation may destroy and recreate, or fail and return false
+        NODISCARD bool Initialize(const KFE_RESOURCE_HEAP_CREATE_DESC& desc);
 
         /// Destroys the heap and resets all state.
-        NODISCARD bool Destroy() noexcept;
-
+        NODISCARD bool          Destroy          ()       noexcept;
         NODISCARD bool          IsInitialized    () const noexcept;
         NODISCARD std::uint32_t GetNumDescriptors() const noexcept;
 
-        /// Number of descriptors currently allocated via Allocate().
         NODISCARD std::uint32_t GetAllocatedCount() const noexcept;
-
-        /// Number of remaining descriptors that can still be allocated.
         NODISCARD std::uint32_t GetRemaining     () const noexcept;
 
-        /// Size, in bytes, between adjacent RTV descriptors in this heap.
+        /// Size, in bytes, between adjacent descriptors in this heap
         NODISCARD std::uint32_t GetHandleSize    () const noexcept;
 
-        /// Returns the CPU handle to the first descriptor in the heap.
-        NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetStartHandle() const noexcept;
+        NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetStartHandle   () const noexcept;
+        NODISCARD KFE_GPU_DESCRIPTOR_HANDLE GetGPUStartHandle() const noexcept;
 
-        /// Returns the CPU handle at the specified index.
-        NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetHandle(_In_ std::uint32_t index) const noexcept;
+        NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetHandle   (_In_ std::uint32_t index) const noexcept;
+        NODISCARD KFE_GPU_DESCRIPTOR_HANDLE GetGPUHandle(_In_ std::uint32_t index) const noexcept;
 
-        /// Allocates a single descriptor slot and returns its index.
-        /// Returns InvalidIndex if no more descriptors are available.
+        /// Allocates a single descriptor slot and returns its index
+        /// Returns InvalidIndex if no more descriptors are available
         NODISCARD std::uint32_t Allocate() noexcept;
 
         /// Frees an allocated descriptor index.
         NODISCARD bool Free(_In_ std::uint32_t index) noexcept;
 
-        /// Resets the internal allocation state without destroying the heap.
+        /// Resets the internal allocation state without destroying the heap
         NODISCARD bool Reset() noexcept;
 
         NODISCARD bool IsValidIndex(std::uint32_t idx) const noexcept;

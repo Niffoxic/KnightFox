@@ -11,9 +11,6 @@
 #include "pch.h"
 #include "engine/render_manager/commands/compute_list.h"
 
-#include <d3d12.h>
-#include <wrl/client.h>
-
 #include "engine/utils/logger.h"
 #include "engine/system/exception/base_exception.h"
 #include "engine/render_manager/components/device.h"

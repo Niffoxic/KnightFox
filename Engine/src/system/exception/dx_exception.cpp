@@ -12,11 +12,9 @@
 #include "pch.h"
 #include "engine/system/exception/dx_exception.h"
 
-#include <windows.h>
-#include <comdef.h>
-#include <sstream>
-#include <iomanip>
+#include <comdef.h> 
 
+_Use_decl_annotations_
 kfe::DxException::DxException(
     const char* file,
     int         line,
@@ -29,6 +27,7 @@ kfe::DxException::DxException(
     BuildErrorMessage();
 }
 
+_Use_decl_annotations_
 const char* kfe::DxException::what() const noexcept
 {
     if (m_szWhatBuffer.empty())
@@ -50,6 +49,7 @@ const char* kfe::DxException::what() const noexcept
     return m_szWhatBuffer.c_str();
 }
 
+_Use_decl_annotations_
 HRESULT kfe::DxException::GetErrorCode() const noexcept
 {
     return m_nErrorCode;

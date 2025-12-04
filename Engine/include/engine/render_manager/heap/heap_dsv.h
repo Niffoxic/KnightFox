@@ -24,50 +24,50 @@ namespace kfe
 {
     class KFEDevice;
 
-    typedef struct _KFE_RTV_HEAP_CREATE_DESC
+    typedef struct _KFE_DSV_HEAP_CREATE_DESC
     {
-        KFEDevice*      Device;
-        std::uint32_t   DescriptorCounts;
-        const char*     DebugName;
-    } KFE_RTV_HEAP_CREATE_DESC;
+        KFEDevice*    Device;
+        std::uint32_t DescriptorCounts;
+        const char*   DebugName;
+    } KFE_DSV_HEAP_CREATE_DESC;
 
     /// <summary>
-    /// Wrapper around a D3D12 RTV descriptor heap
+    /// Wrapper around a D3D12 DSV descriptor heap
     /// </summary>
-    class KFE_API KFERTVHeap final : public IKFEObject
+    class KFE_API KFEDSVHeap final : public IKFEObject
     {
     public:
-         KFERTVHeap() noexcept;
-        ~KFERTVHeap() noexcept override;
+         KFEDSVHeap() noexcept;
+        ~KFEDSVHeap() noexcept override;
 
-        KFERTVHeap(const KFERTVHeap&) = delete;
-        KFERTVHeap(KFERTVHeap&&) noexcept;
+        KFEDSVHeap(const KFEDSVHeap&) = delete;
+        KFEDSVHeap(KFEDSVHeap&&) noexcept;
 
-        KFERTVHeap& operator=(const KFERTVHeap&) = delete;
-        KFERTVHeap& operator=(KFERTVHeap&&) noexcept;
+        KFEDSVHeap& operator=(const KFEDSVHeap&) = delete;
+        KFEDSVHeap& operator=(KFEDSVHeap&&) noexcept;
 
         // Inherited via IKFEObject
-        std::string GetName       () const noexcept override;
+        std::string GetName() const noexcept override;
         std::string GetDescription() const noexcept override;
 
-        /// Initializes the RTV descriptor heap.
+        /// Initializes the DSV descriptor heap.
         /// If already initialized, implementation may destroy and recreate, or fail and return false.
-        NODISCARD bool Initialize(const KFE_RTV_HEAP_CREATE_DESC& desc);
+        NODISCARD bool Initialize(const KFE_DSV_HEAP_CREATE_DESC& desc);
 
         /// Destroys the heap and resets all state.
         NODISCARD bool Destroy() noexcept;
 
-        NODISCARD bool          IsInitialized    () const noexcept;
+        NODISCARD bool          IsInitialized() const noexcept;
         NODISCARD std::uint32_t GetNumDescriptors() const noexcept;
 
         /// Number of descriptors currently allocated via Allocate().
         NODISCARD std::uint32_t GetAllocatedCount() const noexcept;
 
         /// Number of remaining descriptors that can still be allocated.
-        NODISCARD std::uint32_t GetRemaining     () const noexcept;
+        NODISCARD std::uint32_t GetRemaining() const noexcept;
 
-        /// Size, in bytes, between adjacent RTV descriptors in this heap.
-        NODISCARD std::uint32_t GetHandleSize    () const noexcept;
+        /// Size, in bytes, between adjacent DSV descriptors in this heap.
+        NODISCARD std::uint32_t GetHandleSize() const noexcept;
 
         /// Returns the CPU handle to the first descriptor in the heap.
         NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetStartHandle() const noexcept;
@@ -88,7 +88,7 @@ namespace kfe
         NODISCARD bool IsValidIndex(std::uint32_t idx) const noexcept;
 
         _Maybenull_ NODISCARD
-        ID3D12DescriptorHeap* GetNative() const noexcept;
+            ID3D12DescriptorHeap* GetNative() const noexcept;
 
         /// Sets a debug name for the heap (for PIX or RenderDoc).
         void SetDebugName(_In_ const std::string& name) noexcept;

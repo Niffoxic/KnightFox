@@ -74,7 +74,7 @@ namespace kfe
 		NODISCARD bool IsFree	 () const noexcept;
 
 		// Attach fence for safe recycling
-		NODISCARD bool AttachFence(_In_ const KFE_CA_ATTACH_FENCE& fence);
+		NODISCARD bool AttachFence(_In_ const KFE_CA_ATTACH_FENCE fence);
 
 		// Hard destroy: always blocks
 		NODISCARD bool ForceDestroy();

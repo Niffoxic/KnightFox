@@ -11,8 +11,6 @@
 #include "engine/system/event_system/windows_events.h"
 #include "engine/system/timer.h"
 
-#include <memory>
-
 #pragma region IMPL
 
 class kfe::IKFEngine::Impl

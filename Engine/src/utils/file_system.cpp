@@ -15,8 +15,6 @@
 #include "engine/system/exception/win_exception.h"
 #include "engine/utils/logger.h"
 
-#include <windows.h>
-
 #pragma region Impl_Declaration
 class KFEFileSystem::Impl
 {

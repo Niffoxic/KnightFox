@@ -11,9 +11,6 @@
 #include "pch.h"
 #include "engine/render_manager/queue/copy_queue.h"
 
-#include <wrl.h>
-#include <d3d12.h>
-
 #include "engine/system/exception/dx_exception.h"
 #include "engine/utils/logger.h"
 #include "engine/render_manager/components/device.h"
