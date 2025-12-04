@@ -13,14 +13,10 @@
 #include "engine/render_manager/components/factory.h"
 #include "engine/render_manager/components/adapter.h"
 
-#include <string>
-#include <dxgi1_6.h>
-#include <wrl.h>
-#include <shellscalingapi.h>
-#include <unordered_map>
-
 #include "engine/utils/helpers.h"
 #include "engine/utils/logger.h"
+
+#include <shellscalingapi.h>
 
 //~ Impl Declarations
 class kfe::KFEMonitor::Impl
@@ -42,7 +38,7 @@ public:
 
 private:
     //~ Helpers
-    float ComputeRefreshHz         (const DXGI_RATIONAL& r) const noexcept;
+    float ComputeRefreshHz         (const DXGI_RATIONAL r) const noexcept;
     void ResetState                ();
     bool EnumerateOutputsForAdapter(IDXGIAdapter4* nativeAdapter);
     bool ProcessSingleOutput       (IDXGIOutput* output, UINT outputIndex);
@@ -75,22 +71,26 @@ kfe::KFEMonitor::KFEMonitor()
 
 kfe::KFEMonitor::~KFEMonitor() = default;
 
+_Use_decl_annotations_
 bool kfe::KFEMonitor::Initialize(const KFEAdapter* adapter)
 {
 	return m_impl->Initialize(adapter);
 }
 
+_Use_decl_annotations_
 const std::vector<kfe::MonitorInfo>& kfe::KFEMonitor::GetMonitors() const noexcept
 {
     return m_impl->Monitors;
 }
 
+_Use_decl_annotations_
 const kfe::MonitorInfo* kfe::KFEMonitor::GetPrimaryMonitor() const noexcept
 {
     if (m_impl->PrimaryOutputIndex == UINT_MAX) return nullptr;
 	return &m_impl->Monitors.at(m_impl->PrimaryOutputIndex);
 }
 
+_Use_decl_annotations_
 const kfe::MonitorInfo* kfe::KFEMonitor::GetMonitorByIndex(uint32_t outputIndex) const noexcept
 {
     if (m_impl->OutputToMonitorMap.contains(outputIndex))
@@ -229,7 +229,7 @@ void kfe::KFEMonitor::Impl::LogOutputs() const noexcept
     }
 }
 
-float kfe::KFEMonitor::Impl::ComputeRefreshHz(const DXGI_RATIONAL& r) const noexcept
+float kfe::KFEMonitor::Impl::ComputeRefreshHz(const DXGI_RATIONAL r) const noexcept
 {
     if (r.Denominator == 0)
         return 0.0f;

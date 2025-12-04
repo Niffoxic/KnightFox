@@ -63,9 +63,9 @@ struct KFE_WinSize
 	}
 
 	_Check_return_ _NODISCARD
-	float AspectRatio() const
+	float AspectRatio(float epsilon=1.e-6) const
 	{
-		return (Height == 0)
+		return std::fabs(Width - Height) < epsilon
 			? 0.0f
 			: static_cast<float>(Width) / static_cast<float>(Height);
 	}
@@ -87,6 +87,11 @@ typedef struct KFE_RECT
 	std::uint32_t bottom;
 	std::uint32_t top;
 } KFE_RECT;
+
+typedef struct _KFE_CPU_DESCRIPTOR_HANDLE
+{
+	size_t ptr = 0;
+} KFE_CPU_DESCRIPTOR_HANDLE;
 
 //~ Type Defines
 using KFE_WinSizeU = KFE_WinSize<std::uint32_t>;

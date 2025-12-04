@@ -16,11 +16,6 @@
 #include "engine/render_manager/commands/command_allocator.h"
 #include "engine/system/exception/base_exception.h"
 
-#include <d3d12.h>
-#include <unordered_map>
-#include <functional>
-#include <unordered_set>
-
 #pragma region Impl_Declaration
 
 class kfe::KFECommandAllocatorPool::Impl

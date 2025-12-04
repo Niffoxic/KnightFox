@@ -1,13 +1,36 @@
-// pch.h: This is a precompiled header file.
-// Files listed below are compiled only once, improving build performance for future builds.
-// This also affects IntelliSense performance, including code completion and many code browsing features.
-// However, files listed here are ALL re-compiled if any one of them is updated between builds.
-// Do not add files here that you will be updating frequently as this negates the performance advantage.
-
 #ifndef PCH_H
 #define PCH_H
 
-// add headers that you want to pre-compile here
-#include "framework.h"
+// Reduce Windows header bloat
+#ifndef WIN32_LEAN_AND_MEAN
+	#define WIN32_LEAN_AND_MEAN
+#endif
 
-#endif //PCH_H
+#ifndef NOMINMAX
+	#define NOMINMAX
+#endif
+
+#include <windows.h>
+
+// DirectX 12 / DXGI / WRL
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include <wrl/client.h>
+
+// STL core utilities
+#include <memory>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
+#include <functional>
+#include <string>
+#include <limits>
+#include <algorithm>
+
+// text utilities
+#include <cwctype>
+#include <cctype>
+#include <sstream>
+#include <iomanip>
+
+#endif // PCH_H

@@ -12,6 +12,8 @@
 #include "pch.h"
 #include "engine/system/timer.h"
 
+#include <chrono>
+
 kfe::KFETimer::KFETimer()
 {
     ResetTime();

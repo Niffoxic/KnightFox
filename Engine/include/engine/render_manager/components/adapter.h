@@ -38,15 +38,15 @@ namespace kfe
 	struct AdapterInfo
 	{
 		std::uint32_t Index{ 0u };
-		std::string   Description;
-		std::uint32_t VendorId;
-		std::uint32_t DeviceId;
-		std::uint32_t SubSysId;
-		std::uint32_t Revision;
-		std::uint64_t DedicatedVideoMemory;
-		std::uint64_t DedicatedSystemMemory;
-		std::uint64_t SharedSystemMemory;
-		std::uint32_t Flags;
+		std::string   Description{};
+		std::uint32_t VendorId{};
+		std::uint32_t DeviceId{};
+		std::uint32_t SubSysId{};
+		std::uint32_t Revision{};
+		std::uint64_t DedicatedVideoMemory{};
+		std::uint64_t DedicatedSystemMemory{};
+		std::uint64_t SharedSystemMemory{};
+		std::uint32_t Flags{};
 		EAdapterType AdapterType{ EAdapterType::Unknown };
 	};
 

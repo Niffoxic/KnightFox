@@ -12,8 +12,6 @@
 #include "pch.h"
 #include "engine/system/exception/win_exception.h"
 
-#include <windows.h>
-
 _Use_decl_annotations_
 kfe::WinException::WinException(
 	const char* file,

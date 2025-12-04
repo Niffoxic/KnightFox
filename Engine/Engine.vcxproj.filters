@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="framework.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -182,13 +179,13 @@
     <ClCompile Include="src\render_manager\components\swap_chain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\render_manager\command\graphics_queue.cpp">
+    <ClCompile Include="src\render_manager\queue\graphics_queue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\render_manager\command\compute_queue.cpp">
+    <ClCompile Include="src\render_manager\queue\compute_queue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\render_manager\command\copy_queue.cpp">
+    <ClCompile Include="src\render_manager\queue\copy_queue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\render_manager\command\command_allocator.cpp">

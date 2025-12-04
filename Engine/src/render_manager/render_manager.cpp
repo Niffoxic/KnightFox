@@ -11,8 +11,6 @@
 #include "pch.h"
 #include "engine/render_manager/render_manager.h"
 
-#include <d3d12.h>
-
 #include "engine/windows_manager/windows_manager.h"
 #include "engine/utils/logger.h"
 
@@ -90,11 +88,13 @@ kfe::KFERenderManager::~KFERenderManager()
 	}
 }
 
+_Use_decl_annotations_
 bool kfe::KFERenderManager::Initialize()
 {
 	return m_impl->Initialize();
 }
 
+_Use_decl_annotations_
 bool kfe::KFERenderManager::Release()
 {
 	return m_impl->Release();

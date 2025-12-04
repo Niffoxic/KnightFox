@@ -18,10 +18,6 @@
 #include "engine/windows_manager/windows_manager.h"
 #include "engine/utils/logger.h"
 
-#include <d3d12.h>
-#include <dxgi1_6.h>
-#include <wrl/client.h>
-
 #pragma region Impl_Declaration
 class kfe::KFESwapChain::Impl
 {
@@ -92,6 +88,7 @@ private:
 
 	std::uint32_t      m_nBufferUsage   { 0u };
 	std::uint32_t      m_nSwapChainFlags{ 0u };
+	std::uint32_t      m_nCurrentBackBufferIdx{ 0 };
 
 	KFE_WinSizeU       m_windowSize  { 1280u, 720u };
 	EScreenState       m_eWindowState{ EScreenState::Windowed };
@@ -100,8 +97,6 @@ private:
 	bool               m_bAllowTearing{ false };
 	bool               m_bInitialized { false };
 	bool               m_bDirty		  { false };
-
-	std::uint32_t      m_nCurrentBackBufferIdx{ 0 };
 };
 #pragma endregion
 

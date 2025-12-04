@@ -11,10 +11,6 @@
 #include "pch.h"
 #include "engine/render_manager/components/adapter.h"
 
-#include <wrl/client.h>
-#include <unordered_map>
-#include <dxgi1_6.h>
-
 #include "engine/render_manager/components/factory.h"
 #include "engine/system/exception/base_exception.h"
 #include "engine/utils/helpers.h"

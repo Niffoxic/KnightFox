@@ -150,7 +150,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="EngineAPI.h" />
-    <ClInclude Include="framework.h" />
     <ClInclude Include="include\engine\system\common_types.h" />
     <ClInclude Include="include\engine\core.h" />
     <ClInclude Include="include\engine\system\dependency_resolver.h" />
@@ -205,9 +204,9 @@
     <ClCompile Include="src\render_manager\command\compute_list.cpp" />
     <ClCompile Include="src\render_manager\command\copy_list.cpp" />
     <ClCompile Include="src\render_manager\command\graphics_list.cpp" />
-    <ClCompile Include="src\render_manager\command\compute_queue.cpp" />
-    <ClCompile Include="src\render_manager\command\copy_queue.cpp" />
-    <ClCompile Include="src\render_manager\command\graphics_queue.cpp" />
+    <ClCompile Include="src\render_manager\queue\compute_queue.cpp" />
+    <ClCompile Include="src\render_manager\queue\copy_queue.cpp" />
+    <ClCompile Include="src\render_manager\queue\graphics_queue.cpp" />
     <ClCompile Include="src\render_manager\heap\heap_rtv.cpp" />
     <ClCompile Include="src\render_manager\pool\allocator_pool.cpp" />
     <ClCompile Include="src\render_manager\render_manager.cpp" />

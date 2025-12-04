@@ -11,11 +11,6 @@
 
 #include "pch.h"
 #include "engine/utils/helpers.h"
-#include <Windows.h>
-#include <limits>
-#include <algorithm>
-#include <cwctype>
-#include <cctype>
 
 _Use_decl_annotations_
 KFE_API std::string kfe_helpers::ToLowerAscii(std::string s)
