@@ -1,12 +1,9 @@
-#pragma once
-
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 
-
 /*
  *  -----------------------------------------------------------------------------
- *  Project   : PixelFox (WMG Warwick - Module 2)
+ *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
  *  Author    : Niffoxic (a.k.a Harsh Dubey)
  *  License   : MIT
  *  -----------------------------------------------------------------------------
@@ -16,8 +13,8 @@
 
 #include "EngineAPI.h"
 
-#include "engine/core/interface/interface_manager.h"
-#include "engine/core/common_types.h"
+#include "engine/system/interface/interface_manager.h"
+#include "engine/system/common_types.h"
 
 #include <windows.h>
 #include <sal.h>

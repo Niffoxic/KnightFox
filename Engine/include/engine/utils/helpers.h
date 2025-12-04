@@ -3,7 +3,7 @@
 
 /*
  *  -----------------------------------------------------------------------------
- *  Project   : PixelFox (WMG Warwick - Module 2)
+ *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
  *  Author    : Niffoxic (a.k.a Harsh Dubey)
  *  License   : MIT
  *  -----------------------------------------------------------------------------
@@ -14,9 +14,8 @@
 #include "EngineAPI.h"
 #include <string>
 #include <string_view>
-#include <Windows.h>
 
-#include "engine/core/common_types.h"
+#include "engine/system/common_types.h"
 
 namespace kfe_helpers
 {

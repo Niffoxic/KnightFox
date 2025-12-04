@@ -2,7 +2,7 @@
 
 #include "game/game.h"
 
-#include <engine/core/exception/base_exception.h>
+#include <engine/system/exception/base_exception.h>
 
 int CALLBACK WinMain(
     _In_ HINSTANCE     hInstance,

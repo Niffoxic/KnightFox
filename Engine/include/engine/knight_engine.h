@@ -1,10 +1,9 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 
-
 /*
  *  -----------------------------------------------------------------------------
- *  Project   : PixelFox (WMG Warwick - Module 2)
+ *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
  *  Author    : Niffoxic (a.k.a Harsh Dubey)
  *  License   : MIT
  *  -----------------------------------------------------------------------------
@@ -15,7 +14,7 @@
 #include <sal.h>
 #include <memory>
 
-#include "core/common_types.h"
+#include "system/common_types.h"
 
 namespace kfe
 {
@@ -40,7 +39,7 @@ namespace kfe
 		bool Init();
 
 		_Success_(return == S_OK)
-		HRESULT Execute();
+		int Execute();
 
 	protected:
 		//~ Application Must Implement them

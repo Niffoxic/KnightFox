@@ -8,34 +8,35 @@
  *  License   : MIT
  *  -----------------------------------------------------------------------------
  */
-
 #pragma once
 #include "EngineAPI.h"
-#include "engine/system/interface/interface_manager.h"
-#include "engine/core.h"
 
+#include <cstdint>
 #include <memory>
 
-namespace kfe
-{
-	class KFEWindows;
+#include "engine/system/common_types.h"
+#include "engine/core.h"
 
-	class KFE_API KFERenderManager final : public IManager
+class ID3D12CommandQueue;
+
+namespace kfe 
+{
+	class KFEDevice;
+
+	class KFE_API KFEGraphicsCmdQ
 	{
 	public:
-		 KFERenderManager(KFEWindows* windows);
-		~KFERenderManager();
+		 KFEGraphicsCmdQ();
+		~KFEGraphicsCmdQ();
 
-		//~ Inherited via IManager
-		NODISCARD bool		Initialize	() override;
-		NODISCARD bool		Release		() override;
-		
-		void		OnFrameBegin(float deltaTime) override;
-		void		OnFrameEnd	()				  override;
-		std::string GetName		() const noexcept override;
+		NODISCARD bool Initialize(const KFEDevice* device);
+
+		NODISCARD bool				  Release	   ()		noexcept;
+		NODISCARD bool				  IsInitialized() const noexcept;
+		NODISCARD ID3D12CommandQueue* GetNative    () const noexcept;
 
 	private:
 		class Impl;
-		std::unique_ptr<Impl> m_impl{ nullptr };
+		std::unique_ptr<Impl> m_impl;
 	};
 } // namespace kfe

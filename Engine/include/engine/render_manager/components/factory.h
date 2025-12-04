@@ -8,34 +8,36 @@
  *  License   : MIT
  *  -----------------------------------------------------------------------------
  */
-
 #pragma once
 #include "EngineAPI.h"
-#include "engine/system/interface/interface_manager.h"
 #include "engine/core.h"
 
 #include <memory>
 
+struct IDXGIFactory7;
+
 namespace kfe
 {
-	class KFEWindows;
-
-	class KFE_API KFERenderManager final : public IManager
+	/// <summary>
+	/// Creates DXGI Factory and Tests Feature Supports
+	/// - Currently Tests Feature For
+	///		1. Tearing
+	/// </summary>
+	class KFE_API KFEFactory
 	{
 	public:
-		 KFERenderManager(KFEWindows* windows);
-		~KFERenderManager();
+		 KFEFactory();
+		~KFEFactory();
 
-		//~ Inherited via IManager
-		NODISCARD bool		Initialize	() override;
-		NODISCARD bool		Release		() override;
-		
-		void		OnFrameBegin(float deltaTime) override;
-		void		OnFrameEnd	()				  override;
-		std::string GetName		() const noexcept override;
+		KFEFactory			 (const KFEFactory&) = delete;
+		KFEFactory& operator=(const KFEFactory&) = delete;
+
+		NODISCARD bool			 Initialize		   ();
+		NODISCARD IDXGIFactory7* GetNative		   () const noexcept;
+		NODISCARD bool			 IsTearingSupported() const noexcept;
 
 	private:
 		class Impl;
-		std::unique_ptr<Impl> m_impl{ nullptr };
+		std::unique_ptr<Impl> m_impl;
 	};
 } // namespace kfe
