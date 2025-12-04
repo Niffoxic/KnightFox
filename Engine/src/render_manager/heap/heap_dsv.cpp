@@ -109,76 +109,91 @@ std::string kfe::KFEDSVHeap::GetDescription() const noexcept
 	);
 }
 
+_Use_decl_annotations_
 bool kfe::KFEDSVHeap::Initialize(const KFE_DSV_HEAP_CREATE_DESC& desc)
 {
 	return m_impl->Initialize(desc);
 }
 
+_Use_decl_annotations_
 bool kfe::KFEDSVHeap::Destroy() noexcept
 {
 	return m_impl->Destroy();
 }
 
+_Use_decl_annotations_
 bool kfe::KFEDSVHeap::IsInitialized() const noexcept
 {
 	return m_impl->IsInitialized();
 }
 
+_Use_decl_annotations_
 std::uint32_t kfe::KFEDSVHeap::GetNumDescriptors() const noexcept
 {
 	return m_impl->GetNumDescriptors();
 }
 
+_Use_decl_annotations_
 std::uint32_t kfe::KFEDSVHeap::GetAllocatedCount() const noexcept
 {
 	return m_impl->GetAllocatedCount();
 }
 
+_Use_decl_annotations_
 std::uint32_t kfe::KFEDSVHeap::GetRemaining() const noexcept
 {
 	return m_impl->GetRemaining();
 }
 
+_Use_decl_annotations_
 std::uint32_t kfe::KFEDSVHeap::GetHandleSize() const noexcept
 {
 	return m_impl->GetHandleSize();
 }
 
+_Use_decl_annotations_
 KFE_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::GetStartHandle() const noexcept
 {
 	return m_impl->GetStartHandle();
 }
 
+_Use_decl_annotations_
 KFE_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::GetHandle(std::uint32_t index) const noexcept
 {
 	return m_impl->GetHandle(index);
 }
 
+_Use_decl_annotations_
 std::uint32_t kfe::KFEDSVHeap::Allocate() noexcept
 {
 	return m_impl->Allocate();
 }
 
+_Use_decl_annotations_
 bool kfe::KFEDSVHeap::Free(std::uint32_t index) noexcept
 {
 	return m_impl->Free(index);
 }
 
+_Use_decl_annotations_
 bool kfe::KFEDSVHeap::Reset() noexcept
 {
 	return m_impl->Reset();
 }
 
+_Use_decl_annotations_
 bool kfe::KFEDSVHeap::IsValidIndex(std::uint32_t idx) const noexcept
 {
 	return m_impl->IsValidIndex(idx);
 }
 
+_Use_decl_annotations_
 ID3D12DescriptorHeap* kfe::KFEDSVHeap::GetNative() const noexcept
 {
 	return m_impl->GetNative();
 }
 
+_Use_decl_annotations_
 void kfe::KFEDSVHeap::SetDebugName(const std::string& name) noexcept
 {
 	return m_impl->SetDebugName(name);
@@ -459,6 +474,7 @@ ID3D12DescriptorHeap* kfe::KFEDSVHeap::Impl::GetNative() const noexcept
 	return m_pDescriptorHeap.Get();
 }
 
+_Use_decl_annotations_
 void kfe::KFEDSVHeap::Impl::SetDebugName(const std::string& name) noexcept
 {
 	m_szDebugName = name;

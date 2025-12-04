@@ -93,6 +93,11 @@ typedef struct _KFE_CPU_DESCRIPTOR_HANDLE
 	size_t ptr = 0;
 } KFE_CPU_DESCRIPTOR_HANDLE;
 
+typedef struct _KFE_GPU_DESCRIPTOR_HANDLE
+{
+	std::uint64_t ptr = 0;
+} KFE_GPU_DESCRIPTOR_HANDLE;
+
 //~ Type Defines
 using KFE_WinSizeU = KFE_WinSize<std::uint32_t>;
 using KFE_WinSizeF = KFE_WinSize<float>;

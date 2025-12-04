@@ -33,6 +33,11 @@
 #include "engine/render_manager/commands/compute_list.h"
 #include "engine/render_manager/pool/allocator_pool.h"
 
+//~ Test Heaps
+#include "engine/render_manager/heap/heap_cbv_srv_uav.h"
+#include "engine/render_manager/heap/heap_dsv.h"
+#include "engine/render_manager/heap/heap_rtv.h"
+
 #pragma region IMPL
 
 class kfe::KFERenderManager::Impl
@@ -50,6 +55,7 @@ private:
 	bool InitializeComponents();
 	bool InitializeQueues	 ();
 	bool InitializeCommands  ();
+	bool InitializeHeaps	 ();
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -72,6 +78,11 @@ private:
 	std::unique_ptr<KFEGraphicsCommandList>  m_pGfxList		 { nullptr };
 	std::unique_ptr<KFEComputeCommandList>   m_pComputeList  { nullptr };
 	std::unique_ptr<KFECopyCommandList>		 m_pCopyList	 { nullptr };
+
+	//~ Test Heaps
+	std::unique_ptr<KFERTVHeap>		 m_pRTVHeap		{ nullptr };
+	std::unique_ptr<KFEDSVHeap>		 m_pDSVHeap		{ nullptr };
+	std::unique_ptr<KFEResourceHeap> m_pResourceHeap{ nullptr };
 };
 
 #pragma endregion
@@ -137,6 +148,11 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pGfxList		 = std::make_unique<KFEGraphicsCommandList>	();
 	m_pComputeList	 = std::make_unique<KFEComputeCommandList>	();
 	m_pCopyList		 = std::make_unique<KFECopyCommandList>		();
+
+	//~ Test Heaps
+	m_pRTVHeap		= std::make_unique<KFERTVHeap>		();
+	m_pDSVHeap		= std::make_unique<KFEDSVHeap>		();
+	m_pResourceHeap = std::make_unique<KFEResourceHeap>	();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -152,6 +168,11 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	}
 
 	if (!InitializeCommands())
+	{
+		return false;
+	}
+
+	if (!InitializeHeaps()) 
 	{
 		return false;
 	}
@@ -334,5 +355,53 @@ bool kfe::KFERenderManager::Impl::InitializeCommands()
 	}
 
 	LOG_SUCCESS("RenderManager: All Commands initialized!");
+	return true;
+}
+
+bool kfe::KFERenderManager::Impl::InitializeHeaps()
+{
+	if (!m_pDevice)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeHeaps: Device is nullptr.");
+		return false;
+	}
+
+	//~ RTV Heap
+	KFE_RTV_HEAP_CREATE_DESC rtv{};
+	rtv.Device			 = m_pDevice.get();
+	rtv.DescriptorCounts = 16u;
+	rtv.DebugName		 = "KnightFox Render Target Heap Descriptor";
+
+	if (!m_pRTVHeap || !m_pRTVHeap->Initialize(rtv))
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeHeaps: Failed to initialize RTV heap.");
+		return false;
+	}
+
+	//~ DSV Heap
+	KFE_DSV_HEAP_CREATE_DESC dsv{};
+	dsv.Device			 = m_pDevice.get();
+	dsv.DescriptorCounts = 16u;
+	dsv.DebugName		 = "KnightFox Depth-Stencil Heap Descriptor";
+
+	if (!m_pDSVHeap || !m_pDSVHeap->Initialize(dsv))
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeHeaps: Failed to initialize DSV heap.");
+		return false;
+	}
+
+	//~ CBV/SRV/UAV Heap
+	KFE_RESOURCE_HEAP_CREATE_DESC resource{};
+	resource.Device			  = m_pDevice.get();
+	resource.DescriptorCounts = 1024u;
+	resource.DebugName		  = "KnightFox CBV/SRV/UAV Heap Descriptor";
+
+	if (!m_pResourceHeap || !m_pResourceHeap->Initialize(resource))
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeHeaps: Failed to initialize CBV/SRV/UAV heap.");
+		return false;
+	}
+
+	LOG_SUCCESS("RenderManager: All descriptor heaps initialized!");
 	return true;
 }
