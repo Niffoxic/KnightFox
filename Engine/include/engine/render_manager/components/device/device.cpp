@@ -101,13 +101,13 @@ public:
 	 Impl() = default;
 	~Impl() = default;
 
-	[[nodiscard]] bool Initialize(const KFE_DEVICE_CREATE_DESC& desc);
-	[[nodiscard]] bool Release();
+	bool Initialize(const KFE_DEVICE_CREATE_DESC& desc);
+	bool Release();
 
-	[[nodiscard]] ID3D12Device*		  GetNative			 () const;
-	[[nodiscard]] EDeviceFeatureLevel GetFeatureLevel	 () const noexcept;
-	[[nodiscard]] bool                IsDebugLayerEnabled() const noexcept;
-	[[nodiscard]] bool                IsValid			 () const noexcept;
+	ID3D12Device*		GetNative		   () const;
+	EDeviceFeatureLevel GetFeatureLevel	   () const noexcept;
+	bool                IsDebugLayerEnabled() const noexcept;
+	bool                IsValid			   () const noexcept;
 
     void LogDevice() const noexcept;
 
@@ -134,34 +134,58 @@ kfe::KFEDevice::KFEDevice()
 
 kfe::KFEDevice::~KFEDevice() = default;
 
+_Use_decl_annotations_
 bool kfe::KFEDevice::Initialize(const KFE_DEVICE_CREATE_DESC& desc)
 {
 	return m_impl->Initialize(desc);
 }
 
+_Use_decl_annotations_
 bool kfe::KFEDevice::Release()
 {
 	return m_impl->Release();
 }
 
+_Use_decl_annotations_
 ID3D12Device* kfe::KFEDevice::GetNative() const
 {
 	return m_impl->GetNative();
 }
 
+_Use_decl_annotations_
 kfe::EDeviceFeatureLevel kfe::KFEDevice::GetFeatureLevel() const noexcept
 {
     return m_impl->GetFeatureLevel();
 }
 
+_Use_decl_annotations_
 bool kfe::KFEDevice::IsDebugLayerEnabled() const noexcept
 {
     return m_impl->IsDebugLayerEnabled();
 }
 
+_Use_decl_annotations_
 bool kfe::KFEDevice::IsValid() const noexcept
 {
     return m_impl->IsValid();
+}
+
+_Use_decl_annotations_
+UINT kfe::KFEDevice::GetRTVDescriptorSize() const noexcept
+{
+    return GetNative()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+}
+
+_Use_decl_annotations_
+UINT kfe::KFEDevice::GetDSVDescriptorSize() const noexcept
+{
+    return GetNative()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+}
+
+_Use_decl_annotations_
+UINT kfe::KFEDevice::GetCRUDescriptorSize() const noexcept
+{
+    return GetNative()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 void kfe::KFEDevice::LogDevice() const noexcept

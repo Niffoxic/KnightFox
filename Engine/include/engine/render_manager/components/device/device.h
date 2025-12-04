@@ -4,6 +4,8 @@
 
 #include <memory>
 
+#include "engine/core/core.h"
+
 struct ID3D12Device;
 
 namespace kfe
@@ -82,13 +84,17 @@ namespace kfe
 		 KFEDevice();
 		~KFEDevice();
 
-		[[nodiscard]] bool Initialize(const KFE_DEVICE_CREATE_DESC& desc);
-		[[nodiscard]] bool Release   ();
+		NODISCARD bool Initialize(_In_ const KFE_DEVICE_CREATE_DESC& desc);
+		NODISCARD bool Release   ();
 
-		[[nodiscard]] ID3D12Device*		  GetNative			 () const;
-		[[nodiscard]] EDeviceFeatureLevel GetFeatureLevel	 () const noexcept;
-		[[nodiscard]] bool                IsDebugLayerEnabled() const noexcept;
-		[[nodiscard]] bool                IsValid			 () const noexcept;
+		NODISCARD ID3D12Device*		  GetNative			 () const;
+		NODISCARD EDeviceFeatureLevel GetFeatureLevel	 () const noexcept;
+		NODISCARD bool                IsDebugLayerEnabled() const noexcept;
+		NODISCARD bool                IsValid			 () const noexcept;
+
+		NODISCARD UINT GetRTVDescriptorSize() const noexcept;
+		NODISCARD UINT GetDSVDescriptorSize() const noexcept;
+		NODISCARD UINT GetCRUDescriptorSize() const noexcept;
 
 		//~ for debugging
 		void LogDevice() const noexcept;

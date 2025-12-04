@@ -69,12 +69,12 @@ public:
 #pragma endregion
 
 kfe::KFEWindows::KFEWindows()
-    : m_impl(std::make_shared<KFEWindows::Impl>())
+    : m_impl(std::make_unique<KFEWindows::Impl>())
 {}
 
 _Use_decl_annotations_
 kfe::KFEWindows::KFEWindows(const KFE_WINDOW_CREATE_DESC& desc)
-    : m_impl(std::make_shared<KFEWindows::Impl>(desc))
+    : m_impl(std::make_unique<KFEWindows::Impl>(desc))
 {}
 
 kfe::KFEWindows::~KFEWindows()
@@ -131,7 +131,14 @@ void kfe::KFEWindows::OnFrameEnd()
 _Use_decl_annotations_
 HWND kfe::KFEWindows::GetWindowsHandle() const
 {
-    return m_impl->m_pWindowsHandle;
+    auto handle = m_impl->m_pWindowsHandle;
+
+    if (!handle) 
+    {
+        THROW_MSG("Indeed the error is here!");
+    }
+
+    return handle;
 }
 
 _Use_decl_annotations_
@@ -174,6 +181,7 @@ void kfe::KFEWindows::SetScreenState(EScreenState state)
     }
 }
 
+_Use_decl_annotations_
 KFE_WinSizeU kfe::KFEWindows::GetWinSize() const
 {
     return { m_impl->m_nWindowsWidth, m_impl->m_nWindowsHeight };

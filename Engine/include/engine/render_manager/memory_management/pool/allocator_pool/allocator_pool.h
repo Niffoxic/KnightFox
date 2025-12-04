@@ -65,7 +65,7 @@ namespace kfe
 
 		// Helpers
 		NODISCARD bool IsInitialized() const noexcept;
-
+ 
 	private:
 		class Impl;
 		std::unique_ptr<Impl> m_impl;
