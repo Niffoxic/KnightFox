@@ -37,6 +37,7 @@
 #include "engine/render_manager/heap/heap_cbv_srv_uav.h"
 #include "engine/render_manager/heap/heap_dsv.h"
 #include "engine/render_manager/heap/heap_rtv.h"
+#include "engine/render_manager/heap/heap_sampler.h"
 
 #pragma region IMPL
 
@@ -83,6 +84,7 @@ private:
 	std::unique_ptr<KFERTVHeap>		 m_pRTVHeap		{ nullptr };
 	std::unique_ptr<KFEDSVHeap>		 m_pDSVHeap		{ nullptr };
 	std::unique_ptr<KFEResourceHeap> m_pResourceHeap{ nullptr };
+	std::unique_ptr<KFESamplerHeap>  m_pSamplerHeap { nullptr };
 };
 
 #pragma endregion
@@ -150,9 +152,10 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pCopyList		 = std::make_unique<KFECopyCommandList>		();
 
 	//~ Test Heaps
-	m_pRTVHeap		= std::make_unique<KFERTVHeap>		();
-	m_pDSVHeap		= std::make_unique<KFEDSVHeap>		();
-	m_pResourceHeap = std::make_unique<KFEResourceHeap>	();
+	m_pRTVHeap		= std::make_unique<KFERTVHeap>	   ();
+	m_pDSVHeap		= std::make_unique<KFEDSVHeap>	   ();
+	m_pResourceHeap = std::make_unique<KFEResourceHeap>();
+	m_pSamplerHeap  = std::make_unique<KFESamplerHeap> ();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -399,6 +402,18 @@ bool kfe::KFERenderManager::Impl::InitializeHeaps()
 	if (!m_pResourceHeap || !m_pResourceHeap->Initialize(resource))
 	{
 		LOG_ERROR("KFERenderManager::Impl::InitializeHeaps: Failed to initialize CBV/SRV/UAV heap.");
+		return false;
+	}
+
+	//~ Sampler Heap
+	KFE_SAMPLER_HEAP_CREATE_DESC sampler{};
+	sampler.Device			 = m_pDevice.get();
+	sampler.DescriptorCounts = 32u;
+	sampler.DebugName		 = "KnightFox Sampler Heap Descriptor";
+
+	if (!m_pSamplerHeap || !m_pSamplerHeap->Initialize(sampler))
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeHeaps: Failed to initialize Sampler heap.");
 		return false;
 	}
 
