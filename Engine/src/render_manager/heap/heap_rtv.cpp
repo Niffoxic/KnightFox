@@ -112,7 +112,7 @@ bool kfe::KFERTVHeap::Initialize(const KFE_RTV_HEAP_CREATE_DESC& desc)
 	return m_impl->Initialize(desc);
 }
 
-bool kfe::KFERTVHeap::Destroy()
+bool kfe::KFERTVHeap::Destroy() noexcept
 {
 	return m_impl->Destroy();
 }
@@ -269,7 +269,7 @@ bool kfe::KFERTVHeap::Impl::Initialize(const KFE_RTV_HEAP_CREATE_DESC& desc)
 	return true;
 }
 
-bool kfe::KFERTVHeap::Impl::Destroy()
+bool kfe::KFERTVHeap::Impl::Destroy() noexcept
 {
 	if (!HasHeap())
 	{

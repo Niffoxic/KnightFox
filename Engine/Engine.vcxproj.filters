@@ -123,6 +123,9 @@
     <ClInclude Include="include\engine\render_manager\heap\heap_rtv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\engine\render_manager\heap\heap_dsv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -216,6 +219,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\system\exception\dx_exception.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\heap\heap_dsv.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
