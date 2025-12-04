@@ -30,7 +30,7 @@
     <ClInclude Include="include\engine\windows_manager\windows_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\interface\interface_manager.h">
+    <ClInclude Include="include\engine\system\interface\interface_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\engine\windows_manager\inputs\keyboard_inputs.h">
@@ -39,88 +39,91 @@
     <ClInclude Include="include\engine\windows_manager\inputs\mouse_inputs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\exception\base_exception.h">
+    <ClInclude Include="include\engine\system\exception\base_exception.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\exception\win_exception.h">
+    <ClInclude Include="include\engine\system\exception\win_exception.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\engine\utils\helpers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\utils\logger\logger.h">
+    <ClInclude Include="include\engine\utils\logger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\utils\file_system\file_system.h">
+    <ClInclude Include="include\engine\utils\file_system.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\common_types.h">
+    <ClInclude Include="include\engine\system\common_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\event_system\queue\event_queue.h">
+    <ClInclude Include="include\engine\system\event_system\event_queue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\event_system\events\windows_events.h">
+    <ClInclude Include="include\engine\system\event_system\windows_events.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\dependency\dependency_resolver.h">
+    <ClInclude Include="include\engine\system\dependency_resolver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\time\timer.h">
+    <ClInclude Include="include\engine\system\timer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\engine\render_manager\render_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\components\factory\factory.h">
+    <ClInclude Include="include\engine\render_manager\components\factory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\exception\dx_exception.h">
+    <ClInclude Include="include\engine\system\exception\dx_exception.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\components\device\device.h">
+    <ClInclude Include="include\engine\render_manager\components\device.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\components\adapter\adapter.h">
+    <ClInclude Include="include\engine\render_manager\components\adapter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\components\monitor\monitor.h">
+    <ClInclude Include="include\engine\render_manager\components\monitor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\components\swap_chain\swap_chain.h">
+    <ClInclude Include="include\engine\render_manager\components\swap_chain.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\graphics_queue\graphics_queue.h">
+    <ClInclude Include="include\engine\render_manager\queue\graphics_queue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\compute_queue\compute_queue.h">
+    <ClInclude Include="include\engine\render_manager\queue\compute_queue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\memory_management\commands\command_queue\copy_queue\copy_queue.h">
+    <ClInclude Include="include\engine\render_manager\queue\copy_queue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\memory_management\commands\command_allocator\command_allocator.h">
+    <ClInclude Include="include\engine\render_manager\commands\command_allocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\key_generator\key_generator.h">
+    <ClInclude Include="include\engine\system\key_generator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\memory_management\pool\allocator_pool\allocator_pool.h">
+    <ClInclude Include="include\engine\render_manager\pool\allocator_pool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\core\core.h">
+    <ClInclude Include="include\engine\core.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\memory_management\commands\command_list\graphics_list\graphics_list.h">
+    <ClInclude Include="include\engine\render_manager\commands\graphics_list.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\memory_management\commands\command_list\compute_list\compute_list.h">
+    <ClInclude Include="include\engine\render_manager\commands\compute_list.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\memory_management\commands\types.h">
+    <ClInclude Include="include\engine\render_manager\commands\types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\memory_management\commands\command_list\copy_list\copy_list.h">
+    <ClInclude Include="include\engine\render_manager\commands\copy_list.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\heap\heap_rtv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -131,79 +134,91 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\knight_engine.cpp">
+    <ClCompile Include="src\knight_engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\windows_manager\windows_manager.cpp">
+    <ClCompile Include="src\windows_manager\windows_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\windows_manager\inputs\keyboard_inputs.cpp">
+    <ClCompile Include="src\windows_manager\keyboard_inputs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\windows_manager\inputs\mouse_inputs.cpp">
+    <ClCompile Include="src\windows_manager\mouse_inputs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\utils\helpers.cpp">
+    <ClCompile Include="src\utils\helpers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\utils\logger\logger.cpp">
+    <ClCompile Include="src\utils\logger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\utils\file_system\file_system.cpp">
+    <ClCompile Include="src\utils\file_system.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\core\event_system\queue\event_queue.cpp">
+    <ClCompile Include="src\system\event_queue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\core\dependency\dependency_resolver.cpp">
+    <ClCompile Include="src\system\dependency_resolver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\core\time\timer.cpp">
+    <ClCompile Include="src\system\timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\render_manager.cpp">
+    <ClCompile Include="src\render_manager\render_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\components\factory\factory.cpp">
+    <ClCompile Include="src\render_manager\components\factory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\components\device\device.cpp">
+    <ClCompile Include="src\render_manager\components\device.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\components\adapter\adapter.cpp">
+    <ClCompile Include="src\render_manager\components\adapter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\components\monitor\monitor.cpp">
+    <ClCompile Include="src\render_manager\components\monitor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\components\swap_chain\swap_chain.cpp">
+    <ClCompile Include="src\render_manager\components\swap_chain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\graphics_queue\graphics_queue.cpp">
+    <ClCompile Include="src\render_manager\command\graphics_queue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\compute_queue\compute_queue.cpp">
+    <ClCompile Include="src\render_manager\command\compute_queue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\memory_management\commands\command_queue\copy_queue\copy_queue.cpp">
+    <ClCompile Include="src\render_manager\command\copy_queue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\memory_management\commands\command_allocator\command_allocator.cpp">
+    <ClCompile Include="src\render_manager\command\command_allocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\core\key_generator\key_generator.cpp">
+    <ClCompile Include="src\system\key_generator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\memory_management\pool\allocator_pool\allocator_pool.cpp">
+    <ClCompile Include="src\render_manager\pool\allocator_pool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\memory_management\commands\command_list\graphics_list\graphics_list.cpp">
+    <ClCompile Include="src\render_manager\command\graphics_list.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\memory_management\commands\command_list\compute_list\compute_list.cpp">
+    <ClCompile Include="src\render_manager\command\compute_list.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="include\engine\render_manager\memory_management\commands\command_list\copy_list\copy_list.cpp">
+    <ClCompile Include="src\render_manager\command\copy_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\heap\heap_rtv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\system\exception\win_exception.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\system\exception\base_exception.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\system\exception\dx_exception.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
