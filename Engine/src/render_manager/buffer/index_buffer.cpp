@@ -86,12 +86,6 @@ bool kfe::KFEIndexBuffer::Initialize(const KFE_INDEX_BUFFER_CREATE_DESC& desc)
 }
 
 _Use_decl_annotations_
-bool kfe::KFEIndexBuffer::Initialize(const KFE_INDEX_BUFFER_CREATE_DESC& desc)
-{
-	return m_impl->Initialize(desc);
-}
-
-_Use_decl_annotations_
 bool kfe::KFEIndexBuffer::Destroy() noexcept
 {
 	return m_impl->Destroy();

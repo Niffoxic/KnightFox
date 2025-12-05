@@ -35,7 +35,7 @@ public:
 	NODISCARD bool Destroy		()		 noexcept;
 	NODISCARD bool IsInitialized() const noexcept;
 
-	NODISCARD _Ret_maybenull_ KFEBuffer*	   GetBuffer()       noexcept;
+	NODISCARD _Ret_maybenull_       KFEBuffer* GetBuffer()       noexcept;
 	NODISCARD _Ret_maybenull_ const KFEBuffer* GetBuffer() const noexcept;
 
 	NODISCARD D3D12_VERTEX_BUFFER_VIEW GetView() const noexcept;
@@ -177,7 +177,7 @@ bool kfe::KFEVertexBuffer::Impl::Initialize(const KFE_VERTEX_BUFFER_CREATE_DESC&
     m_pResourceBuffer   = desc.ResourceBuffer;
     m_offsetInBytes     = desc.OffsetInBytes;
 
-    // Get underlying resource info
+    // Get resource info
     ID3D12Resource* resource   = m_pResourceBuffer->GetNative     ();
     const auto      gpuVA      = resource->GetGPUVirtualAddress   ();
     const auto      bufferSize = m_pResourceBuffer->GetSizeInBytes();

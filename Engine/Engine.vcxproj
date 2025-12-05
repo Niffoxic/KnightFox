@@ -150,6 +150,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="EngineAPI.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\constant_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\index_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\raw_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\readback_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\staging_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\structured_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\upload_buffer.h" />
     <ClInclude Include="include\engine\render_manager\buffer\vertex_buffer.h" />
     <ClInclude Include="include\engine\render_manager\heap\heap_cbv_srv_uav.h" />
     <ClInclude Include="include\engine\render_manager\heap\heap_dsv.h" />
@@ -194,6 +201,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="src\render_manager\buffer\constant_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\index_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\raw_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\readback_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\staging_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\structured_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\upload_buffer.cpp" />
     <ClCompile Include="src\render_manager\buffer\vertex_buffer.cpp" />
     <ClCompile Include="src\render_manager\heap\heap_cbv_srv_uav.cpp" />
     <ClCompile Include="src\render_manager\heap\heap_dsv.cpp" />

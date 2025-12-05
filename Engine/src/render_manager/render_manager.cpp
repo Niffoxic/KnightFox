@@ -39,8 +39,17 @@
 #include "engine/render_manager/heap/heap_rtv.h"
 #include "engine/render_manager/heap/heap_sampler.h"
 
-//~ Test resources
+//~ Test buffers
 #include "engine/render_manager/buffer/buffer.h"
+#include "engine/render_manager/buffer/constant_buffer.h"
+#include "engine/render_manager/buffer/index_buffer.h"
+#include "engine/render_manager/buffer/raw_buffer.h"
+#include "engine/render_manager/buffer/readback_buffer.h"
+#include "engine/render_manager/buffer/staging_buffer.h"
+#include "engine/render_manager/buffer/structured_buffer.h"
+#include "engine/render_manager/buffer/upload_buffer.h"
+#include "engine/render_manager/buffer/vertex_buffer.h"
+
 
 #pragma region IMPL
 
@@ -61,6 +70,7 @@ private:
 	bool InitializeCommands  ();
 	bool InitializeHeaps	 ();
 	bool InitializeBuffers   ();
+	bool InitializeViews	 ();
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -98,6 +108,15 @@ private:
 	std::unique_ptr<KFEBuffer> m_pTestReadbackBuffer	{ nullptr };
 	std::unique_ptr<KFEBuffer> m_pTestStructuredUAV		{ nullptr };
 	std::unique_ptr<KFEBuffer> m_pTestIndirectArgsBuffer{ nullptr };
+
+	//~ Test Views
+	std::unique_ptr<KFEVertexBuffer>      m_pTestVertexView;
+	std::unique_ptr<KFEIndexBuffer>       m_pTestIndexView;
+	std::unique_ptr<KFEConstantBuffer>    m_pTestConstantView;
+	std::unique_ptr<KFEStructuredBuffer>  m_pTestStructuredView;
+	std::unique_ptr<KFERawBuffer>         m_pTestIndirectRawView;
+	std::unique_ptr<KFEUploadBuffer>      m_pTestUploadView;
+	std::unique_ptr<KFEReadbackBuffer>    m_pTestReadbackView;
 };
 
 #pragma endregion
@@ -223,6 +242,11 @@ bool kfe::KFERenderManager::Impl::Initialize()
 		return false;
 	}
 
+	if (!InitializeViews()) 
+	{
+		return false;
+	}
+
 	return true;
 }
 
@@ -233,7 +257,9 @@ bool kfe::KFERenderManager::Impl::Release()
 
 void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 {
-
+	// you can test it here tho m not rendering anything on screen right now
+	// since my swapchain buffer ont have render taget view right now
+	// get for test create a test backbuffer from swapchain native if u want to
 }
 
 void kfe::KFERenderManager::Impl::FrameEnd()
@@ -551,4 +577,218 @@ bool kfe::KFERenderManager::Impl::InitializeBuffers()
 
 	LOG_SUCCESS("KFERenderManager: All test buffers initialized!");
 	return true;
+}
+
+_Use_decl_annotations_
+bool kfe::KFERenderManager::Impl::InitializeViews()
+{
+	if (!m_pDevice)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeViews: Device is nullptr.");
+		return false;
+	}
+
+	if (!m_pResourceHeap)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeViews: Resource heap is nullptr.");
+		return false;
+	}
+
+	bool ok = true;
+
+	// Vertex buffer view
+	if (m_pTestVertexBuffer)
+	{
+		m_pTestVertexView = std::make_unique<KFEVertexBuffer>();
+
+		KFE_VERTEX_BUFFER_CREATE_DESC vbDesc{};
+		vbDesc.Device = m_pDevice.get();
+		vbDesc.ResourceBuffer = m_pTestVertexBuffer.get();
+		vbDesc.StrideInBytes = 32u;
+		vbDesc.OffsetInBytes = 0u;
+
+		if (!m_pTestVertexView->Initialize(vbDesc))
+		{
+			LOG_ERROR("InitializeViews: Failed to initialize KFEVertexBuffer view.");
+			ok = false;
+		}
+		else
+		{
+			LOG_SUCCESS("InitializeViews: KFEVertexBuffer view initialized.");
+		}
+	}
+	else
+	{
+		LOG_WARNING("InitializeViews: Test vertex buffer is nullptr; skipping vertex view.");
+	}
+
+	// Index buffer view
+	if (m_pTestIndexBuffer)
+	{
+		m_pTestIndexView = std::make_unique<KFEIndexBuffer>();
+
+		KFE_INDEX_BUFFER_CREATE_DESC ibDesc{};
+		ibDesc.Device = m_pDevice.get();
+		ibDesc.ResourceBuffer = m_pTestIndexBuffer.get();
+		ibDesc.Format = DXGI_FORMAT_R32_UINT; // typical for 32-bit indices
+		ibDesc.OffsetInBytes = 0u;
+
+		if (!m_pTestIndexView->Initialize(ibDesc))
+		{
+			LOG_ERROR("InitializeViews: Failed to initialize KFEIndexBuffer view.");
+			ok = false;
+		}
+		else
+		{
+			LOG_SUCCESS("InitializeViews: KFEIndexBuffer view initialized.");
+		}
+	}
+	else
+	{
+		LOG_WARNING("InitializeViews: Test index buffer is nullptr; skipping index view.");
+	}
+
+	// Constant buffer view (CBV)
+	if (m_pTestConstantBuffer)
+	{
+		m_pTestConstantView = std::make_unique<KFEConstantBuffer>();
+
+		KFE_CONSTANT_BUFFER_CREATE_DESC cbDesc{};
+		cbDesc.Device = m_pDevice.get();
+		cbDesc.ResourceBuffer = m_pTestConstantBuffer.get();
+		cbDesc.ResourceHeap = m_pResourceHeap.get();
+		cbDesc.OffsetInBytes = 0u;
+
+		// Test with a single 256-byte CB (typical minimum alignment)
+		cbDesc.SizeInBytes = 256u;
+
+		if (!m_pTestConstantView->Initialize(cbDesc))
+		{
+			LOG_ERROR("InitializeViews: Failed to initialize KFEConstantBuffer view.");
+			ok = false;
+		}
+		else
+		{
+			LOG_SUCCESS(
+				"InitializeViews: KFEConstantBuffer view initialized. CBV index = {}.",
+				m_pTestConstantView->GetCBVDescriptorIndex());
+		}
+	}
+	else
+	{
+		LOG_WARNING("InitializeViews: Test constant buffer is nullptr; skipping constant view.");
+	}
+
+	// Structured buffer view (SRV + UAV)
+	if (m_pTestStructuredUAV)
+	{
+		m_pTestStructuredView = std::make_unique<KFEStructuredBuffer>();
+
+		constexpr std::uint32_t strideBytes = 16u;
+		const std::uint64_t totalBytes = m_pTestStructuredUAV->GetSizeInBytes();
+		const std::uint32_t elementCount = static_cast<std::uint32_t>(totalBytes / strideBytes);
+
+		if (elementCount == 0u)
+		{
+			LOG_ERROR("InitializeViews: Structured test buffer size is too small for stride {}.", strideBytes);
+			ok = false;
+		}
+		else
+		{
+			KFE_STRUCTURED_BUFFER_CREATE_DESC sbDesc{};
+			sbDesc.Device = m_pDevice.get();
+			sbDesc.ResourceBuffer = m_pTestStructuredUAV.get();
+			sbDesc.ResourceHeap = m_pResourceHeap.get();
+			sbDesc.ElementStride = strideBytes;
+			sbDesc.ElementCount = elementCount;
+			sbDesc.OffsetInBytes = 0u;
+
+			if (!m_pTestStructuredView->Initialize(sbDesc))
+			{
+				LOG_ERROR("InitializeViews: Failed to initialize KFEStructuredBuffer.");
+				ok = false;
+			}
+			else
+			{
+				// Create SRV over the whole range
+				KFE_STRUCTURED_SRV_DESC srvDesc{};
+				srvDesc.FirstElement = 0u;
+				srvDesc.NumElements = 0u; // all
+
+				const std::uint32_t srvIndex = m_pTestStructuredView->CreateSRV(srvDesc);
+
+				// Create UAV over the whole range
+				KFE_STRUCTURED_UAV_DESC uavDesc{};
+				uavDesc.FirstElement = 0u;
+				uavDesc.NumElements = 0u; // all
+				uavDesc.HasCounter = false;
+				uavDesc.CounterOffsetInBytes = 0u;
+
+				const std::uint32_t uavIndex = m_pTestStructuredView->CreateUAV(uavDesc);
+
+				LOG_SUCCESS(
+					"InitializeViews: KFEStructuredBuffer view initialized. SRV index = {}, UAV index = {}.",
+					srvIndex, uavIndex);
+			}
+		}
+	}
+	else
+	{
+		LOG_WARNING("InitializeViews: Test structured UAV buffer is nullptr; skipping structured view.");
+	}
+
+	m_pTestStructuredView->Destroy();
+
+	if (m_pTestIndirectArgsBuffer)
+	{
+		m_pTestIndirectRawView = std::make_unique<KFERawBuffer>();
+
+		KFE_RAW_BUFFER_CREATE_DESC rawDesc{};
+		rawDesc.Device = m_pDevice.get();
+		rawDesc.ResourceBuffer = m_pTestIndirectArgsBuffer.get();
+		rawDesc.ResourceHeap = m_pResourceHeap.get();
+		rawDesc.OffsetInBytes = 0u;
+		rawDesc.SizeInBytes = m_pTestIndirectArgsBuffer->GetSizeInBytes();
+
+		if (!m_pTestIndirectRawView->Initialize(rawDesc))
+		{
+			LOG_ERROR("InitializeViews: Failed to initialize KFERawBuffer for indirect args.");
+			ok = false;
+		}
+		else
+		{
+			KFE_RAW_SRV_DESC srvDesc{};
+			srvDesc.FirstByteOffset = 0u;
+			srvDesc.NumBytes = 0u; // all
+
+			const std::uint32_t srvIndex = m_pTestIndirectRawView->CreateSRV(srvDesc);
+
+			KFE_RAW_UAV_DESC uavDesc{};
+			uavDesc.FirstByteOffset = 0u;
+			uavDesc.NumBytes = 0u;
+			uavDesc.HasCounter = false;
+			uavDesc.CounterOffsetInBytes = 0u;
+
+			const std::uint32_t uavIndex = m_pTestIndirectRawView->CreateUAV(uavDesc);
+
+			LOG_SUCCESS(
+				"InitializeViews: KFERawBuffer view for indirect args initialized. SRV index = {}, UAV index = {}.",
+				srvIndex, uavIndex);
+		}
+	}
+	else
+	{
+		LOG_WARNING("InitializeViews: Test indirect args buffer is nullptr; skipping raw view.");
+	}
+
+	if (!ok)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeViews: One or more view initializations failed.");
+	}
+	else
+	{
+		LOG_SUCCESS("KFERenderManager: All test views initialized!");
+	}
+
+	return ok;
 }

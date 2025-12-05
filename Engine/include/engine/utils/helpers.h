@@ -141,4 +141,9 @@ namespace kfe_helpers
         (tryCreate(std::forward<Args>(args)), ...);
         return allSuccess;
     }
+
+    inline std::uint32_t AlignTo256(std::uint32_t size) noexcept
+    {
+        return (size + 255u) & ~255u;
+    }
 } // namespace kfe_helpers
