@@ -40,7 +40,7 @@
 #include "engine/render_manager/heap/heap_sampler.h"
 
 //~ Test resources
-#include "engine/render_manager/resource/buffer.h"
+#include "engine/render_manager/buffer/buffer.h"
 
 #pragma region IMPL
 

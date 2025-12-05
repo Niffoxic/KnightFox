@@ -10,7 +10,7 @@
  */
 #include "pch.h"
 
-#include "engine/render_manager/resource/buffer.h"
+#include "engine/render_manager/buffer/buffer.h"
 #include "engine/render_manager/components/device.h"
 #include "engine/utils/logger.h"
 #include "engine/utils/helpers.h"
