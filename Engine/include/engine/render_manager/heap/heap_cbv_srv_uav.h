@@ -11,8 +11,7 @@
 #pragma once
 
 #include "EngineAPI.h"
-#include "engine/core.h"
-#include "engine/system/common_types.h"
+#include "engine/system/interface/interface_descriptor_heap.h"
 
 #include <memory>
 #include <cstdint>
@@ -24,17 +23,10 @@ namespace kfe
 {
     class KFEDevice;
 
-    typedef struct _KFE_RESOURCE_HEAP_CREATE_DESC
-    {
-        KFEDevice*    Device;
-        std::uint32_t DescriptorCounts;
-        const char*   DebugName;
-    } KFE_RESOURCE_HEAP_CREATE_DESC;
-
     /// <summary>
     /// Wrapper around a D3D12 CBV SRV UAV descriptor heap.
     /// </summary>
-    class KFE_API KFEResourceHeap final : public IKFEObject
+    class KFE_API KFEResourceHeap final : public IKFEDescriptorHeap
     {
     public:
          KFEResourceHeap() noexcept;
@@ -52,7 +44,7 @@ namespace kfe
 
         /// Initializes the CBV SRV UAV descriptor heap
         /// If already initialized, implementation may destroy and recreate, or fail and return false
-        NODISCARD bool Initialize(const KFE_RESOURCE_HEAP_CREATE_DESC& desc);
+        NODISCARD bool Initialize(const KFE_DESCRIPTOR_HEAP_CREATE_DESC& desc);
 
         /// Destroys the heap and resets all state.
         NODISCARD bool          Destroy          ()       noexcept;

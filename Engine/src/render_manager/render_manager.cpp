@@ -39,6 +39,9 @@
 #include "engine/render_manager/heap/heap_rtv.h"
 #include "engine/render_manager/heap/heap_sampler.h"
 
+//~ Test resources
+#include "engine/render_manager/resource/buffer.h"
+
 #pragma region IMPL
 
 class kfe::KFERenderManager::Impl
@@ -57,6 +60,7 @@ private:
 	bool InitializeQueues	 ();
 	bool InitializeCommands  ();
 	bool InitializeHeaps	 ();
+	bool InitializeBuffers   ();
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -85,6 +89,15 @@ private:
 	std::unique_ptr<KFEDSVHeap>		 m_pDSVHeap		{ nullptr };
 	std::unique_ptr<KFEResourceHeap> m_pResourceHeap{ nullptr };
 	std::unique_ptr<KFESamplerHeap>  m_pSamplerHeap { nullptr };
+
+	//~ Test Resources
+	std::unique_ptr<KFEBuffer> m_pTestVertexBuffer		{ nullptr };
+	std::unique_ptr<KFEBuffer> m_pTestIndexBuffer		{ nullptr };
+	std::unique_ptr<KFEBuffer> m_pTestConstantBuffer	{ nullptr };
+	std::unique_ptr<KFEBuffer> m_pTestUploadBuffer		{ nullptr };
+	std::unique_ptr<KFEBuffer> m_pTestReadbackBuffer	{ nullptr };
+	std::unique_ptr<KFEBuffer> m_pTestStructuredUAV		{ nullptr };
+	std::unique_ptr<KFEBuffer> m_pTestIndirectArgsBuffer{ nullptr };
 };
 
 #pragma endregion
@@ -202,6 +215,11 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	if (!m_pSwapChain->Initialize(swap))
 	{
 		LOG_ERROR("Failed to Create Swapchain!");
+		return false;
+	}
+
+	if (!InitializeBuffers())
+	{
 		return false;
 	}
 
@@ -370,7 +388,7 @@ bool kfe::KFERenderManager::Impl::InitializeHeaps()
 	}
 
 	//~ RTV Heap
-	KFE_RTV_HEAP_CREATE_DESC rtv{};
+	KFE_DESCRIPTOR_HEAP_CREATE_DESC rtv{};
 	rtv.Device			 = m_pDevice.get();
 	rtv.DescriptorCounts = 16u;
 	rtv.DebugName		 = "KnightFox Render Target Heap Descriptor";
@@ -382,7 +400,7 @@ bool kfe::KFERenderManager::Impl::InitializeHeaps()
 	}
 
 	//~ DSV Heap
-	KFE_DSV_HEAP_CREATE_DESC dsv{};
+	KFE_DESCRIPTOR_HEAP_CREATE_DESC dsv{};
 	dsv.Device			 = m_pDevice.get();
 	dsv.DescriptorCounts = 16u;
 	dsv.DebugName		 = "KnightFox Depth-Stencil Heap Descriptor";
@@ -394,7 +412,7 @@ bool kfe::KFERenderManager::Impl::InitializeHeaps()
 	}
 
 	//~ CBV/SRV/UAV Heap
-	KFE_RESOURCE_HEAP_CREATE_DESC resource{};
+	KFE_DESCRIPTOR_HEAP_CREATE_DESC resource{};
 	resource.Device			  = m_pDevice.get();
 	resource.DescriptorCounts = 1024u;
 	resource.DebugName		  = "KnightFox CBV/SRV/UAV Heap Descriptor";
@@ -406,7 +424,7 @@ bool kfe::KFERenderManager::Impl::InitializeHeaps()
 	}
 
 	//~ Sampler Heap
-	KFE_SAMPLER_HEAP_CREATE_DESC sampler{};
+	KFE_DESCRIPTOR_HEAP_CREATE_DESC sampler{};
 	sampler.Device			 = m_pDevice.get();
 	sampler.DescriptorCounts = 32u;
 	sampler.DebugName		 = "KnightFox Sampler Heap Descriptor";
@@ -418,5 +436,119 @@ bool kfe::KFERenderManager::Impl::InitializeHeaps()
 	}
 
 	LOG_SUCCESS("RenderManager: All descriptor heaps initialized!");
+	return true;
+}
+
+bool kfe::KFERenderManager::Impl::InitializeBuffers()
+{
+	if (!m_pDevice)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeBuffers: Device is nullptr.");
+		return false;
+	}
+
+	auto CreateTestBuffer =
+		[this](
+			std::unique_ptr<KFEBuffer>& outBuffer,
+			const char* debugName,
+			std::uint64_t                    sizeInBytes,
+			D3D12_HEAP_TYPE                  heapType,
+			D3D12_RESOURCE_STATES            initialState,
+			D3D12_RESOURCE_FLAGS             flags = D3D12_RESOURCE_FLAG_NONE) -> bool
+		{
+			KFE_CREATE_BUFFER_DESC desc{};
+			desc.Device = m_pDevice.get();
+			desc.SizeInBytes = sizeInBytes;
+			desc.HeapType = heapType;
+			desc.InitialState = initialState;
+			desc.ResourceFlags = flags;
+			desc.DebugName = debugName ? debugName : "";
+
+			outBuffer = std::make_unique<KFEBuffer>();
+			if (!outBuffer->Initialize(desc))
+			{
+				LOG_ERROR("InitializeBuffers: Failed to create buffer '{}'.", desc.DebugName);
+				outBuffer.reset();
+				return false;
+			}
+
+			LOG_SUCCESS("InitializeBuffers: Created buffer '{}'.", desc.DebugName);
+			return true;
+		};
+
+	constexpr std::uint64_t kTestVBSize			= 64ull * 1024ull;   // 64 KB
+	constexpr std::uint64_t kTestIBSize			= 32ull * 1024ull;   // 32 KB
+	constexpr std::uint64_t kTestCBSize			= 4ull * 1024ull;   //  4 KB
+	constexpr std::uint64_t kTestUploadSize		= 16ull * 1024ull;   // 16 KB
+	constexpr std::uint64_t kTestReadbackSize	= 16ull * 1024ull;   // 16 KB
+	constexpr std::uint64_t kTestStructuredSize = 32ull * 1024ull;   // 32 KB
+	constexpr std::uint64_t kTestIndirectSize	= 4ull * 1024ull;   //  4 KB
+
+	bool ok = true;
+
+	// Default heap Vertex Buffer
+	ok &= CreateTestBuffer(
+		m_pTestVertexBuffer,
+		"Test Vertex Buffer (Default)",
+		kTestVBSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
+	// Default heap Index Buffer
+	ok &= CreateTestBuffer(
+		m_pTestIndexBuffer,
+		"Test Index Buffer (Default)",
+		kTestIBSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_INDEX_BUFFER);
+
+	// Default heap Constant Buffer (GPU-side)
+	ok &= CreateTestBuffer(
+		m_pTestConstantBuffer,
+		"Test Constant Buffer (Default)",
+		kTestCBSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
+	// Default heap Structured Buffer with UAV
+	ok &= CreateTestBuffer(
+		m_pTestStructuredUAV,
+		"Test Structured UAV Buffer (Default)",
+		kTestStructuredSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	// Default heap Indirect Argument Buffer
+	ok &= CreateTestBuffer(
+		m_pTestIndirectArgsBuffer,
+		"Test Indirect Args Buffer (Default)",
+		kTestIndirectSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+
+	// Upload heap (generic – for staging / dynamic CBs)
+	ok &= CreateTestBuffer(
+		m_pTestUploadBuffer,
+		"Test Upload Buffer",
+		kTestUploadSize,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_GENERIC_READ);
+
+	// Readback heap
+	ok &= CreateTestBuffer(
+		m_pTestReadbackBuffer,
+		"Test Readback Buffer",
+		kTestReadbackSize,
+		D3D12_HEAP_TYPE_READBACK,
+		D3D12_RESOURCE_STATE_COPY_DEST);
+
+	if (!ok)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeBuffers: One or more test buffers failed to initialize.");
+		return false;
+	}
+
+	LOG_SUCCESS("KFERenderManager: All test buffers initialized!");
 	return true;
 }

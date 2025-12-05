@@ -31,7 +31,7 @@ public:
 		}
 	}
 
-    bool Initialize(const KFE_RTV_HEAP_CREATE_DESC& desc);
+    bool Initialize(const KFE_DESCRIPTOR_HEAP_CREATE_DESC& desc);
     
 	bool		  Destroy			()		 noexcept;
     bool          IsInitialized		() const noexcept;
@@ -107,76 +107,91 @@ std::string kfe::KFERTVHeap::GetDescription() const noexcept
 	);
 }
 
-bool kfe::KFERTVHeap::Initialize(const KFE_RTV_HEAP_CREATE_DESC& desc)
+_Use_decl_annotations_
+bool kfe::KFERTVHeap::Initialize(const KFE_DESCRIPTOR_HEAP_CREATE_DESC& desc)
 {
 	return m_impl->Initialize(desc);
 }
 
+_Use_decl_annotations_
 bool kfe::KFERTVHeap::Destroy() noexcept
 {
 	return m_impl->Destroy();
 }
 
+_Use_decl_annotations_
 bool kfe::KFERTVHeap::IsInitialized() const noexcept
 {
 	return m_impl->IsInitialized();
 }
 
+_Use_decl_annotations_
 std::uint32_t kfe::KFERTVHeap::GetNumDescriptors() const noexcept
 {
 	return m_impl->GetNumDescriptors();
 }
 
+_Use_decl_annotations_
 std::uint32_t kfe::KFERTVHeap::GetAllocatedCount() const noexcept
 {
 	return m_impl->GetAllocatedCount();
 }
 
+_Use_decl_annotations_
 std::uint32_t kfe::KFERTVHeap::GetRemaining() const noexcept
 {
 	return m_impl->GetRemaining();
 }
 
+_Use_decl_annotations_
 std::uint32_t kfe::KFERTVHeap::GetHandleSize() const noexcept
 {
 	return m_impl->GetHandleSize();
 }
 
+_Use_decl_annotations_
 KFE_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::GetStartHandle() const noexcept
 {
 	return m_impl->GetStartHandle();
 }
 
+_Use_decl_annotations_
 KFE_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::GetHandle(std::uint32_t index) const noexcept
 {
 	return m_impl->GetHandle(index);
 }
 
+_Use_decl_annotations_
 std::uint32_t kfe::KFERTVHeap::Allocate() noexcept
 {
 	return m_impl->Allocate();
 }
 
+_Use_decl_annotations_
 bool kfe::KFERTVHeap::Free(std::uint32_t index) noexcept
 {
 	return m_impl->Free(index);
 }
 
+_Use_decl_annotations_
 bool kfe::KFERTVHeap::Reset() noexcept
 {
 	return m_impl->Reset();
 }
 
+_Use_decl_annotations_
 bool kfe::KFERTVHeap::IsValidIndex(std::uint32_t idx) const noexcept
 {
 	return m_impl->IsValidIndex(idx);
 }
 
+_Use_decl_annotations_
 ID3D12DescriptorHeap* kfe::KFERTVHeap::GetNative() const noexcept
 {
 	return m_impl->GetNative();
 }
 
+_Use_decl_annotations_
 void kfe::KFERTVHeap::SetDebugName(const std::string& name) noexcept
 {
 	return m_impl->SetDebugName(name);
@@ -186,7 +201,7 @@ void kfe::KFERTVHeap::SetDebugName(const std::string& name) noexcept
 
 #pragma region Impl_Implementation
 
-bool kfe::KFERTVHeap::Impl::Initialize(const KFE_RTV_HEAP_CREATE_DESC& desc)
+bool kfe::KFERTVHeap::Impl::Initialize(const KFE_DESCRIPTOR_HEAP_CREATE_DESC& desc)
 {
 	//~ Validate inputs
 	if (desc.Device == nullptr)
@@ -457,6 +472,7 @@ ID3D12DescriptorHeap* kfe::KFERTVHeap::Impl::GetNative() const noexcept
 	return m_pDescriptorHeap.Get();
 }
 
+_Use_decl_annotations_
 void kfe::KFERTVHeap::Impl::SetDebugName(const std::string& name) noexcept
 {
 	m_szDebugName = name;

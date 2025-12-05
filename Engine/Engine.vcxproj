@@ -153,6 +153,7 @@
     <ClInclude Include="include\engine\render_manager\heap\heap_cbv_srv_uav.h" />
     <ClInclude Include="include\engine\render_manager\heap\heap_dsv.h" />
     <ClInclude Include="include\engine\render_manager\heap\heap_sampler.h" />
+    <ClInclude Include="include\engine\render_manager\resource\buffer.h" />
     <ClInclude Include="include\engine\system\common_types.h" />
     <ClInclude Include="include\engine\core.h" />
     <ClInclude Include="include\engine\system\dependency_resolver.h" />
@@ -161,6 +162,7 @@
     <ClInclude Include="include\engine\system\exception\base_exception.h" />
     <ClInclude Include="include\engine\system\exception\dx_exception.h" />
     <ClInclude Include="include\engine\system\exception\win_exception.h" />
+    <ClInclude Include="include\engine\system\interface\interface_descriptor_heap.h" />
     <ClInclude Include="include\engine\system\interface\interface_manager.h" />
     <ClInclude Include="include\engine\system\key_generator.h" />
     <ClInclude Include="include\engine\system\timer.h" />
@@ -194,6 +196,7 @@
     <ClCompile Include="src\render_manager\heap\heap_cbv_srv_uav.cpp" />
     <ClCompile Include="src\render_manager\heap\heap_dsv.cpp" />
     <ClCompile Include="src\render_manager\heap\heap_sampler.cpp" />
+    <ClCompile Include="src\render_manager\resource\buffer.cpp" />
     <ClCompile Include="src\system\dependency_resolver.cpp" />
     <ClCompile Include="src\system\event_queue.cpp" />
     <ClCompile Include="src\system\exception\base_exception.cpp" />
