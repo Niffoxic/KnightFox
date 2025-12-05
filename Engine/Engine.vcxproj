@@ -150,10 +150,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="EngineAPI.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\constant_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\index_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\raw_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\readback_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\staging_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\structured_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\upload_buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\vertex_buffer.h" />
     <ClInclude Include="include\engine\render_manager\heap\heap_cbv_srv_uav.h" />
     <ClInclude Include="include\engine\render_manager\heap\heap_dsv.h" />
     <ClInclude Include="include\engine\render_manager\heap\heap_sampler.h" />
-    <ClInclude Include="include\engine\render_manager\resource\buffer.h" />
+    <ClInclude Include="include\engine\render_manager\buffer\buffer.h" />
     <ClInclude Include="include\engine\system\common_types.h" />
     <ClInclude Include="include\engine\core.h" />
     <ClInclude Include="include\engine\system\dependency_resolver.h" />
@@ -193,10 +201,18 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="src\render_manager\buffer\constant_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\index_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\raw_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\readback_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\staging_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\structured_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\upload_buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\vertex_buffer.cpp" />
     <ClCompile Include="src\render_manager\heap\heap_cbv_srv_uav.cpp" />
     <ClCompile Include="src\render_manager\heap\heap_dsv.cpp" />
     <ClCompile Include="src\render_manager\heap\heap_sampler.cpp" />
-    <ClCompile Include="src\render_manager\resource\buffer.cpp" />
+    <ClCompile Include="src\render_manager\buffer\buffer.cpp" />
     <ClCompile Include="src\system\dependency_resolver.cpp" />
     <ClCompile Include="src\system\event_queue.cpp" />
     <ClCompile Include="src\system\exception\base_exception.cpp" />

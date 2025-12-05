@@ -132,10 +132,34 @@
     <ClInclude Include="include\engine\render_manager\heap\heap_sampler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\resource\buffer.h">
+    <ClInclude Include="include\engine\render_manager\buffer\buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\engine\system\interface\interface_descriptor_heap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\buffer\vertex_buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\buffer\index_buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\buffer\constant_buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\buffer\structured_buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\buffer\raw_buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\buffer\upload_buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\buffer\readback_buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\buffer\staging_buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -242,7 +266,31 @@
     <ClCompile Include="src\render_manager\heap\heap_sampler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\render_manager\resource\buffer.cpp">
+    <ClCompile Include="src\render_manager\buffer\buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\buffer\vertex_buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\buffer\index_buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\buffer\constant_buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\buffer\raw_buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\buffer\readback_buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\buffer\staging_buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\buffer\structured_buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\buffer\upload_buffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
