@@ -29,7 +29,7 @@ public:
 		}
 	}
 
-    NODISCARD bool Initialize(const KFE_RESOURCE_HEAP_CREATE_DESC& desc);
+    NODISCARD bool Initialize(const KFE_DESCRIPTOR_HEAP_CREATE_DESC& desc);
 
     NODISCARD bool          Destroy          ()       noexcept;
     NODISCARD bool          IsInitialized    () const noexcept;
@@ -115,7 +115,7 @@ std::string kfe::KFEResourceHeap::GetDescription() const noexcept
 }
 
 _Use_decl_annotations_
-bool kfe::KFEResourceHeap::Initialize(const KFE_RESOURCE_HEAP_CREATE_DESC& desc)
+bool kfe::KFEResourceHeap::Initialize(const KFE_DESCRIPTOR_HEAP_CREATE_DESC& desc)
 {
 	return m_impl->Initialize(desc);
 }
@@ -221,7 +221,7 @@ void kfe::KFEResourceHeap::SetDebugName(const std::string& name) noexcept
 #pragma region Impl_Implementation
 
 _Use_decl_annotations_
-bool kfe::KFEResourceHeap::Impl::Initialize(const KFE_RESOURCE_HEAP_CREATE_DESC& desc)
+bool kfe::KFEResourceHeap::Impl::Initialize(const KFE_DESCRIPTOR_HEAP_CREATE_DESC& desc)
 {
 	//~ Validate inputs
 	if (desc.Device == nullptr)

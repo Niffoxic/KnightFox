@@ -31,7 +31,7 @@ public:
 		}
 	}
 
-	bool Initialize(const KFE_DSV_HEAP_CREATE_DESC& desc);
+	bool Initialize(const KFE_DESCRIPTOR_HEAP_CREATE_DESC& desc);
 
 	bool		  Destroy			()		 noexcept;
 	bool          IsInitialized		() const noexcept;
@@ -110,7 +110,7 @@ std::string kfe::KFEDSVHeap::GetDescription() const noexcept
 }
 
 _Use_decl_annotations_
-bool kfe::KFEDSVHeap::Initialize(const KFE_DSV_HEAP_CREATE_DESC& desc)
+bool kfe::KFEDSVHeap::Initialize(const KFE_DESCRIPTOR_HEAP_CREATE_DESC& desc)
 {
 	return m_impl->Initialize(desc);
 }
@@ -203,7 +203,7 @@ void kfe::KFEDSVHeap::SetDebugName(const std::string& name) noexcept
 
 #pragma region Impl_Implementation
 
-bool kfe::KFEDSVHeap::Impl::Initialize(const KFE_DSV_HEAP_CREATE_DESC& desc)
+bool kfe::KFEDSVHeap::Impl::Initialize(const KFE_DESCRIPTOR_HEAP_CREATE_DESC& desc)
 {
 	//~ Validate inputs
 	if (desc.Device == nullptr)
