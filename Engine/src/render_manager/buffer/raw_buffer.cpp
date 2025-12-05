@@ -460,14 +460,13 @@ std::uint32_t kfe::KFERawBuffer::Impl::CreateUAV(_In_ const KFE_RAW_UAV_DESC& de
     }
 
     std::uint64_t byteOffset = 0u;
-    std::uint64_t byteSize   = 0u;
+    std::uint64_t byteSize = 0u;
 
     if (!ValidateUAVRange(desc, byteOffset, byteSize))
     {
         return KFE_INVALID_DESCRIPTOR_INDEX;
     }
 
-    // RAW UAV requires 4 byte alignments and size multiple of 4
     if ((byteOffset % 4u) != 0u || (byteSize % 4u) != 0u)
     {
         LOG_ERROR(
@@ -489,18 +488,36 @@ std::uint32_t kfe::KFERawBuffer::Impl::CreateUAV(_In_ const KFE_RAW_UAV_DESC& de
     handle.ptr = temp.ptr;
 
     ID3D12Resource* resource = m_pResourceBuffer->GetNative();
+    if (!resource)
+    {
+        LOG_ERROR("KFERawBuffer::Impl::CreateUAV: Resource buffer native pointer is null.");
+        return KFE_INVALID_DESCRIPTOR_INDEX;
+    }
+
+    const D3D12_RESOURCE_DESC resDesc = resource->GetDesc();
+    if ((resDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == 0)
+    {
+        LOG_ERROR(
+            "KFERawBuffer::Impl::CreateUAV: Resource does not have D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS set. "
+            "Aborting UAV creation. DescriptorIndex={}.",
+            descriptorIndex);
+
+        m_pResourceHeap->Free(descriptorIndex);
+
+        return KFE_INVALID_DESCRIPTOR_INDEX;
+    }
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-    uavDesc.Format          = DXGI_FORMAT_R32_TYPELESS;
-    uavDesc.ViewDimension   = D3D12_UAV_DIMENSION_BUFFER;
-    uavDesc.Buffer.Flags    = D3D12_BUFFER_UAV_FLAG_RAW;
+    uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 
     const UINT firstElement = static_cast<UINT>(byteOffset / 4u);
-    const UINT numElements  = static_cast<UINT>(byteSize / 4u);
+    const UINT numElements = static_cast<UINT>(byteSize / 4u);
 
-    uavDesc.Buffer.FirstElement         = firstElement;
-    uavDesc.Buffer.NumElements          = numElements;
-    uavDesc.Buffer.StructureByteStride  = 0u;
+    uavDesc.Buffer.FirstElement = firstElement;
+    uavDesc.Buffer.NumElements = numElements;
+    uavDesc.Buffer.StructureByteStride = 0u;
     uavDesc.Buffer.CounterOffsetInBytes = 0u;
 
     if (desc.HasCounter)

@@ -50,6 +50,8 @@
 #include "engine/render_manager/buffer/upload_buffer.h"
 #include "engine/render_manager/buffer/vertex_buffer.h"
 
+//~ Test Textures
+#include "engine/render_manager/texture/texture.h"
 
 #pragma region IMPL
 
@@ -71,6 +73,7 @@ private:
 	bool InitializeHeaps	 ();
 	bool InitializeBuffers   ();
 	bool InitializeViews	 ();
+	bool InitializeTextures  ();
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -117,6 +120,11 @@ private:
 	std::unique_ptr<KFERawBuffer>         m_pTestIndirectRawView;
 	std::unique_ptr<KFEUploadBuffer>      m_pTestUploadView;
 	std::unique_ptr<KFEReadbackBuffer>    m_pTestReadbackView;
+
+	//~ Test textures
+	std::unique_ptr<KFETexture> m_pTestTexture1D;
+	std::unique_ptr<KFETexture> m_pTestTexture2D;
+	std::unique_ptr<KFETexture> m_pTestTexture3D;
 };
 
 #pragma endregion
@@ -188,6 +196,11 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pDSVHeap		= std::make_unique<KFEDSVHeap>	   ();
 	m_pResourceHeap = std::make_unique<KFEResourceHeap>();
 	m_pSamplerHeap  = std::make_unique<KFESamplerHeap> ();
+
+	//~ Test Textures
+	m_pTestTexture1D = std::make_unique<KFETexture>();
+	m_pTestTexture2D = std::make_unique<KFETexture>();
+	m_pTestTexture3D = std::make_unique<KFETexture>();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -247,6 +260,11 @@ bool kfe::KFERenderManager::Impl::Initialize()
 		return false;
 	}
 
+	if (!InitializeTextures()) 
+	{
+		return false;
+	}
+
 	return true;
 }
 
@@ -257,9 +275,7 @@ bool kfe::KFERenderManager::Impl::Release()
 
 void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 {
-	// you can test it here tho m not rendering anything on screen right now
-	// since my swapchain buffer ont have render taget view right now
-	// get for test create a test backbuffer from swapchain native if u want to
+
 }
 
 void kfe::KFERenderManager::Impl::FrameEnd()
@@ -289,15 +305,15 @@ bool kfe::KFERenderManager::Impl::InitializeComponents()
 	}
 
 	KFE_DEVICE_CREATE_DESC deviceDesc{};
-	deviceDesc.Adapter = m_pAdapter.get();
+	deviceDesc.Adapter   = m_pAdapter.get();
 	deviceDesc.debugName = "KnightDxDebugger";
-	deviceDesc.Factory = m_pFactory.get();
-	deviceDesc.Monitor = m_pMonitor.get();
+	deviceDesc.Factory   = m_pFactory.get();
+	deviceDesc.Monitor   = m_pMonitor.get();
 
 #if defined(_DEBUG) || defined(DEBUG)
 	deviceDesc.Flags = EDeviceCreateFlags::EnableDebugLayer |
-		EDeviceCreateFlags::EnableGPUBasedValidation |
-		EDeviceCreateFlags::EnableStablePowerState;
+			   EDeviceCreateFlags::EnableGPUBasedValidation |
+			EDeviceCreateFlags::EnableStablePowerState;
 #endif
 
 	if (!m_pDevice->Initialize(deviceDesc))
@@ -477,10 +493,10 @@ bool kfe::KFERenderManager::Impl::InitializeBuffers()
 		[this](
 			std::unique_ptr<KFEBuffer>& outBuffer,
 			const char* debugName,
-			std::uint64_t                    sizeInBytes,
-			D3D12_HEAP_TYPE                  heapType,
-			D3D12_RESOURCE_STATES            initialState,
-			D3D12_RESOURCE_FLAGS             flags = D3D12_RESOURCE_FLAG_NONE) -> bool
+			std::uint64_t                     sizeInBytes,
+			D3D12_HEAP_TYPE                   heapType,
+			D3D12_RESOURCE_STATES             initialState,
+			D3D12_RESOURCE_FLAGS              flags = D3D12_RESOURCE_FLAG_NONE) -> bool
 		{
 			KFE_CREATE_BUFFER_DESC desc{};
 			desc.Device = m_pDevice.get();
@@ -502,17 +518,16 @@ bool kfe::KFERenderManager::Impl::InitializeBuffers()
 			return true;
 		};
 
-	constexpr std::uint64_t kTestVBSize			= 64ull * 1024ull;   // 64 KB
-	constexpr std::uint64_t kTestIBSize			= 32ull * 1024ull;   // 32 KB
-	constexpr std::uint64_t kTestCBSize			= 4ull * 1024ull;   //  4 KB
-	constexpr std::uint64_t kTestUploadSize		= 16ull * 1024ull;   // 16 KB
-	constexpr std::uint64_t kTestReadbackSize	= 16ull * 1024ull;   // 16 KB
-	constexpr std::uint64_t kTestStructuredSize = 32ull * 1024ull;   // 32 KB
-	constexpr std::uint64_t kTestIndirectSize	= 4ull * 1024ull;   //  4 KB
+	constexpr std::uint64_t kTestVBSize = 64ull * 1024ull;
+	constexpr std::uint64_t kTestIBSize = 32ull * 1024ull;
+	constexpr std::uint64_t kTestCBSize = 4ull * 1024ull;
+	constexpr std::uint64_t kTestUploadSize = 16ull * 1024ull;
+	constexpr std::uint64_t kTestReadbackSize = 16ull * 1024ull;
+	constexpr std::uint64_t kTestStructuredSize = 32ull * 1024ull;
+	constexpr std::uint64_t kTestIndirectSize = 4ull * 1024ull;
 
 	bool ok = true;
 
-	// Default heap Vertex Buffer
 	ok &= CreateTestBuffer(
 		m_pTestVertexBuffer,
 		"Test Vertex Buffer (Default)",
@@ -520,7 +535,6 @@ bool kfe::KFERenderManager::Impl::InitializeBuffers()
 		D3D12_HEAP_TYPE_DEFAULT,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
-	// Default heap Index Buffer
 	ok &= CreateTestBuffer(
 		m_pTestIndexBuffer,
 		"Test Index Buffer (Default)",
@@ -528,7 +542,6 @@ bool kfe::KFERenderManager::Impl::InitializeBuffers()
 		D3D12_HEAP_TYPE_DEFAULT,
 		D3D12_RESOURCE_STATE_INDEX_BUFFER);
 
-	// Default heap Constant Buffer (GPU-side)
 	ok &= CreateTestBuffer(
 		m_pTestConstantBuffer,
 		"Test Constant Buffer (Default)",
@@ -536,7 +549,6 @@ bool kfe::KFERenderManager::Impl::InitializeBuffers()
 		D3D12_HEAP_TYPE_DEFAULT,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
-	// Default heap Structured Buffer with UAV
 	ok &= CreateTestBuffer(
 		m_pTestStructuredUAV,
 		"Test Structured UAV Buffer (Default)",
@@ -545,15 +557,14 @@ bool kfe::KFERenderManager::Impl::InitializeBuffers()
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	// Default heap Indirect Argument Buffer
 	ok &= CreateTestBuffer(
 		m_pTestIndirectArgsBuffer,
 		"Test Indirect Args Buffer (Default)",
 		kTestIndirectSize,
 		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,           
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);   
 
-	// Upload heap (generic – for staging / dynamic CBs)
 	ok &= CreateTestBuffer(
 		m_pTestUploadBuffer,
 		"Test Upload Buffer",
@@ -561,7 +572,6 @@ bool kfe::KFERenderManager::Impl::InitializeBuffers()
 		D3D12_HEAP_TYPE_UPLOAD,
 		D3D12_RESOURCE_STATE_GENERIC_READ);
 
-	// Readback heap
 	ok &= CreateTestBuffer(
 		m_pTestReadbackBuffer,
 		"Test Readback Buffer",
@@ -579,7 +589,6 @@ bool kfe::KFERenderManager::Impl::InitializeBuffers()
 	return true;
 }
 
-_Use_decl_annotations_
 bool kfe::KFERenderManager::Impl::InitializeViews()
 {
 	if (!m_pDevice)
@@ -737,8 +746,6 @@ bool kfe::KFERenderManager::Impl::InitializeViews()
 		LOG_WARNING("InitializeViews: Test structured UAV buffer is nullptr; skipping structured view.");
 	}
 
-	m_pTestStructuredView->Destroy();
-
 	if (m_pTestIndirectArgsBuffer)
 	{
 		m_pTestIndirectRawView = std::make_unique<KFERawBuffer>();
@@ -768,7 +775,7 @@ bool kfe::KFERenderManager::Impl::InitializeViews()
 			uavDesc.NumBytes = 0u;
 			uavDesc.HasCounter = false;
 			uavDesc.CounterOffsetInBytes = 0u;
-
+	
 			const std::uint32_t uavIndex = m_pTestIndirectRawView->CreateUAV(uavDesc);
 
 			LOG_SUCCESS(
@@ -791,4 +798,110 @@ bool kfe::KFERenderManager::Impl::InitializeViews()
 	}
 
 	return ok;
+}
+
+bool kfe::KFERenderManager::Impl::InitializeTextures()
+{
+	if (!m_pDevice)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeTextures: Device is nullptr.");
+		return false;
+	}
+
+	if (!m_pTestTexture1D) m_pTestTexture1D = std::make_unique<KFETexture>();
+	if (!m_pTestTexture2D) m_pTestTexture2D = std::make_unique<KFETexture>();
+	if (!m_pTestTexture3D) m_pTestTexture3D = std::make_unique<KFETexture>();
+
+	const DXGI_FORMAT testFormat			 = DXGI_FORMAT_R8G8B8A8_UNORM;
+	const D3D12_HEAP_TYPE heapType			 = D3D12_HEAP_TYPE_DEFAULT;
+	const D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
+	const D3D12_RESOURCE_FLAGS resourceFlags = static_cast<D3D12_RESOURCE_FLAGS>(0);
+
+	// 1D Texture Test
+	KFE_TEXTURE_CREATE_DESC tex1D{};
+	tex1D.Device			= m_pDevice.get();
+	tex1D.Dimension			= D3D12_RESOURCE_DIMENSION_TEXTURE1D;
+	tex1D.Width				= 256u;
+	tex1D.Height			= 1u;
+	tex1D.DepthOrArraySize	= 1u;
+	tex1D.MipLevels			= 1u;
+	tex1D.Format			= testFormat;
+	tex1D.SampleDesc		= nullptr;
+	tex1D.ResourceFlags		= resourceFlags;
+	tex1D.HeapType			= heapType;
+	tex1D.InitialState		= initialState;
+	tex1D.ClearValue		= nullptr;
+
+	if (!m_pTestTexture1D->Initialize(tex1D))
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeTextures: Failed to initialize Test Texture 1D.");
+		return false;
+	}
+
+	// 2D Texture Test
+	KFE_TEXTURE_CREATE_DESC tex2D{};
+	tex2D.Device			= m_pDevice.get();
+	tex2D.Dimension			= D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	tex2D.Width				= 512u;
+	tex2D.Height			= 512u;
+	tex2D.DepthOrArraySize	= 1u;
+	tex2D.MipLevels			= 1u;
+	tex2D.Format			= testFormat;
+	tex2D.SampleDesc		= nullptr;
+	tex2D.ResourceFlags		= resourceFlags;
+	tex2D.HeapType			= heapType;
+	tex2D.InitialState		= initialState;
+	tex2D.ClearValue		= nullptr;
+
+	if (!m_pTestTexture2D->Initialize(tex2D))
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeTextures: Failed to initialize Test Texture 2D.");
+		return false;
+	}
+
+	// 3D Texture Test
+	KFE_TEXTURE_CREATE_DESC tex3D{};
+	tex3D.Device			= m_pDevice.get();
+	tex3D.Dimension			= D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+	tex3D.Width				= 64u;
+	tex3D.Height			= 64u;
+	tex3D.DepthOrArraySize	= 16u;
+	tex3D.MipLevels			= 1u;
+	tex3D.Format			= testFormat;
+	tex3D.SampleDesc		= nullptr;
+	tex3D.ResourceFlags		= resourceFlags;
+	tex3D.HeapType			= heapType;
+	tex3D.InitialState		= initialState;
+	tex3D.ClearValue		= nullptr;
+
+	if (!m_pTestTexture3D->Initialize(tex3D))
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeTextures: Failed to initialize Test Texture 3D.");
+		return false;
+	}
+
+	LOG_INFO("TestTexture1D: dim={}, {}x{}, mip={}, fmt={}",
+		static_cast<int>(m_pTestTexture1D->GetDimension()),
+		m_pTestTexture1D->GetWidth(),
+		m_pTestTexture1D->GetHeight(),
+		m_pTestTexture1D->GetMipLevels(),
+		static_cast<int>(m_pTestTexture1D->GetFormat()));
+
+	LOG_INFO("TestTexture2D: dim={}, {}x{}, mip={}, fmt={}",
+		static_cast<int>(m_pTestTexture2D->GetDimension()),
+		m_pTestTexture2D->GetWidth(),
+		m_pTestTexture2D->GetHeight(),
+		m_pTestTexture2D->GetMipLevels(),
+		static_cast<int>(m_pTestTexture2D->GetFormat()));
+
+	LOG_INFO("TestTexture3D: dim={}, {}x{}x{}, mip={}, fmt={}",
+		static_cast<int>(m_pTestTexture3D->GetDimension()),
+		m_pTestTexture3D->GetWidth(),
+		m_pTestTexture3D->GetHeight(),
+		m_pTestTexture3D->GetDepthOrArraySize(),
+		m_pTestTexture3D->GetMipLevels(),
+		static_cast<int>(m_pTestTexture3D->GetFormat()));
+
+	LOG_SUCCESS("KFERenderManager::Impl::InitializeTextures: All test textures initialized successfully.");
+	return true;
 }

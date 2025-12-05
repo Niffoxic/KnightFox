@@ -489,20 +489,36 @@ std::uint32_t kfe::KFEStructuredBuffer::Impl::CreateUAV(_In_ const KFE_STRUCTURE
     handle.ptr = temp.ptr;
 
     ID3D12Resource* resource = m_pResourceBuffer->GetNative();
+    if (!resource)
+    {
+        LOG_ERROR("KFEStructuredBuffer::Impl::CreateUAV: Resource buffer native pointer is null.");
+        m_pResourceHeap->Free(descriptorIndex);
+        return KFE_INVALID_DESCRIPTOR_INDEX;
+    }
+
+    const D3D12_RESOURCE_DESC resDesc = resource->GetDesc();
+    if ((resDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == 0)
+    {
+        LOG_ERROR(
+            "KFEStructuredBuffer::Impl::CreateUAV: Resource does not have D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS set. "
+            "Aborting UAV creation. DescriptorIndex={}.",
+            descriptorIndex);
+
+        return KFE_INVALID_DESCRIPTOR_INDEX;
+    }
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-    uavDesc.Format                      = DXGI_FORMAT_UNKNOWN;
-    uavDesc.ViewDimension               = D3D12_UAV_DIMENSION_BUFFER;
-    uavDesc.Buffer.FirstElement         = firstElement;
-    uavDesc.Buffer.NumElements          = numElements;
-    uavDesc.Buffer.StructureByteStride  = m_elementStride;
-    uavDesc.Buffer.Flags                = D3D12_BUFFER_UAV_FLAG_NONE;
+    uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    uavDesc.Buffer.FirstElement = firstElement;
+    uavDesc.Buffer.NumElements = numElements;
+    uavDesc.Buffer.StructureByteStride = m_elementStride;
+    uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
     uavDesc.Buffer.CounterOffsetInBytes = 0u;
 
     if (desc.HasCounter)
     {
-
-        LOG_WARNING("YET TO IMPLEMENT IT!");
+        LOG_WARNING("KFEStructuredBuffer::Impl::CreateUAV: HasCounter=true but counter buffer support is not implemented yet.");
     }
 
     m_pDevice->GetNative()->CreateUnorderedAccessView(

@@ -162,6 +162,7 @@
     <ClInclude Include="include\engine\render_manager\heap\heap_dsv.h" />
     <ClInclude Include="include\engine\render_manager\heap\heap_sampler.h" />
     <ClInclude Include="include\engine\render_manager\buffer\buffer.h" />
+    <ClInclude Include="include\engine\render_manager\texture\texture.h" />
     <ClInclude Include="include\engine\system\common_types.h" />
     <ClInclude Include="include\engine\core.h" />
     <ClInclude Include="include\engine\system\dependency_resolver.h" />
@@ -201,6 +202,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="src\render_manager\texture\texture.cpp" />
     <ClCompile Include="src\render_manager\buffer\constant_buffer.cpp" />
     <ClCompile Include="src\render_manager\buffer\index_buffer.cpp" />
     <ClCompile Include="src\render_manager\buffer\raw_buffer.cpp" />
