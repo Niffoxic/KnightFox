@@ -46,17 +46,17 @@ namespace kfe
 
 	} KFE_RTV_CREATE_DESC;
 
-	class KFE_API KFERenderTargetView final: public IKFEObject
+	class KFE_API KFETextureRTV final: public IKFEObject
 	{
 	public:
-		 KFERenderTargetView() noexcept;
-		~KFERenderTargetView() noexcept;
+		 KFETextureRTV() noexcept;
+		~KFETextureRTV() noexcept;
 
-		KFERenderTargetView(const KFERenderTargetView&) = delete;
-		KFERenderTargetView(KFERenderTargetView&&) noexcept;
+		KFETextureRTV(const KFETextureRTV&) = delete;
+		KFETextureRTV(KFETextureRTV&&) noexcept;
 
-		KFERenderTargetView& operator=(const KFERenderTargetView&) = delete;
-		KFERenderTargetView& operator=(KFERenderTargetView&&) noexcept;
+		KFETextureRTV& operator=(const KFETextureRTV&) = delete;
+		KFETextureRTV& operator=(KFETextureRTV&&) noexcept;
 
 		NODISCARD bool Initialize(const KFE_RTV_CREATE_DESC& desc);
 		

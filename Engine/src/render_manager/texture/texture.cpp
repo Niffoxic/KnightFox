@@ -289,17 +289,8 @@ bool kfe::KFETexture::Impl::Initialize(const KFE_TEXTURE_CREATE_DESC& desc)
     texDesc.DepthOrArraySize = desc.DepthOrArraySize;
     texDesc.MipLevels        = desc.MipLevels;
     texDesc.Format           = desc.Format;
-
-    if (desc.SampleDesc)
-    {
-        texDesc.SampleDesc = *desc.SampleDesc;
-    }
-    else
-    {
-        texDesc.SampleDesc.Count   = 1u;
-        texDesc.SampleDesc.Quality = 0u;
-    }
-
+    texDesc.SampleDesc.Count   = desc.SampleDesc.Count;
+    texDesc.SampleDesc.Quality = desc.SampleDesc.Quality;
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     texDesc.Flags  = desc.ResourceFlags;
 

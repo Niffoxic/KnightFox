@@ -463,7 +463,7 @@ bool kfe::KFERTVHeap::Impl::Reset() noexcept
 
 bool kfe::KFERTVHeap::Impl::IsValidIndex(std::uint32_t idx) const noexcept
 {
-	return idx < m_nCapacity;
+	return (idx < m_nCapacity) && idx != KFE_INVALID_INDEX;
 }
 
 ID3D12DescriptorHeap* kfe::KFERTVHeap::Impl::GetNative() const noexcept
@@ -511,7 +511,7 @@ void kfe::KFERTVHeap::Impl::ClearState() noexcept
 
 bool kfe::KFERTVHeap::Impl::HasHeap() const noexcept
 {
-	return (m_pDescriptorHeap != nullptr);
+	return m_pDescriptorHeap.Get();
 }
 
 #pragma endregion

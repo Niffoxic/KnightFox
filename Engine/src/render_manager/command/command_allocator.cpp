@@ -187,6 +187,8 @@ bool kfe::KFECommandAllocator::Impl::ForceWait()
 	if (completed >= m_nWaitUntil) return true;
 
 	m_pAttachedFence->SetEventOnCompletion(m_nWaitUntil, m_waitHandle);
+	
+	LOG_WARNING("FORCED TO WAIT!");
 	return BlockThread();
 }
 

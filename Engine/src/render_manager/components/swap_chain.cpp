@@ -12,13 +12,18 @@
 #include "engine/render_manager/components/swap_chain.h"
 
 #include "engine/render_manager/components/factory.h"
+#include "engine/render_manager/components/device.h"
 #include "engine/render_manager/components/monitor.h"
 #include "engine/render_manager/queue/graphics_queue.h"
 
 #include "engine/windows_manager/windows_manager.h"
 #include "engine/utils/logger.h"
 
+//~ RTVs
+#include "engine/render_manager/heap/heap_rtv.h"
+
 #pragma region Impl_Declaration
+
 class kfe::KFESwapChain::Impl
 {
 public:
@@ -70,6 +75,35 @@ public:
 	NODISCARD IDXGISwapChain4*	  GetNative				 () const noexcept;
 	NODISCARD bool				  IsReadyToCreate		 () const noexcept;
 
+	//~ RTV
+	NODISCARD bool			HasRTVs	  () const noexcept;
+	NODISCARD KFERTVHeap*	GetRTVHeap() const noexcept;
+
+	NODISCARD std::uint32_t				  GetBackBufferRTVIndex (_In_ std::uint32_t bufferIndex) const noexcept;
+	NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetBackBufferRTVHandle(_In_ std::uint32_t bufferIndex) const noexcept;
+
+	NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferRTVHandle() const noexcept;
+
+	NODISCARD KFE_SWAP_CHAIN_DATA GetAndMarkBackBufferData(
+		_In_ ID3D12Fence*  fence,
+		_In_ std::uint64_t fenceValue
+	) noexcept;
+
+private:
+	NODISCARD bool BuildRTVs(
+		_In_opt_ KFERTVHeap* rtvHeap,
+		_In_opt_ KFEDevice*  pDevice);
+	
+	NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandleInternal(std::uint32_t bufferIndex) const noexcept;
+	
+	NODISCARD std::uint32_t FindFreeBackBufferIndex(
+		_In_ ID3D12Fence* fence,
+		_In_ std::uint64_t fenceValue,
+		bool forceWaitIfNone
+	) noexcept;
+
+	void UpdateAspectRatio() noexcept;
+
 private:
 	//~ Externals
 	KFEMonitor*		 m_pMonitor		 { nullptr };
@@ -79,7 +113,7 @@ private:
 
 	//~ Com resources
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> m_pSwapChain;
-
+	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> m_ppResources{};
 	//~ Configurations
 	std::uint16_t      m_nBufferCount		{			    2u			    };
 	DXGI_FORMAT        m_eBackBufferFormat	{   DXGI_FORMAT_R8G8B8A8_UNORM  };
@@ -97,6 +131,13 @@ private:
 	bool               m_bAllowTearing{ false };
 	bool               m_bInitialized { false };
 	bool               m_bDirty		  { false };
+
+	//~ RTVs
+	KFERTVHeap*					m_pRTVHeap		{ nullptr };
+	bool						m_bRTVsBuilt	{ false };
+	std::uint32_t				m_rtvBaseIndex	{ KFE_INVALID_INDEX };
+	std::vector<std::uint32_t>	m_backBufferRTVIndices;
+	std::vector<std::uint64_t>	m_backBufferFenceValues;
 };
 #pragma endregion
 
@@ -146,6 +187,42 @@ _Use_decl_annotations_
 bool kfe::KFESwapChain::Present(std::uint32_t syncInterval, std::uint32_t flags)
 {
 	return m_impl->Present(syncInterval, flags);
+}
+
+_Use_decl_annotations_
+kfe::KFE_SWAP_CHAIN_DATA kfe::KFESwapChain::GetAndMarkBackBufferData(ID3D12Fence* fence, std::uint64_t fenceValue) noexcept
+{
+	return m_impl->GetAndMarkBackBufferData(fence, fenceValue);
+}
+
+_Use_decl_annotations_
+bool kfe::KFESwapChain::HasRTVs() const noexcept
+{
+	return m_impl->HasRTVs();
+}
+
+_Use_decl_annotations_
+kfe::KFERTVHeap* kfe::KFESwapChain::GetRTVHeap() const noexcept
+{
+	return m_impl->GetRTVHeap();
+}
+
+_Use_decl_annotations_
+std::uint32_t kfe::KFESwapChain::GetBackBufferRTVIndex(std::uint32_t bufferIndex) const noexcept
+{
+	return m_impl->GetBackBufferRTVIndex(bufferIndex);
+}
+
+_Use_decl_annotations_
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFESwapChain::GetBackBufferRTVHandle(std::uint32_t bufferIndex) const noexcept
+{
+	return m_impl->GetBackBufferRTVHandle(bufferIndex);
+}
+
+_Use_decl_annotations_
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFESwapChain::GetCurrentBackBufferRTVHandle() const noexcept
+{
+	return m_impl->GetCurrentBackBufferRTVHandle();
 }
 
 _Use_decl_annotations_
@@ -314,10 +391,10 @@ bool kfe::KFESwapChain::Impl::Initialize(const KFE_SWAP_CHAIN_CREATE_DESC& desc)
 	//~ Destroy existing swapchain if already initialized
 	if (m_bInitialized)
 	{
-		LOG_WARNING("KFESwapChain::Impl::Initialize: Already initialized, attempting to destroy existing swapchain.");
+		LOG_WARNING("Already initialized, attempting to destroy existing swapchain.");
 		if (!Destroy())
 		{
-			LOG_ERROR("KFESwapChain::Impl::Initialize: Failed to destroy existing swapchain before re-initialization.");
+			LOG_ERROR("Failed to destroy existing swapchain before re-initialization.");
 			return false;
 		}
 		m_bInitialized = false;
@@ -326,19 +403,19 @@ bool kfe::KFESwapChain::Impl::Initialize(const KFE_SWAP_CHAIN_CREATE_DESC& desc)
 	//~ Basic validation checks
 	if (desc.Factory == nullptr)
 	{
-		LOG_ERROR("KFESwapChain::Impl::Initialize: Invalid KFEFactory pointer (nullptr).");
+		LOG_ERROR("Invalid KFEFactory pointer(nullptr).");
 		return false;
 	}
 
 	if (desc.GraphicsQueue == nullptr)
 	{
-		LOG_ERROR("KFESwapChain::Impl::Initialize: Invalid KFEGraphicsCmdQ pointer (nullptr).");
+		LOG_ERROR("Invalid KFEGraphicsCmdQ pointer (nullptr).");
 		return false;
 	}
 
 	if (desc.Windows == nullptr)
 	{
-		LOG_ERROR("KFESwapChain::Impl::Initialize: Invalid KFEWindows pointer (nullptr).");
+		LOG_ERROR("Invalid KFEWindows pointer (nullptr).");
 		return false;
 	}
 
@@ -363,7 +440,7 @@ bool kfe::KFESwapChain::Impl::Initialize(const KFE_SWAP_CHAIN_CREATE_DESC& desc)
 
 	if (desc.AllowTearing && !tearingSupported)
 	{
-		LOG_WARNING("KFESwapChain::Impl::Initialize: Tearing requested but not supported by this system. Disabling tearing.");
+		LOG_WARNING("Tearing requested but not supported by this system. Disabling tearing.");
 	}
 
 	if (m_bAllowTearing)
@@ -377,44 +454,44 @@ bool kfe::KFESwapChain::Impl::Initialize(const KFE_SWAP_CHAIN_CREATE_DESC& desc)
 
 	if (pNativeFactory == nullptr)
 	{
-		LOG_ERROR("KFESwapChain::Impl::Initialize: Native factory pointer is nullptr.");
+		LOG_ERROR("Native factory pointer is nullptr.");
 		return false;
 	}
 
 	if (pCmdQueue == nullptr)
 	{
-		LOG_ERROR("KFESwapChain::Impl::Initialize: Native graphics command queue pointer is nullptr.");
+		LOG_ERROR("Native graphics command queue pointer is nullptr.");
 		return false;
 	}
 
 	HWND hwnd = m_pWindows->GetWindowsHandle();
 	if (hwnd == nullptr)
 	{
-		LOG_ERROR("KFESwapChain::Impl::Initialize: Invalid window handle (nullptr).");
+		LOG_ERROR("Invalid window handle (nullptr).");
 		return false;
 	}
 
 	if (m_windowSize.Width == 0 || m_windowSize.Height == 0)
 	{
-		LOG_ERROR("KFESwapChain::Impl::Initialize: Invalid window size: {}x{}.",
+		LOG_ERROR("Invalid window size: {}x{}.",
 			m_windowSize.Width, m_windowSize.Height);
 		return false;
 	}
 
 	if (m_nBufferCount == 0)
 	{
-		LOG_ERROR("KFESwapChain::Impl::Initialize: BufferCount is zero, must be >= 1.");
+		LOG_ERROR("BufferCount is zero, must be >= 1.");
 		return false;
 	}
 
 	if (m_eBackBufferFormat == DXGI_FORMAT_UNKNOWN)
 	{
-		LOG_ERROR("KFESwapChain::Impl::Initialize: BackBufferFormat is DXGI_FORMAT_UNKNOWN.");
+		LOG_ERROR("BackBufferFormat is DXGI_FORMAT_UNKNOWN.");
 		return false;
 	}
 
 	LOG_INFO(
-		"KFESwapChain::Impl::Initialize: Creating swapchain - Size: {}x{}, Buffers: {}, Format: {}, VSync: {}, Tearing: {}, Windowed: {}.",
+		"Creating swapchain - Size: {}x{}, Buffers: {}, Format: {}, VSync: {}, Tearing: {}, Windowed: {}.",
 		m_windowSize.Width,
 		m_windowSize.Height,
 		m_nBufferCount,
@@ -429,7 +506,7 @@ bool kfe::KFESwapChain::Impl::Initialize(const KFE_SWAP_CHAIN_CREATE_DESC& desc)
 	swapchainDesc.BufferDesc.Height = m_windowSize.Height;
 	swapchainDesc.BufferDesc.Format = m_eBackBufferFormat;
 
-	// Let DXGI decide refresh; 0/1 is typical for variable refresh
+	// Let DXGI decide refresh
 	swapchainDesc.BufferDesc.RefreshRate.Numerator   = 0u;
 	swapchainDesc.BufferDesc.RefreshRate.Denominator = 1u;
 
@@ -458,7 +535,7 @@ bool kfe::KFESwapChain::Impl::Initialize(const KFE_SWAP_CHAIN_CREATE_DESC& desc)
 	if (FAILED(hrCreate))
 	{
 		LOG_ERROR(
-			"KFESwapChain::Impl::Initialize: CreateSwapChain failed. HRESULT = 0x{:08X}.",
+			"CreateSwapChain failed. HRESULT = 0x{:08X}.",
 			static_cast<unsigned long>(hrCreate));
 
 		m_pSwapChain.Reset();
@@ -471,7 +548,7 @@ bool kfe::KFESwapChain::Impl::Initialize(const KFE_SWAP_CHAIN_CREATE_DESC& desc)
 	if (FAILED(hrCast) || !m_pSwapChain)
 	{
 		LOG_ERROR(
-			"KFESwapChain::Impl::Initialize: Failed to query IDXGISwapChain4. HRESULT = 0x{:08X}.",
+			"Failed to query IDXGISwapChain4. HRESULT = 0x{:08X}.",
 			static_cast<unsigned long>(hrCast));
 
 		m_pSwapChain.Reset();
@@ -485,8 +562,17 @@ bool kfe::KFESwapChain::Impl::Initialize(const KFE_SWAP_CHAIN_CREATE_DESC& desc)
 	m_bDirty				= false;
 
 	LOG_SUCCESS(
-		"KFESwapChain::Impl::Initialize: Swapchain created successfully. CurrentBackBufferIdx = {}.",
+		"Swapchain created successfully. CurrentBackBufferIdx = {}.",
 		m_nCurrentBackBufferIdx);
+
+	if (desc.RtvHeap != nullptr)
+	{
+		if (!BuildRTVs(desc.RtvHeap, desc.Device))
+		{
+			LOG_ERROR("Failed to build RTVs for backbuffers.");
+		}
+		LOG_SUCCESS("Swap Chain RTVs are built!");
+	}
 
 	return true;
 }
@@ -496,13 +582,38 @@ bool kfe::KFESwapChain::Impl::Destroy() noexcept
 {
 	if (!m_bInitialized && !m_pSwapChain)
 	{
-		LOG_WARNING("KFESwapChain::Impl::Destroy: Called on an uninitialized swapchain.");
+		LOG_WARNING("Called on an uninitialized swapchain.");
 		return true;
+	}
+
+	// Free RTV descriptors
+	if (m_pRTVHeap && m_pRTVHeap->IsInitialized() && m_bRTVsBuilt)
+	{
+		for (std::uint32_t i = 0; i < m_backBufferRTVIndices.size(); ++i)
+		{
+			const std::uint32_t idx = m_backBufferRTVIndices[i];
+			if (idx != KFE_INVALID_INDEX && m_pRTVHeap->IsValidIndex(idx))
+			{
+				if (!m_pRTVHeap->Free(idx))
+				{
+					LOG_WARNING("Failed to free RTV descriptor index {} for backbuffer {}.", idx, i);
+				}
+			}
+		}
+
+		m_backBufferRTVIndices.clear();
+		m_backBufferFenceValues.clear();
+		
+		m_pRTVHeap		= nullptr;
+		m_bRTVsBuilt	= false;
+		m_rtvBaseIndex	= KFE_INVALID_INDEX;
+
+		LOG_INFO("Freed RTV descriptors for all backbuffers.");
 	}
 
 	if (m_pSwapChain)
 	{
-		LOG_INFO("KFESwapChain::Impl::Destroy: Releasing swapchain.");
+		LOG_INFO("Releasing swapchain.");
 		m_pSwapChain.Reset();
 	}
 
@@ -510,7 +621,7 @@ bool kfe::KFESwapChain::Impl::Destroy() noexcept
 	m_bDirty				= false;
 	m_nCurrentBackBufferIdx = 0u;
 
-	LOG_SUCCESS("KFESwapChain::Impl::Destroy: Swapchain destroyed successfully.");
+	LOG_SUCCESS("Swapchain destroyed successfully.");
 	return true;
 }
 
@@ -912,6 +1023,317 @@ bool kfe::KFESwapChain::Impl::IsReadyToCreate() const noexcept
 			hasValidSize   &&
 			hasBuffers	   &&
 			hasFormat;
+}
+
+_Use_decl_annotations_
+kfe::KFE_SWAP_CHAIN_DATA kfe::KFESwapChain::Impl::GetAndMarkBackBufferData(ID3D12Fence* fence, std::uint64_t fenceValue) noexcept
+{
+	KFE_SWAP_CHAIN_DATA data{};
+	data.BufferHandle.ptr = 0;
+	data.BufferIndex	  = KFE_INVALID_INDEX;
+	data.BufferResource   = nullptr;
+
+	// Validate RTVs
+	if (!HasRTVs())
+	{
+		LOG_ERROR("GetAndMarkBackBufferData: RTVs not built.");
+		return data;
+	}
+
+	if (!m_pSwapChain)
+	{
+		LOG_ERROR("GetAndMarkBackBufferData: Swapchain is null.");
+		return data;
+	}
+
+	// Get current swapchain backbuffer index
+	std::uint32_t index = m_pSwapChain->GetCurrentBackBufferIndex();
+	if (index >= m_nBufferCount)
+	{
+		LOG_ERROR("GetAndMarkBackBufferData: Backbuffer index {} out of range.", index);
+		return data;
+	}
+
+	// Fence tracking (optional)
+	if (fence != nullptr)
+	{
+		m_backBufferFenceValues[index] = fenceValue;
+	}
+
+	// Update internal current index
+	m_nCurrentBackBufferIdx = index;
+
+	// Get RTV descriptor handle
+	const std::uint32_t rtvIndex = m_backBufferRTVIndices[index];
+	if (!m_pRTVHeap->IsValidIndex(rtvIndex))
+	{
+		LOG_ERROR("GetAndMarkBackBufferData: Invalid RTV descriptor index {}.", rtvIndex);
+		return data;
+	}
+
+	data.BufferHandle = m_pRTVHeap->GetHandle(rtvIndex);
+	data.BufferIndex  = index;
+
+	// Get the backbuffer resource
+	if (index < m_ppResources.size() && m_ppResources[index])
+	{
+		data.BufferResource = m_ppResources[index].Get();
+	}
+	else
+	{
+		LOG_ERROR("GetAndMarkBackBufferData: Missing backbuffer resource at {}.", index);
+	}
+
+	return data;
+}
+
+_Use_decl_annotations_
+bool kfe::KFESwapChain::Impl::BuildRTVs(
+	KFERTVHeap* rtvHeap,
+	KFEDevice* pDevice)
+{
+	m_backBufferRTVIndices .clear();
+	m_backBufferFenceValues.clear();
+
+	m_bRTVsBuilt	= false;
+	m_pRTVHeap		= nullptr;
+	m_rtvBaseIndex	= KFE_INVALID_INDEX;
+
+	if (!m_pSwapChain)
+	{
+		LOG_ERROR("SwapChain is null. Cannot build RTVs.");
+		return false;
+	}
+
+	if (rtvHeap == nullptr)
+	{
+		LOG_WARNING("RTV heap is null. Skipping RTV creation.");
+		return false;
+	}
+
+	if (!rtvHeap->IsInitialized())
+	{
+		LOG_ERROR("RTV heap is not initialized.");
+		return false;
+	}
+
+	if (m_nBufferCount == 0)
+	{
+		LOG_ERROR("BufferCount is 0.");
+		return false;
+	}
+
+	if (!pDevice || !pDevice->GetNative())
+	{
+		LOG_ERROR("Device or native device is null!");
+		return false;
+	}
+
+	//~ Check that heap has enough space
+	const std::uint32_t remaining = rtvHeap->GetRemaining();
+	if (remaining < m_nBufferCount)
+	{
+		LOG_ERROR(
+			"RTV heap does not have enough remaining descriptors. "
+			"Required = {}, Remaining = {}",
+			m_nBufferCount, remaining);
+		return false;
+	}
+
+	m_pRTVHeap = rtvHeap;
+
+	m_backBufferRTVIndices .resize(m_nBufferCount, KFE_INVALID_INDEX);
+	m_backBufferFenceValues.resize(m_nBufferCount, 0ull);
+
+	ID3D12Device* nativeDevice = pDevice->GetNative();
+
+	//~ Create RTVs
+	for (std::uint32_t i = 0; i < m_nBufferCount; ++i)
+	{
+		// Allocate descriptor from heap
+		const std::uint32_t descriptorIndex = rtvHeap->Allocate();
+		if (!rtvHeap->IsValidIndex(descriptorIndex))
+		{
+			LOG_ERROR("Failed to allocate RTV descriptor for backbuffer {}.", i);
+
+			// Rollback any allocated descriptors so far
+			for (std::uint32_t j = 0; j < i; ++j)
+			{
+				const std::uint32_t idx = m_backBufferRTVIndices[j];
+				if (idx != KFE_INVALID_INDEX && rtvHeap->IsValidIndex(idx))
+				{
+					if (rtvHeap->Free(idx)) LOG_ERROR("Failed to Free Handle!");
+				}
+			}
+
+			m_backBufferRTVIndices .clear();
+			m_backBufferFenceValues.clear();
+			m_pRTVHeap	   = nullptr;
+			m_rtvBaseIndex = KFE_INVALID_INDEX;
+			return false;
+		}
+
+		m_backBufferRTVIndices[i] = descriptorIndex;
+
+		// Get the backbuffer resource
+		Microsoft::WRL::ComPtr<ID3D12Resource> backBuffer;
+		const HRESULT hr = m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer));
+		if (FAILED(hr) || !backBuffer)
+		{
+			LOG_ERROR("Failed to get backbuffer {}. HRESULT = 0x{:08X}", i, hr);
+
+			// Rollback descriptors on errors
+			for (std::uint32_t j = 0; j <= i; ++j)
+			{
+				const std::uint32_t idx = m_backBufferRTVIndices[j];
+				if (idx != KFE_INVALID_INDEX && rtvHeap->IsValidIndex(idx))
+				{
+					if (rtvHeap->Free(idx)) LOG_ERROR("Failed to Free Handle!");
+				}
+			}
+
+			m_backBufferRTVIndices .clear();
+			m_backBufferFenceValues.clear();
+			m_pRTVHeap	   = nullptr;
+			m_rtvBaseIndex = KFE_INVALID_INDEX;
+			return false;
+		}
+
+		// RTV description
+		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
+		rtvDesc.Format				 = m_eBackBufferFormat;
+		rtvDesc.ViewDimension		 = D3D12_RTV_DIMENSION_TEXTURE2D;
+		rtvDesc.Texture2D.MipSlice	 = 0u;
+		rtvDesc.Texture2D.PlaneSlice = 0u;
+
+		const D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = rtvHeap->GetHandle(descriptorIndex);
+
+		nativeDevice->CreateRenderTargetView(
+			backBuffer.Get(),
+			&rtvDesc,
+			cpuHandle
+		);
+
+		m_ppResources.emplace_back(std::move(backBuffer));
+
+		LOG_INFO("Built RTV for backbuffer{} at descriptor index{}.", i, descriptorIndex);
+	}
+
+	m_bRTVsBuilt = true;
+
+	m_rtvBaseIndex = m_backBufferRTVIndices.empty()
+		? KFE_INVALID_INDEX
+		: m_backBufferRTVIndices.front();
+
+	LOG_SUCCESS("Successfully built RTVs for {} backbuffers.", m_nBufferCount);
+
+	return true;
+}
+
+_Use_decl_annotations_
+D3D12_CPU_DESCRIPTOR_HANDLE
+kfe::KFESwapChain::Impl::GetRTVHandleInternal(
+	std::uint32_t bufferIndex) const noexcept
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE handle{};
+	handle.ptr = 0;
+
+	if (!HasRTVs() || !m_pRTVHeap)
+		return handle;
+
+	const std::uint32_t rtvIndex = GetBackBufferRTVIndex(bufferIndex);
+	if (rtvIndex == KFE_INVALID_INDEX)
+		return handle;
+
+	return m_pRTVHeap->GetHandle(rtvIndex);
+}
+
+_Use_decl_annotations_
+std::uint32_t kfe::KFESwapChain::Impl::FindFreeBackBufferIndex(
+	ID3D12Fence* fence,
+	std::uint64_t fenceValue,
+	bool forceWaitIfNone) noexcept
+{
+	if (!HasRTVs() || !fence)
+		return KFE_INVALID_INDEX;
+
+	const UINT64 completed = fence->GetCompletedValue();
+
+	for (std::uint32_t i = 0; i < m_nBufferCount; ++i)
+	{
+		if (completed >= m_backBufferFenceValues[i])
+			return i;
+	}
+
+	if (forceWaitIfNone)
+	{
+		HANDLE hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+		if (!hEvent)
+			return KFE_INVALID_INDEX;
+
+		fence->SetEventOnCompletion(fenceValue, hEvent);
+		WaitForSingleObject(hEvent, INFINITE);
+		CloseHandle(hEvent);
+
+		const UINT64 completedAfterWait = fence->GetCompletedValue();
+
+		for (std::uint32_t i = 0; i < m_nBufferCount; ++i)
+		{
+			if (completedAfterWait >= m_backBufferFenceValues[i])
+				return i;
+		}
+	}
+
+	return KFE_INVALID_INDEX;
+}
+
+void kfe::KFESwapChain::Impl::UpdateAspectRatio() noexcept
+{
+}
+
+_Use_decl_annotations_
+bool kfe::KFESwapChain::Impl::HasRTVs() const noexcept
+{
+	return m_bRTVsBuilt && m_pRTVHeap != nullptr && !m_backBufferRTVIndices.empty();
+}
+
+_Use_decl_annotations_
+kfe::KFERTVHeap* kfe::KFESwapChain::Impl::GetRTVHeap() const noexcept
+{
+	return m_pRTVHeap;
+}
+
+_Use_decl_annotations_
+std::uint32_t kfe::KFESwapChain::Impl::GetBackBufferRTVIndex(std::uint32_t bufferIndex) const noexcept
+{
+	if (bufferIndex >= m_backBufferRTVIndices.size())
+	{
+		LOG_ERROR("KFESwapChain::Impl::GetBackBufferRTVIndex: bufferIndex {} out of range.", bufferIndex);
+		return KFE_INVALID_INDEX;
+	}
+
+	const std::uint32_t index = m_backBufferRTVIndices[bufferIndex];
+
+	if (index == KFE_INVALID_INDEX)
+	{
+		LOG_WARNING("KFESwapChain::Impl::GetBackBufferRTVIndex: No RTV index stored for buffer {}", bufferIndex);
+	}
+
+	return index;
+}
+
+_Use_decl_annotations_
+D3D12_CPU_DESCRIPTOR_HANDLE
+kfe::KFESwapChain::Impl::GetBackBufferRTVHandle(std::uint32_t bufferIndex) const noexcept
+{
+	return GetRTVHandleInternal(bufferIndex);
+}
+
+_Use_decl_annotations_
+D3D12_CPU_DESCRIPTOR_HANDLE
+kfe::KFESwapChain::Impl::GetCurrentBackBufferRTVHandle() const noexcept
+{
+	return GetRTVHandleInternal(m_nCurrentBackBufferIdx);
 }
 
 #pragma endregion

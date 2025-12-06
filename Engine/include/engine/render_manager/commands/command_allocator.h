@@ -26,18 +26,18 @@ namespace kfe
 {
 	class KFEDevice;
 
+	typedef struct _KFE_CA_ATTACH_FENCE
+	{
+		ID3D12Fence* Fence;
+		uint64_t	 FenceWaitValue;
+	} KFE_CA_ATTACH_FENCE;
+
 	typedef struct _KFE_CA_CREATE_DESC
 	{
 		KFEDevice*				Device;
 		D3D12_COMMAND_LIST_TYPE	CmdListType;
 		uint64_t				BlockMaxTime{ 5u };
 	} KFE_CA_CREATE_DESC;
-
-	typedef struct _KFE_CA_ATTACH_FENCE
-	{
-		ID3D12Fence* Fence;
-		uint64_t	 FenceWaitValue;
-	} KFE_CA_ATTACH_FENCE;
 
 	/// <summary>
 	/// DirectX Command allocator Wrapper

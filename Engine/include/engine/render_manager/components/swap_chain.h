@@ -19,9 +19,12 @@
 #include "engine/system/common_types.h"
 #include "engine/core.h"
 
+struct D3D12_CPU_DESCRIPTOR_HANDLE;
+struct IDXGISwapChain4;
+struct ID3D12Fence;
 enum   DXGI_FORMAT;
 enum   DXGI_SWAP_EFFECT;
-struct IDXGISwapChain4;
+struct ID3D12Resource;
 
 namespace kfe
 {
@@ -29,6 +32,8 @@ namespace kfe
 	class KFEGraphicsCmdQ;
 	class KFEWindows;
 	class KFEMonitor;
+	class KFERTVHeap;
+	class KFEDevice;
 
 	typedef struct _KFE_SWAP_CHAIN_CREATE_DESC
 	{
@@ -45,13 +50,23 @@ namespace kfe
 
 		DXGI_SWAP_EFFECT SwapEffect;
 
-		std::uint32_t    BufferUsage;        // DXGI_USAGE flags
-		std::uint32_t    SwapChainFlags;     // DXGI_SWAP_CHAIN_FLAG_* bitmask
+		std::uint32_t    BufferUsage;
+		std::uint32_t    SwapChainFlags;
 
 		bool             EnableVSync;
 		bool             AllowTearing;
 		EScreenState     WindowState;
+
+		KFEDevice*  Device;
+		KFERTVHeap* RtvHeap;
 	} KFE_SWAP_CHAIN_CREATE_DESC;
+
+	typedef struct _KFE_SWAP_CHAIN_DATA 
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE BufferHandle;
+		std::uint32_t				BufferIndex;
+		ID3D12Resource*				BufferResource;
+	} KFE_SWAP_CHAIN_DATA;
 
 	class KFE_API KFESwapChain final: public IKFEObject
 	{
@@ -70,11 +85,24 @@ namespace kfe
 		std::string GetDescription() const noexcept override;
 
 		NODISCARD bool Initialize(_In_ const KFE_SWAP_CHAIN_CREATE_DESC& desc);
-		
+
 		NODISCARD bool Destroy () noexcept;
 		NODISCARD bool Recreate();
 		NODISCARD bool Present ();
 		NODISCARD bool Present(std::uint32_t syncInterval, std::uint32_t flags);
+
+		//~ Buffers Life Cycle
+		NODISCARD KFE_SWAP_CHAIN_DATA GetAndMarkBackBufferData(
+			_In_ ID3D12Fence*  fence,
+			_In_ std::uint64_t fenceValue
+		) noexcept;
+
+		NODISCARD bool			 HasRTVs   () const noexcept;
+		NODISCARD KFERTVHeap*	 GetRTVHeap() const noexcept;
+
+		NODISCARD std::uint32_t				  GetBackBufferRTVIndex (_In_ std::uint32_t bufferIndex) const noexcept;
+		NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetBackBufferRTVHandle(_In_ std::uint32_t bufferIndex) const noexcept;
+		NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferRTVHandle() const noexcept;
 
 		//~ Setters
 		NODISCARD bool SetScreenState(_In_ const EScreenState	state  );

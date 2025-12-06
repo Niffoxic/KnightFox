@@ -45,7 +45,7 @@ namespace kfe
         std::uint16_t MipLevels        = 1u;
 
         DXGI_FORMAT       Format     = static_cast<DXGI_FORMAT>(0);
-        DXGI_SAMPLE_DESC* SampleDesc = nullptr;
+        DXGI_SAMPLE_DESC SampleDesc  = static_cast<DXGI_SAMPLE_DESC>(0);
 
         D3D12_RESOURCE_FLAGS ResourceFlags = static_cast<D3D12_RESOURCE_FLAGS>(0);
         D3D12_HEAP_TYPE      HeapType      = static_cast<D3D12_HEAP_TYPE>(0);

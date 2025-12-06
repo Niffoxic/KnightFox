@@ -37,7 +37,6 @@ public:
 	NODISCARD bool Close  () noexcept;
 	NODISCARD bool Destroy() noexcept;
 
-
     NODISCARD ID3D12GraphicsCommandList* GetNative    () const noexcept;
     NODISCARD bool                       IsInitialized() const noexcept;
 
