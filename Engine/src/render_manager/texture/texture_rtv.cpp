@@ -21,7 +21,7 @@
 
 #pragma region Impl_Declaration
 
-class kfe::KFERenderTargetView::Impl 
+class kfe::KFETextureRTV::Impl 
 {
 public:
 	Impl() = default;
@@ -29,7 +29,7 @@ public:
     {
          if (!Destroy())
          {
-             LOG_ERROR("KFERenderTargetView::Impl::~Impl: Failed to destroy RTV cleanly.");
+             LOG_ERROR("KFETextureRTV::Impl::~Impl: Failed to destroy RTV cleanly.");
          }
     }
 
@@ -77,107 +77,107 @@ private:
 
 #pragma region RTV_Implementation
 
-kfe::KFERenderTargetView::KFERenderTargetView() noexcept
-	: m_impl(std::make_unique<kfe::KFERenderTargetView::Impl>())
+kfe::KFETextureRTV::KFETextureRTV() noexcept
+	: m_impl(std::make_unique<kfe::KFETextureRTV::Impl>())
 {}
 
-kfe::KFERenderTargetView::~KFERenderTargetView() noexcept = default;
+kfe::KFETextureRTV::~KFETextureRTV() noexcept = default;
 
-kfe::KFERenderTargetView::KFERenderTargetView				 (KFERenderTargetView&&) noexcept = default;
-kfe::KFERenderTargetView& kfe::KFERenderTargetView::operator=(KFERenderTargetView&&) noexcept = default;
+kfe::KFETextureRTV::KFETextureRTV				 (KFETextureRTV&&) noexcept = default;
+kfe::KFETextureRTV& kfe::KFETextureRTV::operator=(KFETextureRTV&&) noexcept = default;
 
 _Use_decl_annotations_
-bool kfe::KFERenderTargetView::Initialize(const KFE_RTV_CREATE_DESC& desc)
+bool kfe::KFETextureRTV::Initialize(const KFE_RTV_CREATE_DESC& desc)
 {
 	return m_impl->Initialize(desc);
 }
 
 _Use_decl_annotations_
-bool kfe::KFERenderTargetView::Destroy() noexcept 
+bool kfe::KFETextureRTV::Destroy() noexcept 
 {
 	return m_impl->Destroy();
 }
 
 _Use_decl_annotations_
-bool kfe::KFERenderTargetView::IsInitialize() const noexcept
+bool kfe::KFETextureRTV::IsInitialize() const noexcept
 {
 	return m_impl->IsInitialize();
 }
 
 _Use_decl_annotations_
-kfe::KFERTVHeap* kfe::KFERenderTargetView::GetAttachedHeap() const noexcept
+kfe::KFERTVHeap* kfe::KFETextureRTV::GetAttachedHeap() const noexcept
 {
 	return m_impl->GetAttachedHeap();
 }
 
 _Use_decl_annotations_
-kfe::KFETexture* kfe::KFERenderTargetView::GetTexture() const noexcept
+kfe::KFETexture* kfe::KFETextureRTV::GetTexture() const noexcept
 {
 	return m_impl->GetTexture();
 }
 
 _Use_decl_annotations_
-std::uint32_t kfe::KFERenderTargetView::GetDescriptorIndex() const noexcept
+std::uint32_t kfe::KFETextureRTV::GetDescriptorIndex() const noexcept
 {
 	return m_impl->GetDescriptorIndex();
 }
 
 _Use_decl_annotations_
-bool kfe::KFERenderTargetView::HasValidDescriptor() const noexcept
+bool kfe::KFETextureRTV::HasValidDescriptor() const noexcept
 {
 	return m_impl->HasValidDescriptor();
 }
 
 _Use_decl_annotations_
-D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFERenderTargetView::GetCPUHandle() const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFETextureRTV::GetCPUHandle() const noexcept
 {
 	return m_impl->GetCPUHandle();
 }
 
 _Use_decl_annotations_
-DXGI_FORMAT kfe::KFERenderTargetView::GetFormat() const noexcept
+DXGI_FORMAT kfe::KFETextureRTV::GetFormat() const noexcept
 {
 	return m_impl->GetFormat();
 }
 
 _Use_decl_annotations_
-D3D12_RTV_DIMENSION kfe::KFERenderTargetView::GetViewDimension() const noexcept
+D3D12_RTV_DIMENSION kfe::KFETextureRTV::GetViewDimension() const noexcept
 {
 	return m_impl->GetViewDimension();
 }
 
 _Use_decl_annotations_
-std::uint32_t kfe::KFERenderTargetView::GetMipSlice() const noexcept
+std::uint32_t kfe::KFETextureRTV::GetMipSlice() const noexcept
 {
 	return m_impl->GetMipSlice();
 }
 
 _Use_decl_annotations_
-std::uint32_t kfe::KFERenderTargetView::GetFirstArraySlice() const noexcept
+std::uint32_t kfe::KFETextureRTV::GetFirstArraySlice() const noexcept
 {
 	return m_impl->GetFirstArraySlice();
 }
 
 _Use_decl_annotations_
-std::uint32_t kfe::KFERenderTargetView::GetArraySize() const noexcept
+std::uint32_t kfe::KFETextureRTV::GetArraySize() const noexcept
 {
 	return m_impl->GetArraySize();
 }
 
 _Use_decl_annotations_
-std::uint32_t kfe::KFERenderTargetView::GetPlaneSlice() const noexcept
+std::uint32_t kfe::KFETextureRTV::GetPlaneSlice() const noexcept
 {
 	return m_impl->GetPlaneSlice();
 }
 
-std::string kfe::KFERenderTargetView::GetName() const noexcept
+std::string kfe::KFETextureRTV::GetName() const noexcept
 {
-	return "KFERenderTargetView";
+	return "KFETextureRTV";
 }
 
-std::string kfe::KFERenderTargetView::GetDescription() const noexcept
+std::string kfe::KFETextureRTV::GetDescription() const noexcept
 {
-	return "KFERenderTargetView: RTV D3D12";
+	return "KFETextureRTV: RTV D3D12";
 }
 
 #pragma endregion
@@ -186,7 +186,7 @@ std::string kfe::KFERenderTargetView::GetDescription() const noexcept
 
 
 _Use_decl_annotations_
-bool kfe::KFERenderTargetView::Impl::Initialize(const KFE_RTV_CREATE_DESC& desc)
+bool kfe::KFETextureRTV::Impl::Initialize(const KFE_RTV_CREATE_DESC& desc)
 {
 	// Validate + cache everything + allocate descriptor
 	if (!CacheValidateInput(desc))
@@ -196,21 +196,21 @@ bool kfe::KFERenderTargetView::Impl::Initialize(const KFE_RTV_CREATE_DESC& desc)
 
 	if (m_pDevice == nullptr)
 	{
-		LOG_ERROR("KFERenderTargetView::Impl::Initialize: Cached device is null.");
+		LOG_ERROR("KFETextureRTV::Impl::Initialize: Cached device is null.");
 		Reset();
 		return false;
 	}
 
 	if (m_pTexture == nullptr)
 	{
-		LOG_ERROR("KFERenderTargetView::Impl::Initialize: Cached texture is null.");
+		LOG_ERROR("KFETextureRTV::Impl::Initialize: Cached texture is null.");
 		Reset();
 		return false;
 	}
 
 	if (m_pHeap == nullptr)
 	{
-		LOG_ERROR("KFERenderTargetView::Impl::Initialize: Cached RTV heap is null.");
+		LOG_ERROR("KFETextureRTV::Impl::Initialize: Cached RTV heap is null.");
 		Reset();
 		return false;
 	}
@@ -218,7 +218,7 @@ bool kfe::KFERenderTargetView::Impl::Initialize(const KFE_RTV_CREATE_DESC& desc)
 	auto* nativeDevice = m_pDevice->GetNative();
 	if (nativeDevice == nullptr)
 	{
-		LOG_ERROR("KFERenderTargetView::Impl::Initialize: Native device is null.");
+		LOG_ERROR("KFETextureRTV::Impl::Initialize: Native device is null.");
 		Reset();
 		return false;
 	}
@@ -266,19 +266,19 @@ bool kfe::KFERenderTargetView::Impl::Initialize(const KFE_RTV_CREATE_DESC& desc)
 		break;
 
 	case D3D12_RTV_DIMENSION_BUFFER:
-		LOG_WARNING("KFERenderTargetView::Impl::Initialize: D3D12_RTV_DIMENSION_BUFFER not fully handled.");
+		LOG_WARNING("KFETextureRTV::Impl::Initialize: D3D12_RTV_DIMENSION_BUFFER not fully handled.");
 		break;
 
 	case D3D12_RTV_DIMENSION_UNKNOWN:
 	default:
-		LOG_ERROR("KFERenderTargetView::Impl::Initialize: Unsupported or UNKNOWN RTV view dimension.");
+		LOG_ERROR("KFETextureRTV::Impl::Initialize: Unsupported or UNKNOWN RTV view dimension.");
 		Reset();
 		return false;
 	}
 
 	if (!HasValidDescriptor())
 	{
-		LOG_ERROR("KFERenderTargetView::Impl::Initialize: Descriptor index is not valid after CacheValidateInput.");
+		LOG_ERROR("KFETextureRTV::Impl::Initialize: Descriptor index is not valid after CacheValidateInput.");
 		Reset();
 		return false;
 	}
@@ -295,7 +295,7 @@ bool kfe::KFERenderTargetView::Impl::Initialize(const KFE_RTV_CREATE_DESC& desc)
 }
 
 _Use_decl_annotations_
-bool kfe::KFERenderTargetView::Impl::Destroy() noexcept
+bool kfe::KFETextureRTV::Impl::Destroy() noexcept
 {
 	if (!m_bInitialized)
 	{
@@ -308,43 +308,43 @@ bool kfe::KFERenderTargetView::Impl::Destroy() noexcept
 	{
 		if (!m_pHeap->Free(m_descriptorIndex))
 		{
-			LOG_WARNING("KFERenderTargetView::Impl::Destroy: Failed to free descriptor index {}.", m_descriptorIndex);
+			LOG_WARNING("KFETextureRTV::Impl::Destroy: Failed to free descriptor index {}.", m_descriptorIndex);
 		}
 	}
 
 	Reset();
 	m_bInitialized = false;
 
-	LOG_SUCCESS("KFERenderTargetView::Impl::Destroy: RTV destroyed and state reset.");
+	LOG_SUCCESS("KFETextureRTV::Impl::Destroy: RTV destroyed and state reset.");
 	return true;
 }
 
 _Use_decl_annotations_
-bool kfe::KFERenderTargetView::Impl::IsInitialize() const noexcept
+bool kfe::KFETextureRTV::Impl::IsInitialize() const noexcept
 {
 	return m_bInitialized;
 }
 
 _Use_decl_annotations_
-kfe::KFERTVHeap* kfe::KFERenderTargetView::Impl::GetAttachedHeap() const noexcept
+kfe::KFERTVHeap* kfe::KFETextureRTV::Impl::GetAttachedHeap() const noexcept
 {
 	return m_pHeap;
 }
 
 _Use_decl_annotations_
-kfe::KFETexture* kfe::KFERenderTargetView::Impl::GetTexture() const noexcept
+kfe::KFETexture* kfe::KFETextureRTV::Impl::GetTexture() const noexcept
 {
 	return m_pTexture;
 }
 
 _Use_decl_annotations_
-std::uint32_t kfe::KFERenderTargetView::Impl::GetDescriptorIndex() const noexcept
+std::uint32_t kfe::KFETextureRTV::Impl::GetDescriptorIndex() const noexcept
 {
 	return m_descriptorIndex;
 }
 
 _Use_decl_annotations_
-bool kfe::KFERenderTargetView::Impl::HasValidDescriptor() const noexcept
+bool kfe::KFETextureRTV::Impl::HasValidDescriptor() const noexcept
 {
 	if (m_pHeap == nullptr)
 	{
@@ -360,7 +360,7 @@ bool kfe::KFERenderTargetView::Impl::HasValidDescriptor() const noexcept
 }
 
 _Use_decl_annotations_
-D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFERenderTargetView::Impl::GetCPUHandle() const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFETextureRTV::Impl::GetCPUHandle() const noexcept
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE handle{};
 	handle.ptr = 0;
@@ -374,69 +374,69 @@ D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFERenderTargetView::Impl::GetCPUHandle() const
 }
 
 _Use_decl_annotations_
-DXGI_FORMAT kfe::KFERenderTargetView::Impl::GetFormat() const noexcept
+DXGI_FORMAT kfe::KFETextureRTV::Impl::GetFormat() const noexcept
 {
 	return m_format;
 }
 
 _Use_decl_annotations_
-D3D12_RTV_DIMENSION kfe::KFERenderTargetView::Impl::GetViewDimension() const noexcept
+D3D12_RTV_DIMENSION kfe::KFETextureRTV::Impl::GetViewDimension() const noexcept
 {
 	return m_viewDimension;
 }
 
 _Use_decl_annotations_
-std::uint32_t kfe::KFERenderTargetView::Impl::GetMipSlice() const noexcept
+std::uint32_t kfe::KFETextureRTV::Impl::GetMipSlice() const noexcept
 {
 	return m_mipSlice;
 }
 
 _Use_decl_annotations_
-std::uint32_t kfe::KFERenderTargetView::Impl::GetFirstArraySlice() const noexcept
+std::uint32_t kfe::KFETextureRTV::Impl::GetFirstArraySlice() const noexcept
 {
 	return m_firstArraySlice;
 }
 
 _Use_decl_annotations_
-std::uint32_t kfe::KFERenderTargetView::Impl::GetArraySize() const noexcept
+std::uint32_t kfe::KFETextureRTV::Impl::GetArraySize() const noexcept
 {
 	return m_arraySize;
 }
 
 _Use_decl_annotations_
-std::uint32_t kfe::KFERenderTargetView::Impl::GetPlaneSlice() const noexcept
+std::uint32_t kfe::KFETextureRTV::Impl::GetPlaneSlice() const noexcept
 {
 	return m_planeSlice;
 }
 
 _Use_decl_annotations_
-bool kfe::KFERenderTargetView::Impl::CacheValidateInput(const KFE_RTV_CREATE_DESC& desc)
+bool kfe::KFETextureRTV::Impl::CacheValidateInput(const KFE_RTV_CREATE_DESC& desc)
 {
 	if (m_bInitialized)
 	{
-		LOG_WARNING("KFERenderTargetView::Impl::Initialize: Already initialized. Destroying previous state.");
+		LOG_WARNING("KFETextureRTV::Impl::Initialize: Already initialized. Destroying previous state.");
 		if (!Destroy())
 		{
-			LOG_ERROR("KFERenderTargetView::Impl::Initialize: Failed to destroy previous state.");
+			LOG_ERROR("KFETextureRTV::Impl::Initialize: Failed to destroy previous state.");
 			return false;
 		}
 	}
 
 	if (desc.Device == nullptr)
 	{
-		LOG_ERROR("KFERenderTargetView::Impl::Initialize: Device is null.");
+		LOG_ERROR("KFETextureRTV::Impl::Initialize: Device is null.");
 		return false;
 	}
 
 	if (desc.Heap == nullptr)
 	{
-		LOG_ERROR("KFERenderTargetView::Impl::Initialize: RTV heap is null.");
+		LOG_ERROR("KFETextureRTV::Impl::Initialize: RTV heap is null.");
 		return false;
 	}
 
 	if (desc.Texture == nullptr)
 	{
-		LOG_ERROR("KFERenderTargetView::Impl::Initialize: Texture is null.");
+		LOG_ERROR("KFETextureRTV::Impl::Initialize: Texture is null.");
 		return false;
 	}
 
@@ -462,7 +462,7 @@ bool kfe::KFERenderTargetView::Impl::CacheValidateInput(const KFE_RTV_CREATE_DES
 		index = m_pHeap->Allocate();
 		if (index == KFE_INVALID_INDEX)
 		{
-			LOG_ERROR("KFERenderTargetView::Impl::Initialize: Failed to allocate descriptor from RTV heap.");
+			LOG_ERROR("KFETextureRTV::Impl::Initialize: Failed to allocate descriptor from RTV heap.");
 			Reset();
 			return false;
 		}
@@ -471,7 +471,7 @@ bool kfe::KFERenderTargetView::Impl::CacheValidateInput(const KFE_RTV_CREATE_DES
 	{
 		if (!m_pHeap->IsValidIndex(index))
 		{
-			LOG_ERROR("KFERenderTargetView::Impl::Initialize: Provided descriptor index {} is invalid for this heap.", index);
+			LOG_ERROR("KFETextureRTV::Impl::Initialize: Provided descriptor index {} is invalid for this heap.", index);
 			Reset();
 			return false;
 		}
@@ -480,7 +480,7 @@ bool kfe::KFERenderTargetView::Impl::CacheValidateInput(const KFE_RTV_CREATE_DES
 	m_descriptorIndex = index;
 	m_bInitialized	  = true;
 
-	LOG_SUCCESS("KFERenderTargetView::Impl::Initialize: RTV cached. HeapIdx = {}, Format = {}, Dimension = {}",
+	LOG_SUCCESS("KFETextureRTV::Impl::Initialize: RTV cached. HeapIdx = {}, Format = {}, Dimension = {}",
 		m_descriptorIndex,
 		static_cast<int>(m_format),
 		static_cast<int>(m_viewDimension));
@@ -488,7 +488,7 @@ bool kfe::KFERenderTargetView::Impl::CacheValidateInput(const KFE_RTV_CREATE_DES
 	return true;
 }
 
-void kfe::KFERenderTargetView::Impl::Reset()
+void kfe::KFETextureRTV::Impl::Reset()
 {
 	m_pDevice		  = nullptr;
 	m_pHeap			  = nullptr;

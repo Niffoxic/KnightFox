@@ -11,7 +11,6 @@
 #pragma once
 
 #include "EngineAPI.h"
-
 #include "engine/core.h"
 
 #include <cstdint>
@@ -42,9 +41,7 @@ namespace kfe
 		std::uint32_t ArraySize;
 		std::uint32_t PlaneSlice;
 
-		// Descriptor heap index handling
 		// If set to INVALID the RTV will allocate a new slot
-		// Otherwise it will be used
 		std::uint32_t DescriptorIndex;
 
 	} KFE_RTV_CREATE_DESC;
@@ -62,8 +59,8 @@ namespace kfe
 		KFERenderTargetView& operator=(KFERenderTargetView&&) noexcept;
 
 		NODISCARD bool Initialize(const KFE_RTV_CREATE_DESC& desc);
-		NODISCARD bool Destroy() noexcept;
-
+		
+		NODISCARD bool Destroy	   ()		noexcept;
 		NODISCARD bool IsInitialize() const noexcept;
 
 		NODISCARD KFERTVHeap* GetAttachedHeap() const noexcept;
