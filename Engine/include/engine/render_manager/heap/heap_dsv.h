@@ -62,10 +62,10 @@ namespace kfe
         NODISCARD std::uint32_t GetHandleSize() const noexcept;
 
         /// Returns the CPU handle to the first descriptor in the heap.
-        NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetStartHandle() const noexcept;
+        NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetStartHandle() const noexcept;
 
         /// Returns the CPU handle at the specified index.
-        NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetHandle(_In_ std::uint32_t index) const noexcept;
+        NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(_In_ std::uint32_t index) const noexcept;
 
         /// Allocates a single descriptor slot and returns its index.
         /// Returns InvalidIndex if no more descriptors are available.

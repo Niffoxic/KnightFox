@@ -40,11 +40,11 @@ public:
 	NODISCARD std::uint32_t Allocate		 ()       noexcept;
 	NODISCARD bool          Reset			 ()       noexcept;
 
-	NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetStartHandle   () const noexcept;
-	NODISCARD KFE_GPU_DESCRIPTOR_HANDLE GetGPUStartHandle() const noexcept;
+	NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetStartHandle   () const noexcept;
+	NODISCARD D3D12_GPU_DESCRIPTOR_HANDLE GetGPUStartHandle() const noexcept;
 
-	NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetHandle	(_In_ std::uint32_t index) const noexcept;
-	NODISCARD KFE_GPU_DESCRIPTOR_HANDLE GetGPUHandle(_In_ std::uint32_t index) const noexcept;
+	NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetHandle	(_In_ std::uint32_t index) const noexcept;
+	NODISCARD D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(_In_ std::uint32_t index) const noexcept;
 
 	NODISCARD bool Free		   (_In_ std::uint32_t index) noexcept;
 	NODISCARD bool IsValidIndex(std::uint32_t idx)  const noexcept;
@@ -54,8 +54,8 @@ public:
 	void SetDebugName(_In_ const std::string& name) noexcept;
 
 private:
-	KFE_CPU_DESCRIPTOR_HANDLE ComputeCPUHandle(_In_ std::uint32_t index) const noexcept;
-	KFE_GPU_DESCRIPTOR_HANDLE ComputeGPUHandle(_In_ std::uint32_t index) const noexcept;
+    D3D12_CPU_DESCRIPTOR_HANDLE ComputeCPUHandle(_In_ std::uint32_t index) const noexcept;
+    D3D12_GPU_DESCRIPTOR_HANDLE ComputeGPUHandle(_In_ std::uint32_t index) const noexcept;
 
 	void ClearState()       noexcept;
 	bool HasHeap   () const noexcept;
@@ -74,8 +74,8 @@ private:
 	std::uint32_t m_nHandleSize		{ 0u };
 	std::uint32_t m_nNextSearchIndex{ 0u };
 
-	KFE_CPU_DESCRIPTOR_HANDLE m_cpuHandleStart{};
-	KFE_GPU_DESCRIPTOR_HANDLE m_gpuHandleStart{};
+    D3D12_CPU_DESCRIPTOR_HANDLE m_cpuHandleStart{};
+    D3D12_GPU_DESCRIPTOR_HANDLE m_gpuHandleStart{};
 
 	std::vector<EWorkState> m_workStates{};
 
@@ -158,25 +158,25 @@ std::uint32_t kfe::KFESamplerHeap::GetHandleSize() const noexcept
 }
 
 _Use_decl_annotations_
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::GetStartHandle() const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::GetStartHandle() const noexcept
 {
     return m_impl->GetStartHandle();
 }
 
 _Use_decl_annotations_
-KFE_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::GetGPUStartHandle() const noexcept
+D3D12_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::GetGPUStartHandle() const noexcept
 {
     return m_impl->GetGPUStartHandle();
 }
 
 _Use_decl_annotations_
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::GetHandle(std::uint32_t index) const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::GetHandle(std::uint32_t index) const noexcept
 {
     return m_impl->GetHandle(index);
 }
 
 _Use_decl_annotations_
-KFE_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::GetGPUHandle(std::uint32_t index) const noexcept
+D3D12_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::GetGPUHandle(std::uint32_t index) const noexcept
 {
     return m_impl->GetGPUHandle(index);
 }
@@ -365,19 +365,19 @@ std::uint32_t kfe::KFESamplerHeap::Impl::GetHandleSize() const noexcept
 }
 
 _Use_decl_annotations_
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::GetStartHandle() const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::GetStartHandle() const noexcept
 {
     return m_cpuHandleStart;
 }
 
 _Use_decl_annotations_
-KFE_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::GetGPUStartHandle() const noexcept
+D3D12_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::GetGPUStartHandle() const noexcept
 {
     return m_gpuHandleStart;
 }
 
 _Use_decl_annotations_
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::GetHandle(std::uint32_t index) const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::GetHandle(std::uint32_t index) const noexcept
 {
     if (!IsValidIndex(index))
     {
@@ -386,14 +386,14 @@ KFE_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::GetHandle(std::uint32_t ind
             index,
             m_nCapacity
         );
-        return KFE_CPU_DESCRIPTOR_HANDLE{};
+        return D3D12_CPU_DESCRIPTOR_HANDLE{};
     }
 
     return ComputeCPUHandle(index);
 }
 
 _Use_decl_annotations_
-KFE_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::GetGPUHandle(std::uint32_t index) const noexcept
+D3D12_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::GetGPUHandle(std::uint32_t index) const noexcept
 {
     if (!IsValidIndex(index))
     {
@@ -402,7 +402,7 @@ KFE_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::GetGPUHandle(std::uint32_t 
             index,
             m_nCapacity
         );
-        return KFE_GPU_DESCRIPTOR_HANDLE{};
+        return D3D12_GPU_DESCRIPTOR_HANDLE{};
     }
 
     return ComputeGPUHandle(index);
@@ -568,17 +568,17 @@ void kfe::KFESamplerHeap::Impl::SetDebugName(const std::string& name) noexcept
 }
 
 _Use_decl_annotations_
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::ComputeCPUHandle(std::uint32_t index) const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::ComputeCPUHandle(std::uint32_t index) const noexcept
 {
-    KFE_CPU_DESCRIPTOR_HANDLE handle = m_cpuHandleStart;
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = m_cpuHandleStart;
     handle.ptr += static_cast<std::size_t>(index) * static_cast<std::size_t>(m_nHandleSize);
     return handle;
 }
 
 _Use_decl_annotations_
-KFE_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::ComputeGPUHandle(std::uint32_t index) const noexcept
+D3D12_GPU_DESCRIPTOR_HANDLE kfe::KFESamplerHeap::Impl::ComputeGPUHandle(std::uint32_t index) const noexcept
 {
-    KFE_GPU_DESCRIPTOR_HANDLE handle = m_gpuHandleStart;
+    D3D12_GPU_DESCRIPTOR_HANDLE handle = m_gpuHandleStart;
     handle.ptr += static_cast<std::size_t>(index) * static_cast<std::size_t>(m_nHandleSize);
     return handle;
 }
@@ -591,8 +591,8 @@ void kfe::KFESamplerHeap::Impl::ClearState() noexcept
     m_nHandleSize       = 0u;
     m_nNextSearchIndex  = 0u;
 
-    m_cpuHandleStart = KFE_CPU_DESCRIPTOR_HANDLE{};
-    m_gpuHandleStart = KFE_GPU_DESCRIPTOR_HANDLE{};
+    m_cpuHandleStart = D3D12_CPU_DESCRIPTOR_HANDLE{};
+    m_gpuHandleStart = D3D12_GPU_DESCRIPTOR_HANDLE{};
 
     m_workStates .clear();
     m_szDebugName.clear();

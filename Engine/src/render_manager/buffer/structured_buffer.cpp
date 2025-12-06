@@ -431,9 +431,7 @@ std::uint32_t kfe::KFEStructuredBuffer::Impl::CreateSRV(_In_ const KFE_STRUCTURE
         return KFE_INVALID_DESCRIPTOR_INDEX;
     }
 
-    const KFE_CPU_DESCRIPTOR_HANDLE temp = m_pResourceHeap->GetHandle(descriptorIndex);
-    D3D12_CPU_DESCRIPTOR_HANDLE handle{};
-    handle.ptr = temp.ptr;
+    const D3D12_CPU_DESCRIPTOR_HANDLE handle = m_pResourceHeap->GetHandle(descriptorIndex);
 
     ID3D12Resource* resource = m_pResourceBuffer->GetNative();
 
@@ -484,9 +482,7 @@ std::uint32_t kfe::KFEStructuredBuffer::Impl::CreateUAV(_In_ const KFE_STRUCTURE
         return KFE_INVALID_DESCRIPTOR_INDEX;
     }
 
-    const KFE_CPU_DESCRIPTOR_HANDLE temp = m_pResourceHeap->GetHandle(descriptorIndex);
-    D3D12_CPU_DESCRIPTOR_HANDLE handle{};
-    handle.ptr = temp.ptr;
+    const D3D12_CPU_DESCRIPTOR_HANDLE handle = m_pResourceHeap->GetHandle(descriptorIndex);
 
     ID3D12Resource* resource = m_pResourceBuffer->GetNative();
     if (!resource)

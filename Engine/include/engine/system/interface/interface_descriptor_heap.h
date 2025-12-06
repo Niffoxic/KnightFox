@@ -12,12 +12,13 @@
 
 #include "EngineAPI.h"
 #include "engine/core.h"
-#include "engine/system/common_types.h"
 
 #include <cstdint>
 #include <string>
 
 struct ID3D12DescriptorHeap;
+struct D3D12_CPU_DESCRIPTOR_HANDLE;
+struct D3D12_GPU_DESCRIPTOR_HANDLE;
 
 namespace kfe
 {
@@ -50,11 +51,11 @@ namespace kfe
         /// Size, in bytes, between adjacent descriptors in this heap
         NODISCARD virtual std::uint32_t GetHandleSize    () const noexcept = 0;
 
-        NODISCARD virtual KFE_CPU_DESCRIPTOR_HANDLE GetStartHandle   () const noexcept = 0;
-        NODISCARD virtual KFE_GPU_DESCRIPTOR_HANDLE GetGPUStartHandle() const noexcept { return { 0xfffff }; }
+        NODISCARD virtual D3D12_CPU_DESCRIPTOR_HANDLE GetStartHandle   () const noexcept = 0;
+        NODISCARD virtual D3D12_GPU_DESCRIPTOR_HANDLE GetGPUStartHandle() const noexcept { return {}; }
 
-        NODISCARD virtual KFE_CPU_DESCRIPTOR_HANDLE GetHandle   (_In_ std::uint32_t index) const noexcept = 0;
-        NODISCARD virtual KFE_GPU_DESCRIPTOR_HANDLE GetGPUHandle(_In_ std::uint32_t index) const noexcept { return { 0xfffff }; }
+        NODISCARD virtual D3D12_CPU_DESCRIPTOR_HANDLE GetHandle   (_In_ std::uint32_t index) const noexcept = 0;
+        NODISCARD virtual D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(_In_ std::uint32_t index) const noexcept { return {}; }
 
         /// Allocates a single descriptor slot and returns its index
         /// Returns InvalidIndex if no more descriptors are available

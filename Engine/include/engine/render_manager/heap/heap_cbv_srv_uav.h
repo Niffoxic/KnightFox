@@ -57,11 +57,11 @@ namespace kfe
         /// Size, in bytes, between adjacent descriptors in this heap
         NODISCARD std::uint32_t GetHandleSize    () const noexcept;
 
-        NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetStartHandle   () const noexcept;
-        NODISCARD KFE_GPU_DESCRIPTOR_HANDLE GetGPUStartHandle() const noexcept;
+        NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetStartHandle   () const noexcept;
+        NODISCARD D3D12_GPU_DESCRIPTOR_HANDLE GetGPUStartHandle() const noexcept;
 
-        NODISCARD KFE_CPU_DESCRIPTOR_HANDLE GetHandle   (_In_ std::uint32_t index) const noexcept;
-        NODISCARD KFE_GPU_DESCRIPTOR_HANDLE GetGPUHandle(_In_ std::uint32_t index) const noexcept;
+        NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetHandle   (_In_ std::uint32_t index) const noexcept;
+        NODISCARD D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(_In_ std::uint32_t index) const noexcept;
 
         /// Allocates a single descriptor slot and returns its index
         /// Returns InvalidIndex if no more descriptors are available

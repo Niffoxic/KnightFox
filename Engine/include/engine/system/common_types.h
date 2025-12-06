@@ -88,20 +88,12 @@ typedef struct KFE_RECT
 	std::uint32_t top;
 } KFE_RECT;
 
-typedef struct _KFE_CPU_DESCRIPTOR_HANDLE
-{
-	size_t ptr = 0;
-} KFE_CPU_DESCRIPTOR_HANDLE;
-
-typedef struct _KFE_GPU_DESCRIPTOR_HANDLE
-{
-	std::uint64_t ptr = 0;
-} KFE_GPU_DESCRIPTOR_HANDLE;
-
 //~ Type Defines
 using KFE_WinSizeU = KFE_WinSize<std::uint32_t>;
 using KFE_WinSizeF = KFE_WinSize<float>;
 using KFE_WinSizeI = KFE_WinSize<int>;
+
+inline constexpr std::uint32_t KFE_INVALID_INDEX = 0xFFFFFFFF;
 
 //~ Callbacks
 using CallBack_IdBool	  = std::function<void(kfe::KID, bool)>;

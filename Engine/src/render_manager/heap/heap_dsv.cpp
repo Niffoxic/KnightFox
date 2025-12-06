@@ -42,8 +42,8 @@ public:
 	std::uint32_t Allocate			()		 noexcept;
 	bool		  Reset				()		 noexcept;
 
-	KFE_CPU_DESCRIPTOR_HANDLE GetStartHandle()					  const noexcept;
-	KFE_CPU_DESCRIPTOR_HANDLE GetHandle		(std::uint32_t index) const noexcept;
+	D3D12_CPU_DESCRIPTOR_HANDLE GetStartHandle()					  const noexcept;
+	D3D12_CPU_DESCRIPTOR_HANDLE GetHandle		(std::uint32_t index) const noexcept;
 	bool					  Free			(std::uint32_t index)		noexcept;
 	bool					  IsValidIndex	(std::uint32_t idx	) const noexcept;
 
@@ -51,7 +51,7 @@ public:
 	void				  SetDebugName(_In_ const std::string& name) noexcept;
 
 private:
-	KFE_CPU_DESCRIPTOR_HANDLE ComputeHandle(std::uint32_t index) const noexcept;
+	D3D12_CPU_DESCRIPTOR_HANDLE ComputeHandle(std::uint32_t index) const noexcept;
 
 	void ClearState() noexcept;
 	bool HasHeap() const noexcept;
@@ -67,7 +67,7 @@ private:
 	std::uint32_t m_nAllocated { 0u };
 	std::uint32_t m_nHandleSize{ 0u };
 
-	KFE_CPU_DESCRIPTOR_HANDLE  m_handleStart{};
+	D3D12_CPU_DESCRIPTOR_HANDLE  m_handleStart{};
 	std::vector<EWorkState>    m_workStates {};
 
 	bool m_bInitialized{ false };
@@ -152,13 +152,13 @@ std::uint32_t kfe::KFEDSVHeap::GetHandleSize() const noexcept
 }
 
 _Use_decl_annotations_
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::GetStartHandle() const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::GetStartHandle() const noexcept
 {
 	return m_impl->GetStartHandle();
 }
 
 _Use_decl_annotations_
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::GetHandle(std::uint32_t index) const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::GetHandle(std::uint32_t index) const noexcept
 {
 	return m_impl->GetHandle(index);
 }
@@ -331,12 +331,12 @@ std::uint32_t kfe::KFEDSVHeap::Impl::GetHandleSize() const noexcept
 	return m_nHandleSize;
 }
 
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::Impl::GetStartHandle() const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::Impl::GetStartHandle() const noexcept
 {
 	return m_handleStart;
 }
 
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::Impl::GetHandle(std::uint32_t index) const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::Impl::GetHandle(std::uint32_t index) const noexcept
 {
 	if (!IsValidIndex(index))
 	{
@@ -345,7 +345,7 @@ KFE_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::Impl::GetHandle(std::uint32_t index) 
 			index,
 			m_nCapacity
 		);
-		return KFE_CPU_DESCRIPTOR_HANDLE{};
+		return D3D12_CPU_DESCRIPTOR_HANDLE{};
 	}
 
 	return ComputeHandle(index);
@@ -493,9 +493,9 @@ void kfe::KFEDSVHeap::Impl::SetDebugName(const std::string& name) noexcept
 	m_pDescriptorHeap->SetName(wideName.c_str());
 }
 
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::Impl::ComputeHandle(std::uint32_t index) const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFEDSVHeap::Impl::ComputeHandle(std::uint32_t index) const noexcept
 {
-	KFE_CPU_DESCRIPTOR_HANDLE handle = m_handleStart;
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = m_handleStart;
 	handle.ptr += static_cast<std::size_t>(index) * static_cast<std::size_t>(m_nHandleSize);
 	return handle;
 }
@@ -506,7 +506,7 @@ void kfe::KFEDSVHeap::Impl::ClearState() noexcept
 	m_nCapacity		= 0u;
 	m_nAllocated	= 0u;
 	m_nHandleSize	= 0u;
-	m_handleStart	= KFE_CPU_DESCRIPTOR_HANDLE{};
+	m_handleStart	= D3D12_CPU_DESCRIPTOR_HANDLE{};
 	
 	m_workStates .clear();
 	m_szDebugName.clear();

@@ -20,7 +20,6 @@
 class kfe::KFERTVHeap::Impl
 {
 public:
-    static constexpr std::uint32_t InvalidIndex = 0xFFFFFFFFu;
 
 	Impl() = default;
 	~Impl()
@@ -42,8 +41,8 @@ public:
 	std::uint32_t Allocate			()		 noexcept;
 	bool		  Reset				()		 noexcept;
 
-    KFE_CPU_DESCRIPTOR_HANDLE GetStartHandle()					  const noexcept;
-    KFE_CPU_DESCRIPTOR_HANDLE GetHandle		(std::uint32_t index) const noexcept;
+    D3D12_CPU_DESCRIPTOR_HANDLE GetStartHandle()					  const noexcept;
+	D3D12_CPU_DESCRIPTOR_HANDLE GetHandle		(std::uint32_t index) const noexcept;
     bool					  Free			(std::uint32_t index)		noexcept;
     bool					  IsValidIndex	(std::uint32_t idx  ) const noexcept;
     
@@ -51,7 +50,7 @@ public:
     void				  SetDebugName(_In_ const std::string& name) noexcept;
 
 private:
-	KFE_CPU_DESCRIPTOR_HANDLE ComputeHandle(std::uint32_t index) const noexcept;
+	D3D12_CPU_DESCRIPTOR_HANDLE ComputeHandle(std::uint32_t index) const noexcept;
 	
 	void ClearState() noexcept;
 	bool HasHeap   () const noexcept;
@@ -67,8 +66,8 @@ private:
 	std::uint32_t m_nAllocated { 0u };
 	std::uint32_t m_nHandleSize{ 0u };
 
-	KFE_CPU_DESCRIPTOR_HANDLE  m_handleStart{};
-	std::vector<EWorkState>    m_workStates {};
+	D3D12_CPU_DESCRIPTOR_HANDLE  m_handleStart{};
+	std::vector<EWorkState>		 m_workStates {};
 
 	bool m_bInitialized{ false };
 	//~ debugs
@@ -150,13 +149,13 @@ std::uint32_t kfe::KFERTVHeap::GetHandleSize() const noexcept
 }
 
 _Use_decl_annotations_
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::GetStartHandle() const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::GetStartHandle() const noexcept
 {
 	return m_impl->GetStartHandle();
 }
 
 _Use_decl_annotations_
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::GetHandle(std::uint32_t index) const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::GetHandle(std::uint32_t index) const noexcept
 {
 	return m_impl->GetHandle(index);
 }
@@ -329,12 +328,12 @@ std::uint32_t kfe::KFERTVHeap::Impl::GetHandleSize() const noexcept
 	return m_nHandleSize;
 }
 
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::Impl::GetStartHandle() const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::Impl::GetStartHandle() const noexcept
 {
 	return m_handleStart;
 }
 
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::Impl::GetHandle(std::uint32_t index) const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::Impl::GetHandle(std::uint32_t index) const noexcept
 {
 	if (!IsValidIndex(index))
 	{
@@ -343,7 +342,7 @@ KFE_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::Impl::GetHandle(std::uint32_t index) 
 			index,
 			m_nCapacity
 		);
-		return KFE_CPU_DESCRIPTOR_HANDLE{};
+		return D3D12_CPU_DESCRIPTOR_HANDLE{};
 	}
 
 	return ComputeHandle(index);
@@ -354,7 +353,7 @@ std::uint32_t kfe::KFERTVHeap::Impl::Allocate() noexcept
 	if (!IsInitialized())
 	{
 		LOG_ERROR("KFERTVHeap::Impl::Allocate: Heap is not initialized.");
-		return InvalidIndex;
+		return KFE_INVALID_INDEX;
 	}
 
 	if (m_nAllocated >= m_nCapacity)
@@ -363,7 +362,7 @@ std::uint32_t kfe::KFERTVHeap::Impl::Allocate() noexcept
 			"KFERTVHeap::Impl::Allocate: No more descriptors available. Capacity = {}.",
 			m_nCapacity
 		);
-		return InvalidIndex;
+		return KFE_INVALID_INDEX;
 	}
 
 	//~ search for a free slot
@@ -392,7 +391,7 @@ std::uint32_t kfe::KFERTVHeap::Impl::Allocate() noexcept
 		m_nAllocated
 	);
 
-	return InvalidIndex;
+	return KFE_INVALID_INDEX;
 }
 
 bool kfe::KFERTVHeap::Impl::Free(std::uint32_t index) noexcept
@@ -491,9 +490,9 @@ void kfe::KFERTVHeap::Impl::SetDebugName(const std::string& name) noexcept
 	m_pDescriptorHeap->SetName(wideName.c_str());
 }
 
-KFE_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::Impl::ComputeHandle(std::uint32_t index) const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE kfe::KFERTVHeap::Impl::ComputeHandle(std::uint32_t index) const noexcept
 {
-	KFE_CPU_DESCRIPTOR_HANDLE handle = m_handleStart;
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = m_handleStart;
 	handle.ptr += static_cast<std::size_t>(index) * static_cast<std::size_t>(m_nHandleSize);
 	return handle;
 }
@@ -505,7 +504,7 @@ void kfe::KFERTVHeap::Impl::ClearState() noexcept
 	m_nAllocated  = 0u;
 	m_nHandleSize = 0u;
 
-	m_handleStart = KFE_CPU_DESCRIPTOR_HANDLE{};
+	m_handleStart = D3D12_CPU_DESCRIPTOR_HANDLE{};
 	m_workStates .clear();
 	m_szDebugName.clear();
 }
