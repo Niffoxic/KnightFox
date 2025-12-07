@@ -8,6 +8,7 @@
  *  License   : MIT
  *  -----------------------------------------------------------------------------
  */
+#include "pch.h"
 #include "engine/render_manager/graph/resources.h"
 
 #include <vector>

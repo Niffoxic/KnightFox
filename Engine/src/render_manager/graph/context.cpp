@@ -9,6 +9,7 @@
  *  -----------------------------------------------------------------------------
  */
 
+#include "pch.h"
 #include "engine/render_manager/graph/context.h"
 #include "engine/render_manager/api/buffer/buffer.h"
 #include "engine/render_manager/api/texture/texture.h"
