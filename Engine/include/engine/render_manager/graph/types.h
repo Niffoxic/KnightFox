@@ -191,6 +191,81 @@ namespace kfe::rg
             BufferOutputs   .clear();
         }
     };
+
+    struct PassNode
+    {
+        std::uint32_t PassIndex{ KFE_INVALID_INDEX };
+        std::vector<uint32_t> Dependencies;
+
+        NODISCARD constexpr bool IsValid() const noexcept
+        {
+            return PassIndex != KFE_INVALID_INDEX;
+        }
+
+        void AddDependency(std::uint32_t index) noexcept
+        {
+            if (index == KFE_INVALID_INDEX)
+            {
+                return;
+            }
+            Dependencies.push_back(index);
+        }
+
+        void Clear() noexcept
+        {
+            PassIndex = KFE_INVALID_INDEX;
+            Dependencies.clear();
+        }
+    };
+
+    struct ResourceLifetime
+    {
+        std::uint32_t FirstUsePass{ KFE_INVALID_INDEX };
+        std::uint32_t LastUsePass{ 0u };
+
+        NODISCARD constexpr bool IsValid() const noexcept
+        {
+            return FirstUsePass != KFE_INVALID_INDEX;
+        }
+
+        void Reset() noexcept
+        {
+            FirstUsePass = KFE_INVALID_INDEX;
+            LastUsePass  = 0u;
+        }
+
+        void RegisterUse(std::uint32_t passIndex) noexcept
+        {
+            if (!IsValid())
+            {
+                FirstUsePass = passIndex;
+                LastUsePass  = passIndex;
+                return;
+            }
+
+            if (passIndex < FirstUsePass)
+            {
+                FirstUsePass = passIndex;
+            }
+            if (passIndex > LastUsePass)
+            {
+                LastUsePass = passIndex;
+            }
+        }
+    };
+
+    enum ::D3D12_RESOURCE_STATES;
+    struct ResourceState
+    {
+        D3D12_RESOURCE_STATES CurrentState;
+
+        constexpr          ResourceState() noexcept;
+        constexpr explicit ResourceState(D3D12_RESOURCE_STATES initial) noexcept;
+        
+        NODISCARD constexpr D3D12_RESOURCE_STATES Get() const noexcept;
+                  constexpr void Set(D3D12_RESOURCE_STATES newState) noexcept;
+    };
+
 } // namespace kfe::rg
 
 //~ hashing 

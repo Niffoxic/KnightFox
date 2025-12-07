@@ -19,11 +19,11 @@ namespace kfe::rg
 	/// Builds up RenderPassDesc and allocates logical resources 
 	/// using RenderGraphResources
 	/// <summary>
-	class RenderGraphBuilder
+	class RGBuilder
 	{
 	public:
-		RenderGraphBuilder(RGResources& resources,
-			RenderPassDesc& desc) noexcept;
+		RGBuilder(RGResources& resources,
+				  RenderPassDesc& desc) noexcept;
 
 		//~ Resource creation
 		NODISCARD RGTextureHandle CreateTexture(const RGTextureDesc& desc);
