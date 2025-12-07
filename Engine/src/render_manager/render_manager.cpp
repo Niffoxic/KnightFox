@@ -15,44 +15,44 @@
 #include "engine/utils/logger.h"
 
 //~ Components
-#include "engine/render_manager/components/factory.h"
-#include "engine/render_manager/components/adapter.h"
-#include "engine/render_manager/components/monitor.h"
-#include "engine/render_manager/components/device.h"
-#include "engine/render_manager/components/swap_chain.h"
+#include "engine/render_manager/api/components/factory.h"
+#include "engine/render_manager/api/components/adapter.h"
+#include "engine/render_manager/api/components/monitor.h"
+#include "engine/render_manager/api/components/device.h"
+#include "engine/render_manager/api/components/swap_chain.h"
 
 //~ Memory Managements
-#include "engine/render_manager/queue/graphics_queue.h"
-#include "engine/render_manager/queue/compute_queue.h"
-#include "engine/render_manager/queue/copy_queue.h"
+#include "engine/render_manager/api/queue/graphics_queue.h"
+#include "engine/render_manager/api/queue/compute_queue.h"
+#include "engine/render_manager/api/queue/copy_queue.h"
 
 //~ Tests
-#include "engine/render_manager/commands/command_allocator.h"
-#include "engine/render_manager/commands/graphics_list.h"
-#include "engine/render_manager/commands/copy_list.h"
-#include "engine/render_manager/commands/compute_list.h"
-#include "engine/render_manager/pool/allocator_pool.h"
+#include "engine/render_manager/api/commands/command_allocator.h"
+#include "engine/render_manager/api/commands/graphics_list.h"
+#include "engine/render_manager/api/commands/copy_list.h"
+#include "engine/render_manager/api/commands/compute_list.h"
+#include "engine/render_manager/api/pool/allocator_pool.h"
 
 //~ Test Heaps
-#include "engine/render_manager/heap/heap_cbv_srv_uav.h"
-#include "engine/render_manager/heap/heap_dsv.h"
-#include "engine/render_manager/heap/heap_rtv.h"
-#include "engine/render_manager/heap/heap_sampler.h"
+#include "engine/render_manager/api/heap/heap_cbv_srv_uav.h"
+#include "engine/render_manager/api/heap/heap_dsv.h"
+#include "engine/render_manager/api/heap/heap_rtv.h"
+#include "engine/render_manager/api/heap/heap_sampler.h"
 
 //~ Test buffers
-#include "engine/render_manager/buffer/buffer.h"
-#include "engine/render_manager/buffer/constant_buffer.h"
-#include "engine/render_manager/buffer/index_buffer.h"
-#include "engine/render_manager/buffer/raw_buffer.h"
-#include "engine/render_manager/buffer/readback_buffer.h"
-#include "engine/render_manager/buffer/staging_buffer.h"
-#include "engine/render_manager/buffer/structured_buffer.h"
-#include "engine/render_manager/buffer/upload_buffer.h"
-#include "engine/render_manager/buffer/vertex_buffer.h"
+#include "engine/render_manager/api/buffer/buffer.h"
+#include "engine/render_manager/api/buffer/constant_buffer.h"
+#include "engine/render_manager/api/buffer/index_buffer.h"
+#include "engine/render_manager/api/buffer/raw_buffer.h"
+#include "engine/render_manager/api/buffer/readback_buffer.h"
+#include "engine/render_manager/api/buffer/staging_buffer.h"
+#include "engine/render_manager/api/buffer/structured_buffer.h"
+#include "engine/render_manager/api/buffer/upload_buffer.h"
+#include "engine/render_manager/api/buffer/vertex_buffer.h"
 
 //~ Test Textures
-#include "engine/render_manager/texture/texture.h"
-#include "engine/render_manager/texture/texture_dsv.h"
+#include "engine/render_manager/api/texture/texture.h"
+#include "engine/render_manager/api/texture/texture_dsv.h"
 
 #include "engine/system/exception/base_exception.h"
 #include "engine/system/exception/dx_exception.h"
@@ -339,12 +339,12 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		TRUE, &dsvHandle);
 
 	barrier = {};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = swapData.BufferResource;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Type					= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags					= D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource	= swapData.BufferResource;
+	barrier.Transition.Subresource	= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore	= D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter	= D3D12_RESOURCE_STATE_PRESENT;
 	cmdList->ResourceBarrier(1u, &barrier);
 
 	cmdList->Close();
