@@ -167,8 +167,11 @@
     <ClInclude Include="include\engine\render_manager\api\texture\texture_rtv.h" />
     <ClInclude Include="include\engine\render_manager\api\texture\texture_srv.h" />
     <ClInclude Include="include\engine\render_manager\api\texture\texture_uav.h" />
+    <ClInclude Include="include\engine\render_manager\graph\barrier.h" />
     <ClInclude Include="include\engine\render_manager\graph\builder.h" />
+    <ClInclude Include="include\engine\render_manager\graph\compiled_graph.h" />
     <ClInclude Include="include\engine\render_manager\graph\context.h" />
+    <ClInclude Include="include\engine\render_manager\graph\frame_context.h" />
     <ClInclude Include="include\engine\render_manager\graph\pass.h" />
     <ClInclude Include="include\engine\render_manager\graph\render_graph.h" />
     <ClInclude Include="include\engine\render_manager\graph\resources.h" />
@@ -229,7 +232,9 @@
     <ClCompile Include="src\render_manager\api\buffer\buffer.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_srv.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_uav.cpp" />
+    <ClCompile Include="src\render_manager\graph\barrier.cpp" />
     <ClCompile Include="src\render_manager\graph\builder.cpp" />
+    <ClCompile Include="src\render_manager\graph\compiled_graph.cpp" />
     <ClCompile Include="src\render_manager\graph\context.cpp" />
     <ClCompile Include="src\render_manager\graph\render_graph.cpp" />
     <ClCompile Include="src\render_manager\graph\resources.cpp" />

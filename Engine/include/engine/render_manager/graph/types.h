@@ -12,6 +12,7 @@
 
 #include "engine/system/common_types.h"
 #include <dxgiformat.h>
+#include <d3d12.h>
 
 namespace kfe::rg
 {
@@ -20,7 +21,7 @@ namespace kfe::rg
     enum class RGTextureUsage : std::uint8_t
     {
         Unknown = 0,
-
+        Clear,
         Objects,
         Depth,
         Lighting,
@@ -254,16 +255,28 @@ namespace kfe::rg
         }
     };
 
-    enum ::D3D12_RESOURCE_STATES;
     struct ResourceState
     {
         D3D12_RESOURCE_STATES CurrentState;
 
-        constexpr          ResourceState() noexcept;
-        constexpr explicit ResourceState(D3D12_RESOURCE_STATES initial) noexcept;
+        constexpr ResourceState() noexcept
+            : CurrentState(D3D12_RESOURCE_STATE_COMMON)
+        {
+        }
+        constexpr explicit ResourceState(D3D12_RESOURCE_STATES initial) noexcept
+            : CurrentState(initial)
+        {
+        }
         
-        NODISCARD constexpr D3D12_RESOURCE_STATES Get() const noexcept;
-                  constexpr void Set(D3D12_RESOURCE_STATES newState) noexcept;
+        NODISCARD constexpr D3D12_RESOURCE_STATES Get() const noexcept
+        {
+            return CurrentState;
+        }
+
+        constexpr void Set(D3D12_RESOURCE_STATES newState) noexcept
+        {
+            CurrentState = newState;
+        }
     };
 
 } // namespace kfe::rg

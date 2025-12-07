@@ -58,6 +58,11 @@
 #include "engine/system/exception/dx_exception.h"
 #include "engine/system/common_types.h"
 
+#include "engine/render_manager/graph/compiled_graph.h"
+#include "engine/render_manager/graph/frame_context.h"
+#include "engine/render_manager/graph/render_graph.h"
+#include <d3d12.h>
+
 #pragma region IMPL
 
 class kfe::KFERenderManager::Impl
@@ -77,6 +82,7 @@ private:
 	bool InitializeCommands  ();
 	bool InitializeHeaps	 ();
 	bool InitializeTextures  ();
+	bool InitializeRenderGraph();
 
 	void CreateViewport();
 
@@ -106,7 +112,7 @@ private:
 	std::unique_ptr<KFESamplerHeap>  m_pSamplerHeap { nullptr };
 
 	//~ Test textures
-	std::unique_ptr<KFETexture> m_pTestTexture1D;
+	std::unique_ptr<KFETexture> m_pDSVBuffer;
 
 	//~ Test DSV
 	std::unique_ptr<KFETextureDSV>		m_pDSV{ nullptr };
@@ -117,6 +123,10 @@ private:
 	//~ test render
 	D3D12_VIEWPORT m_viewport{};
 	D3D12_RECT     m_scissorRect{};
+
+	rg::RenderGraph m_renderGraph{};
+	rg::RGCompiled  m_compiledGraph{};
+	float m_totalTime{ 0.0f };
 };
 
 #pragma endregion
@@ -188,7 +198,7 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pSamplerHeap  = std::make_unique<KFESamplerHeap> ();
 
 	//~ Test Textures
-	m_pTestTexture1D = std::make_unique<KFETexture>();
+	m_pDSVBuffer = std::make_unique<KFETexture>();
 
 	//~ views
 	m_pDSV = std::make_unique<KFETextureDSV>();
@@ -252,8 +262,8 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	KFE_DSV_CREATE_DESC dsv{};
 	dsv.Device	= m_pDevice.get();
 	dsv.Heap	= m_pDSVHeap.get();
-	dsv.Texture = m_pTestTexture1D.get();
-	dsv.Format  = m_pTestTexture1D->GetFormat();
+	dsv.Texture = m_pDSVBuffer.get();
+	dsv.Format  = m_pDSVBuffer->GetFormat();
 
 	dsv.ViewDimension	= D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsv.MipSlice	    = 0u;
@@ -275,6 +285,13 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	THROW_DX_IF_FAILS(hr);
 
 	CreateViewport();
+
+
+	if (!InitializeRenderGraph())
+	{
+		return false;
+	}
+
 	m_bInitialized = true;
 
 	return true;
@@ -287,67 +304,41 @@ bool kfe::KFERenderManager::Impl::Release()
 
 void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 {
-	static float totalTime = 0.0f;
-	totalTime += dt;
+	m_totalTime += dt;
 
-	if (!m_pFence) 
+	if (!m_pFence)
 	{
 		THROW_MSG("Fence is null!");
 	}
+
 	++m_nFenceValue;
+
 	KFE_RESET_COMMAND_LIST resetter{};
-	resetter.Fence		= m_pFence.Get();
+	resetter.Fence = m_pFence.Get();
 	resetter.FenceValue = m_nFenceValue;
-	resetter.PSO		= nullptr;
+	resetter.PSO = nullptr;
 
 	LOG_INFO("Fence Value: {}", m_pFence->GetCompletedValue());
+
 	if (!m_pGfxList->Reset(resetter))
 	{
 		THROW_MSG("Failed to Render!");
 	}
+
+	kfe::FrameContext frameCtx{};
+	frameCtx.CommandList = m_pGfxList.get();
+	frameCtx.Device = m_pDevice.get();
+	frameCtx.RtvHeap = m_pRTVHeap.get();
+	frameCtx.DsvHeap = m_pDSVHeap.get();
+	frameCtx.CbvSrvUavHeap = m_pResourceHeap.get();
+	frameCtx.FrameConstantBuffer = nullptr;
+	frameCtx.FrameIndex = static_cast<std::uint32_t>(m_nFenceValue);
+
+	m_compiledGraph.Execute(frameCtx);
+
 	auto* cmdList = m_pGfxList->GetNative();
-
-	auto swapData = m_pSwapChain->GetAndMarkBackBufferData(m_pFence.Get(), m_nFenceValue);
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type				   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags				   = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource   = swapData.BufferResource;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_RENDER_TARGET;
-
-	cmdList->ResourceBarrier(1u, &barrier);
-	cmdList->RSSetViewports(1u, &m_viewport);
-	cmdList->RSSetScissorRects(1u, &m_scissorRect);
-
-	const float color[4]
-	{
-		std::sinf(totalTime),
-		std::cosf(totalTime),
-		std::sinf(std::sinf(totalTime) + std::cosf(totalTime)),
-		std::sinf(totalTime)
-	};
-
-	cmdList->ClearRenderTargetView(swapData.BufferHandle, color, 0u, nullptr);
-	
-	auto dsvHandle = m_pDSV->GetCPUHandle();
-	cmdList->ClearDepthStencilView(dsvHandle,
-		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-		1.f, 0u, 0u, nullptr);
-	
-	cmdList->OMSetRenderTargets(1u, &swapData.BufferHandle,
-		TRUE, &dsvHandle);
-
-	barrier = {};
-	barrier.Type					= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags					= D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource	= swapData.BufferResource;
-	barrier.Transition.Subresource	= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore	= D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barrier.Transition.StateAfter	= D3D12_RESOURCE_STATE_PRESENT;
-	cmdList->ResourceBarrier(1u, &barrier);
-
 	cmdList->Close();
+
 	auto* queue = m_pGraphicsQueue->GetNative();
 	ID3D12CommandList* cmdLists[] = { cmdList };
 	queue->ExecuteCommandLists(1u, cmdLists);
@@ -544,11 +535,11 @@ bool kfe::KFERenderManager::Impl::InitializeTextures()
 		return false;
 	}
 
-	if (!m_pTestTexture1D) m_pTestTexture1D = std::make_unique<KFETexture>();
+	if (!m_pDSVBuffer) m_pDSVBuffer = std::make_unique<KFETexture>();
 
 	const DXGI_FORMAT testFormat			 = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	const D3D12_HEAP_TYPE heapType			 = D3D12_HEAP_TYPE_DEFAULT;
-	const D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
+	const D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	const D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
 	// 1D Texture Test
@@ -565,22 +556,119 @@ bool kfe::KFERenderManager::Impl::InitializeTextures()
 	tex1D.ResourceFlags = resourceFlags;
 	tex1D.HeapType = heapType;
 	tex1D.InitialState = initialState;
-	tex1D.ClearValue = nullptr;
+	
+	D3D12_CLEAR_VALUE depthClear{};
+	depthClear.Format = testFormat;
+	depthClear.DepthStencil.Depth = 1.0f;
+	depthClear.DepthStencil.Stencil = 0;
 
-	if (!m_pTestTexture1D->Initialize(tex1D))
+	tex1D.ClearValue = &depthClear;
+
+	if (!m_pDSVBuffer->Initialize(tex1D))
 	{
 		LOG_ERROR("Failed to initialize Test Texture 1D.");
 		return false;
 	}
 
 	LOG_INFO("TestTexture1D: dim={}, {}x{}, mip={}, fmt={}",
-		static_cast<int>(m_pTestTexture1D->GetDimension()),
-		m_pTestTexture1D->GetWidth(),
-		m_pTestTexture1D->GetHeight(),
-		m_pTestTexture1D->GetMipLevels(),
-		static_cast<int>(m_pTestTexture1D->GetFormat()));
+		static_cast<int>(m_pDSVBuffer->GetDimension()),
+		m_pDSVBuffer->GetWidth(),
+		m_pDSVBuffer->GetHeight(),
+		m_pDSVBuffer->GetMipLevels(),
+		static_cast<int>(m_pDSVBuffer->GetFormat()));
 
 	LOG_SUCCESS("All test textures initialized successfully.");
+	return true;
+}
+
+bool kfe::KFERenderManager::Impl::InitializeRenderGraph()
+{
+	using namespace kfe::rg;
+
+	std::string passName = "MainClearPass";
+
+	m_renderGraph = RenderGraph{};
+
+	m_renderGraph.AddPass(
+		passName,
+		// Build function no logical resources yet
+		[&](RGBuilder& builder)
+		{
+			// no RG textures or buffers
+			(void)builder;
+		},
+		[this](RGExecutionContext& ctx)
+		{
+			KFEGraphicsCommandList* gfxList = ctx.GetCommandList();
+			if (!gfxList)
+			{
+				return;
+			}
+
+			ID3D12GraphicsCommandList* cmdList = gfxList->GetNative();
+			if (!cmdList)
+			{
+				return;
+			}
+
+			// Acquire current backbuffer
+			auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
+				m_pFence.Get(), m_nFenceValue);
+
+			// Transition PRESENT to RENDER_TARGET
+			D3D12_RESOURCE_BARRIER barrier{};
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = swapData.BufferResource;
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+			cmdList->ResourceBarrier(1u, &barrier);
+			cmdList->RSSetViewports(1u, &m_viewport);
+			cmdList->RSSetScissorRects(1u, &m_scissorRect);
+
+			const float color[4]
+			{
+				std::sinf(m_totalTime),
+				std::cosf(m_totalTime),
+				std::sinf(std::sinf(m_totalTime) + std::cosf(m_totalTime)),
+				std::sinf(m_totalTime)
+			};
+
+			cmdList->ClearRenderTargetView(swapData.BufferHandle, color, 0u, nullptr);
+
+			auto dsvHandle = m_pDSV->GetCPUHandle();
+			ID3D12Resource* depthRes = m_pDSVBuffer->GetNative();
+
+			D3D12_RESOURCE_BARRIER depthBarrier{};
+			depthBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			depthBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			depthBarrier.Transition.pResource = depthRes;
+			depthBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			depthBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+			depthBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+
+			cmdList->ResourceBarrier(1u, &depthBarrier);
+
+			cmdList->ClearDepthStencilView(
+				dsvHandle,
+				D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+				1.f, 0u, 0u, nullptr);
+
+			// Transition RENDER_TARGET to PRESENT
+			barrier = {};
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = swapData.BufferResource;
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+
+			cmdList->ResourceBarrier(1u, &barrier);
+		});
+
+	m_compiledGraph = m_renderGraph.Compile();
 	return true;
 }
 

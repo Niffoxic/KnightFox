@@ -22,14 +22,8 @@
 class kfe::KFEGraphicsCommandList::Impl 
 {
 public:
-	Impl() = default;
-	~Impl()
-	{
-		if (!Destroy())
-		{
-			LOG_ERROR("KFEGraphicsCommandList::Impl::~Impl(): Destroy() failed.");
-		}
-	}
+	 Impl() = default;
+	~Impl() = default;
 
     NODISCARD bool Initialize(_In_ const KFE_GFX_COMMAND_LIST_CREATE_DESC& desc);
     NODISCARD bool Reset	 (_In_ const KFE_RESET_COMMAND_LIST& reset);

@@ -75,6 +75,6 @@ namespace kfe::rg
 		fnBuild(builder);
 		pass.Execute = std::forward<ExecuteFunc>(fnExecute);
 
-		m_passes.emplace(std::move(pass));
+		m_passes.emplace_back(std::move(pass));
 	}
 } // namespac kfe::rg

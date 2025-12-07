@@ -13,6 +13,11 @@
 #include "engine/core.h"
 #include "types.h"
 
+#include "engine/render_manager/api/buffer/buffer.h"
+#include "engine/render_manager/api/texture/texture.h"
+#include "engine/render_manager/api/commands/graphics_list.h"
+
+#include <d3d12.h>
 #include <memory>
 
 struct D3D12_CPU_DESCRIPTOR_HANDLE;
@@ -56,9 +61,16 @@ namespace kfe::rg
 		NODISCARD D3D12_GPU_DESCRIPTOR_HANDLE GetUAV(RGTextureHandle handle) const noexcept;
 
 	private:
-		class Impl;
-		std::unique_ptr<Impl> m_impl;
+		kfe::KFEGraphicsCommandList* CommandList{ nullptr };
 
-		friend class CompiledRenderGraph;
+		std::vector<kfe::KFETexture*> Textures;
+		std::vector<kfe::KFEBuffer*>  Buffers;
+
+		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> RTVs;
+		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> DSVs;
+		std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> SRVs;
+		std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> UAVs;
+
+		friend class RGCompiled;
 	};
 } // namespace kfe::rg

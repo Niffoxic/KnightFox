@@ -30,13 +30,7 @@ class kfe::KFECommandAllocatorPool::Impl
 	using PoolTrack	= std::unordered_map<KID, EAllocState>;
 public:
 	 Impl() = default;
-	~Impl()
-	{
-		if (!DestroyAllForce())
-		{
-			LOG_ERROR("Failed to Destroy Allocator Pool successfully!");
-		}
-	}
+	 ~Impl() = default;
 
 	NODISCARD bool Initialize(const KFE_CA_POOL_CREATE_DESC& desc);
 	
@@ -338,6 +332,8 @@ bool kfe::KFECommandAllocatorPool::Impl::WaitAll()
 
 	for (auto& [id, alloc] : m_mapAllocators)
 	{
+		if (!alloc) continue;
+
 		if (alloc->ForceWait())
 		{
 			m_mapAllocatorState[id] = EAllocState::Free;

@@ -20,13 +20,7 @@ class kfe::KFECommandAllocator::Impl
 {
 public:
 	Impl () = default;
-	~Impl()
-	{ 
-		if (!ForceDestroy())
-		{
-			LOG_ERROR("Failed To Destroy Command Allocator!");
-		}
-	}
+	~Impl() = default;
 
 	NODISCARD bool Initialize (_In_ const KFE_CA_CREATE_DESC& desc);
 	NODISCARD bool AttachFence(_In_ const KFE_CA_ATTACH_FENCE fence);
@@ -89,7 +83,7 @@ bool kfe::KFECommandAllocator::ForceReset()
 _Use_decl_annotations_
 bool kfe::KFECommandAllocator::ForceWait()
 {
-	return m_impl->ForceWait();
+	return m_impl && m_impl->ForceWait();
 }
 
 _Use_decl_annotations_

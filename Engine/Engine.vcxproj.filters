@@ -195,6 +195,15 @@
     <ClInclude Include="include\engine\render_manager\graph\render_graph.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\engine\render_manager\graph\barrier.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\graph\compiled_graph.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\graph\frame_context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -351,6 +360,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\render_manager\graph\render_graph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\graph\barrier.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\graph\compiled_graph.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
