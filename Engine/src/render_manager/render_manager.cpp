@@ -15,41 +15,53 @@
 #include "engine/utils/logger.h"
 
 //~ Components
-#include "engine/render_manager/components/factory.h"
-#include "engine/render_manager/components/adapter.h"
-#include "engine/render_manager/components/monitor.h"
-#include "engine/render_manager/components/device.h"
-#include "engine/render_manager/components/swap_chain.h"
+#include "engine/render_manager/api/components/factory.h"
+#include "engine/render_manager/api/components/adapter.h"
+#include "engine/render_manager/api/components/monitor.h"
+#include "engine/render_manager/api/components/device.h"
+#include "engine/render_manager/api/components/swap_chain.h"
 
 //~ Memory Managements
-#include "engine/render_manager/queue/graphics_queue.h"
-#include "engine/render_manager/queue/compute_queue.h"
-#include "engine/render_manager/queue/copy_queue.h"
+#include "engine/render_manager/api/queue/graphics_queue.h"
+#include "engine/render_manager/api/queue/compute_queue.h"
+#include "engine/render_manager/api/queue/copy_queue.h"
 
 //~ Tests
-#include "engine/render_manager/commands/command_allocator.h"
-#include "engine/render_manager/commands/graphics_list.h"
-#include "engine/render_manager/commands/copy_list.h"
-#include "engine/render_manager/commands/compute_list.h"
-#include "engine/render_manager/pool/allocator_pool.h"
+#include "engine/render_manager/api/commands/command_allocator.h"
+#include "engine/render_manager/api/commands/graphics_list.h"
+#include "engine/render_manager/api/commands/copy_list.h"
+#include "engine/render_manager/api/commands/compute_list.h"
+#include "engine/render_manager/api/pool/allocator_pool.h"
 
 //~ Test Heaps
-#include "engine/render_manager/heap/heap_cbv_srv_uav.h"
-#include "engine/render_manager/heap/heap_dsv.h"
-#include "engine/render_manager/heap/heap_rtv.h"
-#include "engine/render_manager/heap/heap_sampler.h"
+#include "engine/render_manager/api/heap/heap_cbv_srv_uav.h"
+#include "engine/render_manager/api/heap/heap_dsv.h"
+#include "engine/render_manager/api/heap/heap_rtv.h"
+#include "engine/render_manager/api/heap/heap_sampler.h"
 
 //~ Test buffers
-#include "engine/render_manager/buffer/buffer.h"
-#include "engine/render_manager/buffer/constant_buffer.h"
-#include "engine/render_manager/buffer/index_buffer.h"
-#include "engine/render_manager/buffer/raw_buffer.h"
-#include "engine/render_manager/buffer/readback_buffer.h"
-#include "engine/render_manager/buffer/staging_buffer.h"
-#include "engine/render_manager/buffer/structured_buffer.h"
-#include "engine/render_manager/buffer/upload_buffer.h"
-#include "engine/render_manager/buffer/vertex_buffer.h"
+#include "engine/render_manager/api/buffer/buffer.h"
+#include "engine/render_manager/api/buffer/constant_buffer.h"
+#include "engine/render_manager/api/buffer/index_buffer.h"
+#include "engine/render_manager/api/buffer/raw_buffer.h"
+#include "engine/render_manager/api/buffer/readback_buffer.h"
+#include "engine/render_manager/api/buffer/staging_buffer.h"
+#include "engine/render_manager/api/buffer/structured_buffer.h"
+#include "engine/render_manager/api/buffer/upload_buffer.h"
+#include "engine/render_manager/api/buffer/vertex_buffer.h"
 
+//~ Test Textures
+#include "engine/render_manager/api/texture/texture.h"
+#include "engine/render_manager/api/texture/texture_dsv.h"
+
+#include "engine/system/exception/base_exception.h"
+#include "engine/system/exception/dx_exception.h"
+#include "engine/system/common_types.h"
+
+#include "engine/render_manager/graph/compiled_graph.h"
+#include "engine/render_manager/graph/frame_context.h"
+#include "engine/render_manager/graph/render_graph.h"
+#include <d3d12.h>
 
 #pragma region IMPL
 
@@ -69,8 +81,10 @@ private:
 	bool InitializeQueues	 ();
 	bool InitializeCommands  ();
 	bool InitializeHeaps	 ();
-	bool InitializeBuffers   ();
-	bool InitializeViews	 ();
+	bool InitializeTextures  ();
+	bool InitializeRenderGraph();
+
+	void CreateViewport();
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -87,9 +101,6 @@ private:
 	std::unique_ptr<KFEComputeCmdQ>  m_pComputeQueue { nullptr };
 	std::unique_ptr<KFECopyCmdQ>	 m_pCopyQueue	 { nullptr };
 
-	//~ Test Commands
-	std::unique_ptr<KFECommandAllocator>	 m_pAllocator	 { nullptr };
-	std::unique_ptr<KFECommandAllocatorPool> m_pAllocatorPool{ nullptr };
 	std::unique_ptr<KFEGraphicsCommandList>  m_pGfxList		 { nullptr };
 	std::unique_ptr<KFEComputeCommandList>   m_pComputeList  { nullptr };
 	std::unique_ptr<KFECopyCommandList>		 m_pCopyList	 { nullptr };
@@ -100,23 +111,22 @@ private:
 	std::unique_ptr<KFEResourceHeap> m_pResourceHeap{ nullptr };
 	std::unique_ptr<KFESamplerHeap>  m_pSamplerHeap { nullptr };
 
-	//~ Test Resources
-	std::unique_ptr<KFEBuffer> m_pTestVertexBuffer		{ nullptr };
-	std::unique_ptr<KFEBuffer> m_pTestIndexBuffer		{ nullptr };
-	std::unique_ptr<KFEBuffer> m_pTestConstantBuffer	{ nullptr };
-	std::unique_ptr<KFEBuffer> m_pTestUploadBuffer		{ nullptr };
-	std::unique_ptr<KFEBuffer> m_pTestReadbackBuffer	{ nullptr };
-	std::unique_ptr<KFEBuffer> m_pTestStructuredUAV		{ nullptr };
-	std::unique_ptr<KFEBuffer> m_pTestIndirectArgsBuffer{ nullptr };
+	//~ Test textures
+	std::unique_ptr<KFETexture> m_pDSVBuffer;
 
-	//~ Test Views
-	std::unique_ptr<KFEVertexBuffer>      m_pTestVertexView;
-	std::unique_ptr<KFEIndexBuffer>       m_pTestIndexView;
-	std::unique_ptr<KFEConstantBuffer>    m_pTestConstantView;
-	std::unique_ptr<KFEStructuredBuffer>  m_pTestStructuredView;
-	std::unique_ptr<KFERawBuffer>         m_pTestIndirectRawView;
-	std::unique_ptr<KFEUploadBuffer>      m_pTestUploadView;
-	std::unique_ptr<KFEReadbackBuffer>    m_pTestReadbackView;
+	//~ Test DSV
+	std::unique_ptr<KFETextureDSV>		m_pDSV{ nullptr };
+	Microsoft::WRL::ComPtr<ID3D12Fence>	m_pFence{ nullptr };
+	std::uint64_t						m_nFenceValue{ 0u };
+	bool m_bInitialized{ false };
+
+	//~ test render
+	D3D12_VIEWPORT m_viewport{};
+	D3D12_RECT     m_scissorRect{};
+
+	rg::RenderGraph m_renderGraph{};
+	rg::RGCompiled  m_compiledGraph{};
+	float m_totalTime{ 0.0f };
 };
 
 #pragma endregion
@@ -177,8 +187,6 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pCopyQueue	 = std::make_unique<KFECopyCmdQ>	();
 
 	//~ tests
-	m_pAllocator	 = std::make_unique<KFECommandAllocator>	();
-	m_pAllocatorPool = std::make_unique<KFECommandAllocatorPool>();
 	m_pGfxList		 = std::make_unique<KFEGraphicsCommandList>	();
 	m_pComputeList	 = std::make_unique<KFEComputeCommandList>	();
 	m_pCopyList		 = std::make_unique<KFECopyCommandList>		();
@@ -188,6 +196,12 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pDSVHeap		= std::make_unique<KFEDSVHeap>	   ();
 	m_pResourceHeap = std::make_unique<KFEResourceHeap>();
 	m_pSamplerHeap  = std::make_unique<KFESamplerHeap> ();
+
+	//~ Test Textures
+	m_pDSVBuffer = std::make_unique<KFETexture>();
+
+	//~ views
+	m_pDSV = std::make_unique<KFETextureDSV>();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
@@ -230,6 +244,8 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	swap.EnableVSync  = false;
 	swap.AllowTearing = true;
 	swap.WindowState  = EScreenState::Windowed;
+	swap.Device  = m_pDevice.get();
+	swap.RtvHeap = m_pRTVHeap.get();
 
 	if (!m_pSwapChain->Initialize(swap))
 	{
@@ -237,15 +253,46 @@ bool kfe::KFERenderManager::Impl::Initialize()
 		return false;
 	}
 
-	if (!InitializeBuffers())
+	if (!InitializeTextures()) 
 	{
 		return false;
 	}
 
-	if (!InitializeViews()) 
+	//~ Depth stencil view
+	KFE_DSV_CREATE_DESC dsv{};
+	dsv.Device	= m_pDevice.get();
+	dsv.Heap	= m_pDSVHeap.get();
+	dsv.Texture = m_pDSVBuffer.get();
+	dsv.Format  = m_pDSVBuffer->GetFormat();
+
+	dsv.ViewDimension	= D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsv.MipSlice	    = 0u;
+	dsv.FirstArraySlice = 0u;
+	dsv.ArraySize		= 1u;
+	dsv.Flags			= D3D12_DSV_FLAG_NONE;
+
+	dsv.DescriptorIndex = KFE_INVALID_INDEX;
+
+	if (!m_pDSV->Initialize(dsv))
+	{
+		LOG_ERROR("Failed to initialize depth-stencil view.");
+		return false;
+	}
+
+	const HRESULT hr = m_pDevice->GetNative()->CreateFence(10u, D3D12_FENCE_FLAG_NONE,
+		IID_PPV_ARGS(&m_pFence));
+
+	THROW_DX_IF_FAILS(hr);
+
+	CreateViewport();
+
+
+	if (!InitializeRenderGraph())
 	{
 		return false;
 	}
+
+	m_bInitialized = true;
 
 	return true;
 }
@@ -257,9 +304,48 @@ bool kfe::KFERenderManager::Impl::Release()
 
 void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 {
-	// you can test it here tho m not rendering anything on screen right now
-	// since my swapchain buffer ont have render taget view right now
-	// get for test create a test backbuffer from swapchain native if u want to
+	m_totalTime += dt;
+
+	if (!m_pFence)
+	{
+		THROW_MSG("Fence is null!");
+	}
+
+	++m_nFenceValue;
+
+	KFE_RESET_COMMAND_LIST resetter{};
+	resetter.Fence = m_pFence.Get();
+	resetter.FenceValue = m_nFenceValue;
+	resetter.PSO = nullptr;
+
+	LOG_INFO("Fence Value: {}", m_pFence->GetCompletedValue());
+
+	if (!m_pGfxList->Reset(resetter))
+	{
+		THROW_MSG("Failed to Render!");
+	}
+
+	kfe::FrameContext frameCtx{};
+	frameCtx.CommandList = m_pGfxList.get();
+	frameCtx.Device = m_pDevice.get();
+	frameCtx.RtvHeap = m_pRTVHeap.get();
+	frameCtx.DsvHeap = m_pDSVHeap.get();
+	frameCtx.CbvSrvUavHeap = m_pResourceHeap.get();
+	frameCtx.FrameConstantBuffer = nullptr;
+	frameCtx.FrameIndex = static_cast<std::uint32_t>(m_nFenceValue);
+
+	m_compiledGraph.Execute(frameCtx);
+
+	auto* cmdList = m_pGfxList->GetNative();
+	cmdList->Close();
+
+	auto* queue = m_pGraphicsQueue->GetNative();
+	ID3D12CommandList* cmdLists[] = { cmdList };
+	queue->ExecuteCommandLists(1u, cmdLists);
+
+	m_pSwapChain->Present();
+
+	queue->Signal(m_pFence.Get(), m_nFenceValue);
 }
 
 void kfe::KFERenderManager::Impl::FrameEnd()
@@ -289,15 +375,15 @@ bool kfe::KFERenderManager::Impl::InitializeComponents()
 	}
 
 	KFE_DEVICE_CREATE_DESC deviceDesc{};
-	deviceDesc.Adapter = m_pAdapter.get();
+	deviceDesc.Adapter   = m_pAdapter.get();
 	deviceDesc.debugName = "KnightDxDebugger";
-	deviceDesc.Factory = m_pFactory.get();
-	deviceDesc.Monitor = m_pMonitor.get();
+	deviceDesc.Factory   = m_pFactory.get();
+	deviceDesc.Monitor   = m_pMonitor.get();
 
 #if defined(_DEBUG) || defined(DEBUG)
 	deviceDesc.Flags = EDeviceCreateFlags::EnableDebugLayer |
-		EDeviceCreateFlags::EnableGPUBasedValidation |
-		EDeviceCreateFlags::EnableStablePowerState;
+			   EDeviceCreateFlags::EnableGPUBasedValidation |
+			EDeviceCreateFlags::EnableStablePowerState;
 #endif
 
 	if (!m_pDevice->Initialize(deviceDesc))
@@ -342,34 +428,10 @@ bool kfe::KFERenderManager::Impl::InitializeQueues()
 
 bool kfe::KFERenderManager::Impl::InitializeCommands()
 {
-	KFE_CA_CREATE_DESC allocatorDesc{};
-	allocatorDesc.BlockMaxTime = 5u;
-	allocatorDesc.CmdListType  = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	allocatorDesc.Device	   = m_pDevice.get();
-
-	if (!m_pAllocator->Initialize(allocatorDesc))
-	{
-		LOG_ERROR("Failed To Initialize Test Command Allocator");
-		return false;
-	}
-
-	KFE_CA_POOL_CREATE_DESC pool{};
-	pool.BlockMaxTime  = 5u;
-	pool.CmdListType   = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	pool.Device		   = m_pDevice.get();
-	pool.InitialCounts = 100u;
-	pool.MaxCounts	   = 1000u;
-
-	if (!m_pAllocatorPool->Initialize(pool))
-	{
-		LOG_ERROR("Failed To Initialize Test Command Pool");
-		return false;
-	}
-
 	KFE_GFX_COMMAND_LIST_CREATE_DESC graphics{};
 	graphics.BlockMaxTime	= 5u;
 	graphics.Device			= m_pDevice.get();
-	graphics.InitialCounts	= 3u;
+	graphics.InitialCounts	= 7u;
 	graphics.MaxCounts		= 10u;
 	if (!m_pGfxList->Initialize(graphics))
 	{
@@ -465,330 +527,162 @@ bool kfe::KFERenderManager::Impl::InitializeHeaps()
 	return true;
 }
 
-bool kfe::KFERenderManager::Impl::InitializeBuffers()
+bool kfe::KFERenderManager::Impl::InitializeTextures()
 {
 	if (!m_pDevice)
 	{
-		LOG_ERROR("KFERenderManager::Impl::InitializeBuffers: Device is nullptr.");
+		LOG_ERROR("KFERenderManager::Impl::InitializeTextures: Device is nullptr.");
 		return false;
 	}
 
-	auto CreateTestBuffer =
-		[this](
-			std::unique_ptr<KFEBuffer>& outBuffer,
-			const char* debugName,
-			std::uint64_t                    sizeInBytes,
-			D3D12_HEAP_TYPE                  heapType,
-			D3D12_RESOURCE_STATES            initialState,
-			D3D12_RESOURCE_FLAGS             flags = D3D12_RESOURCE_FLAG_NONE) -> bool
-		{
-			KFE_CREATE_BUFFER_DESC desc{};
-			desc.Device = m_pDevice.get();
-			desc.SizeInBytes = sizeInBytes;
-			desc.HeapType = heapType;
-			desc.InitialState = initialState;
-			desc.ResourceFlags = flags;
-			desc.DebugName = debugName ? debugName : "";
+	if (!m_pDSVBuffer) m_pDSVBuffer = std::make_unique<KFETexture>();
 
-			outBuffer = std::make_unique<KFEBuffer>();
-			if (!outBuffer->Initialize(desc))
-			{
-				LOG_ERROR("InitializeBuffers: Failed to create buffer '{}'.", desc.DebugName);
-				outBuffer.reset();
-				return false;
-			}
+	const DXGI_FORMAT testFormat			 = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	const D3D12_HEAP_TYPE heapType			 = D3D12_HEAP_TYPE_DEFAULT;
+	const D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+	const D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-			LOG_SUCCESS("InitializeBuffers: Created buffer '{}'.", desc.DebugName);
-			return true;
-		};
+	// 1D Texture Test
+	KFE_TEXTURE_CREATE_DESC tex1D{};
+	tex1D.Device = m_pDevice.get();
+	tex1D.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	tex1D.Width = 256u;
+	tex1D.Height = 1u;
+	tex1D.DepthOrArraySize = 1u;
+	tex1D.MipLevels = 1u;
+	tex1D.Format = testFormat;
+	tex1D.SampleDesc.Count = 1u;
+	tex1D.SampleDesc.Quality = 0u;
+	tex1D.ResourceFlags = resourceFlags;
+	tex1D.HeapType = heapType;
+	tex1D.InitialState = initialState;
+	
+	D3D12_CLEAR_VALUE depthClear{};
+	depthClear.Format = testFormat;
+	depthClear.DepthStencil.Depth = 1.0f;
+	depthClear.DepthStencil.Stencil = 0;
 
-	constexpr std::uint64_t kTestVBSize			= 64ull * 1024ull;   // 64 KB
-	constexpr std::uint64_t kTestIBSize			= 32ull * 1024ull;   // 32 KB
-	constexpr std::uint64_t kTestCBSize			= 4ull * 1024ull;   //  4 KB
-	constexpr std::uint64_t kTestUploadSize		= 16ull * 1024ull;   // 16 KB
-	constexpr std::uint64_t kTestReadbackSize	= 16ull * 1024ull;   // 16 KB
-	constexpr std::uint64_t kTestStructuredSize = 32ull * 1024ull;   // 32 KB
-	constexpr std::uint64_t kTestIndirectSize	= 4ull * 1024ull;   //  4 KB
+	tex1D.ClearValue = &depthClear;
 
-	bool ok = true;
-
-	// Default heap Vertex Buffer
-	ok &= CreateTestBuffer(
-		m_pTestVertexBuffer,
-		"Test Vertex Buffer (Default)",
-		kTestVBSize,
-		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-
-	// Default heap Index Buffer
-	ok &= CreateTestBuffer(
-		m_pTestIndexBuffer,
-		"Test Index Buffer (Default)",
-		kTestIBSize,
-		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_INDEX_BUFFER);
-
-	// Default heap Constant Buffer (GPU-side)
-	ok &= CreateTestBuffer(
-		m_pTestConstantBuffer,
-		"Test Constant Buffer (Default)",
-		kTestCBSize,
-		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-
-	// Default heap Structured Buffer with UAV
-	ok &= CreateTestBuffer(
-		m_pTestStructuredUAV,
-		"Test Structured UAV Buffer (Default)",
-		kTestStructuredSize,
-		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-	// Default heap Indirect Argument Buffer
-	ok &= CreateTestBuffer(
-		m_pTestIndirectArgsBuffer,
-		"Test Indirect Args Buffer (Default)",
-		kTestIndirectSize,
-		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-
-	// Upload heap (generic – for staging / dynamic CBs)
-	ok &= CreateTestBuffer(
-		m_pTestUploadBuffer,
-		"Test Upload Buffer",
-		kTestUploadSize,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_GENERIC_READ);
-
-	// Readback heap
-	ok &= CreateTestBuffer(
-		m_pTestReadbackBuffer,
-		"Test Readback Buffer",
-		kTestReadbackSize,
-		D3D12_HEAP_TYPE_READBACK,
-		D3D12_RESOURCE_STATE_COPY_DEST);
-
-	if (!ok)
+	if (!m_pDSVBuffer->Initialize(tex1D))
 	{
-		LOG_ERROR("KFERenderManager::Impl::InitializeBuffers: One or more test buffers failed to initialize.");
+		LOG_ERROR("Failed to initialize Test Texture 1D.");
 		return false;
 	}
 
-	LOG_SUCCESS("KFERenderManager: All test buffers initialized!");
+	LOG_INFO("TestTexture1D: dim={}, {}x{}, mip={}, fmt={}",
+		static_cast<int>(m_pDSVBuffer->GetDimension()),
+		m_pDSVBuffer->GetWidth(),
+		m_pDSVBuffer->GetHeight(),
+		m_pDSVBuffer->GetMipLevels(),
+		static_cast<int>(m_pDSVBuffer->GetFormat()));
+
+	LOG_SUCCESS("All test textures initialized successfully.");
 	return true;
 }
 
-_Use_decl_annotations_
-bool kfe::KFERenderManager::Impl::InitializeViews()
+bool kfe::KFERenderManager::Impl::InitializeRenderGraph()
 {
-	if (!m_pDevice)
-	{
-		LOG_ERROR("KFERenderManager::Impl::InitializeViews: Device is nullptr.");
-		return false;
-	}
+	using namespace kfe::rg;
 
-	if (!m_pResourceHeap)
-	{
-		LOG_ERROR("KFERenderManager::Impl::InitializeViews: Resource heap is nullptr.");
-		return false;
-	}
+	std::string passName = "MainClearPass";
 
-	bool ok = true;
+	m_renderGraph = RenderGraph{};
 
-	// Vertex buffer view
-	if (m_pTestVertexBuffer)
-	{
-		m_pTestVertexView = std::make_unique<KFEVertexBuffer>();
-
-		KFE_VERTEX_BUFFER_CREATE_DESC vbDesc{};
-		vbDesc.Device = m_pDevice.get();
-		vbDesc.ResourceBuffer = m_pTestVertexBuffer.get();
-		vbDesc.StrideInBytes = 32u;
-		vbDesc.OffsetInBytes = 0u;
-
-		if (!m_pTestVertexView->Initialize(vbDesc))
+	m_renderGraph.AddPass(
+		passName,
+		// Build function no logical resources yet
+		[&](RGBuilder& builder)
 		{
-			LOG_ERROR("InitializeViews: Failed to initialize KFEVertexBuffer view.");
-			ok = false;
-		}
-		else
+			// no RG textures or buffers
+			(void)builder;
+		},
+		[this](RGExecutionContext& ctx)
 		{
-			LOG_SUCCESS("InitializeViews: KFEVertexBuffer view initialized.");
-		}
-	}
-	else
-	{
-		LOG_WARNING("InitializeViews: Test vertex buffer is nullptr; skipping vertex view.");
-	}
-
-	// Index buffer view
-	if (m_pTestIndexBuffer)
-	{
-		m_pTestIndexView = std::make_unique<KFEIndexBuffer>();
-
-		KFE_INDEX_BUFFER_CREATE_DESC ibDesc{};
-		ibDesc.Device = m_pDevice.get();
-		ibDesc.ResourceBuffer = m_pTestIndexBuffer.get();
-		ibDesc.Format = DXGI_FORMAT_R32_UINT; // typical for 32-bit indices
-		ibDesc.OffsetInBytes = 0u;
-
-		if (!m_pTestIndexView->Initialize(ibDesc))
-		{
-			LOG_ERROR("InitializeViews: Failed to initialize KFEIndexBuffer view.");
-			ok = false;
-		}
-		else
-		{
-			LOG_SUCCESS("InitializeViews: KFEIndexBuffer view initialized.");
-		}
-	}
-	else
-	{
-		LOG_WARNING("InitializeViews: Test index buffer is nullptr; skipping index view.");
-	}
-
-	// Constant buffer view (CBV)
-	if (m_pTestConstantBuffer)
-	{
-		m_pTestConstantView = std::make_unique<KFEConstantBuffer>();
-
-		KFE_CONSTANT_BUFFER_CREATE_DESC cbDesc{};
-		cbDesc.Device = m_pDevice.get();
-		cbDesc.ResourceBuffer = m_pTestConstantBuffer.get();
-		cbDesc.ResourceHeap = m_pResourceHeap.get();
-		cbDesc.OffsetInBytes = 0u;
-
-		// Test with a single 256-byte CB (typical minimum alignment)
-		cbDesc.SizeInBytes = 256u;
-
-		if (!m_pTestConstantView->Initialize(cbDesc))
-		{
-			LOG_ERROR("InitializeViews: Failed to initialize KFEConstantBuffer view.");
-			ok = false;
-		}
-		else
-		{
-			LOG_SUCCESS(
-				"InitializeViews: KFEConstantBuffer view initialized. CBV index = {}.",
-				m_pTestConstantView->GetCBVDescriptorIndex());
-		}
-	}
-	else
-	{
-		LOG_WARNING("InitializeViews: Test constant buffer is nullptr; skipping constant view.");
-	}
-
-	// Structured buffer view (SRV + UAV)
-	if (m_pTestStructuredUAV)
-	{
-		m_pTestStructuredView = std::make_unique<KFEStructuredBuffer>();
-
-		constexpr std::uint32_t strideBytes = 16u;
-		const std::uint64_t totalBytes = m_pTestStructuredUAV->GetSizeInBytes();
-		const std::uint32_t elementCount = static_cast<std::uint32_t>(totalBytes / strideBytes);
-
-		if (elementCount == 0u)
-		{
-			LOG_ERROR("InitializeViews: Structured test buffer size is too small for stride {}.", strideBytes);
-			ok = false;
-		}
-		else
-		{
-			KFE_STRUCTURED_BUFFER_CREATE_DESC sbDesc{};
-			sbDesc.Device = m_pDevice.get();
-			sbDesc.ResourceBuffer = m_pTestStructuredUAV.get();
-			sbDesc.ResourceHeap = m_pResourceHeap.get();
-			sbDesc.ElementStride = strideBytes;
-			sbDesc.ElementCount = elementCount;
-			sbDesc.OffsetInBytes = 0u;
-
-			if (!m_pTestStructuredView->Initialize(sbDesc))
+			KFEGraphicsCommandList* gfxList = ctx.GetCommandList();
+			if (!gfxList)
 			{
-				LOG_ERROR("InitializeViews: Failed to initialize KFEStructuredBuffer.");
-				ok = false;
+				return;
 			}
-			else
+
+			ID3D12GraphicsCommandList* cmdList = gfxList->GetNative();
+			if (!cmdList)
 			{
-				// Create SRV over the whole range
-				KFE_STRUCTURED_SRV_DESC srvDesc{};
-				srvDesc.FirstElement = 0u;
-				srvDesc.NumElements = 0u; // all
-
-				const std::uint32_t srvIndex = m_pTestStructuredView->CreateSRV(srvDesc);
-
-				// Create UAV over the whole range
-				KFE_STRUCTURED_UAV_DESC uavDesc{};
-				uavDesc.FirstElement = 0u;
-				uavDesc.NumElements = 0u; // all
-				uavDesc.HasCounter = false;
-				uavDesc.CounterOffsetInBytes = 0u;
-
-				const std::uint32_t uavIndex = m_pTestStructuredView->CreateUAV(uavDesc);
-
-				LOG_SUCCESS(
-					"InitializeViews: KFEStructuredBuffer view initialized. SRV index = {}, UAV index = {}.",
-					srvIndex, uavIndex);
+				return;
 			}
-		}
-	}
-	else
-	{
-		LOG_WARNING("InitializeViews: Test structured UAV buffer is nullptr; skipping structured view.");
-	}
 
-	m_pTestStructuredView->Destroy();
+			// Acquire current backbuffer
+			auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
+				m_pFence.Get(), m_nFenceValue);
 
-	if (m_pTestIndirectArgsBuffer)
-	{
-		m_pTestIndirectRawView = std::make_unique<KFERawBuffer>();
+			// Transition PRESENT to RENDER_TARGET
+			D3D12_RESOURCE_BARRIER barrier{};
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = swapData.BufferResource;
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
-		KFE_RAW_BUFFER_CREATE_DESC rawDesc{};
-		rawDesc.Device = m_pDevice.get();
-		rawDesc.ResourceBuffer = m_pTestIndirectArgsBuffer.get();
-		rawDesc.ResourceHeap = m_pResourceHeap.get();
-		rawDesc.OffsetInBytes = 0u;
-		rawDesc.SizeInBytes = m_pTestIndirectArgsBuffer->GetSizeInBytes();
+			cmdList->ResourceBarrier(1u, &barrier);
+			cmdList->RSSetViewports(1u, &m_viewport);
+			cmdList->RSSetScissorRects(1u, &m_scissorRect);
 
-		if (!m_pTestIndirectRawView->Initialize(rawDesc))
-		{
-			LOG_ERROR("InitializeViews: Failed to initialize KFERawBuffer for indirect args.");
-			ok = false;
-		}
-		else
-		{
-			KFE_RAW_SRV_DESC srvDesc{};
-			srvDesc.FirstByteOffset = 0u;
-			srvDesc.NumBytes = 0u; // all
+			const float color[4]
+			{
+				std::sinf(m_totalTime),
+				std::cosf(m_totalTime),
+				std::sinf(std::sinf(m_totalTime) + std::cosf(m_totalTime)),
+				std::sinf(m_totalTime)
+			};
 
-			const std::uint32_t srvIndex = m_pTestIndirectRawView->CreateSRV(srvDesc);
+			cmdList->ClearRenderTargetView(swapData.BufferHandle, color, 0u, nullptr);
 
-			KFE_RAW_UAV_DESC uavDesc{};
-			uavDesc.FirstByteOffset = 0u;
-			uavDesc.NumBytes = 0u;
-			uavDesc.HasCounter = false;
-			uavDesc.CounterOffsetInBytes = 0u;
+			auto dsvHandle = m_pDSV->GetCPUHandle();
+			ID3D12Resource* depthRes = m_pDSVBuffer->GetNative();
 
-			const std::uint32_t uavIndex = m_pTestIndirectRawView->CreateUAV(uavDesc);
+			D3D12_RESOURCE_BARRIER depthBarrier{};
+			depthBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			depthBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			depthBarrier.Transition.pResource = depthRes;
+			depthBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			depthBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+			depthBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 
-			LOG_SUCCESS(
-				"InitializeViews: KFERawBuffer view for indirect args initialized. SRV index = {}, UAV index = {}.",
-				srvIndex, uavIndex);
-		}
-	}
-	else
-	{
-		LOG_WARNING("InitializeViews: Test indirect args buffer is nullptr; skipping raw view.");
-	}
+			cmdList->ResourceBarrier(1u, &depthBarrier);
 
-	if (!ok)
-	{
-		LOG_ERROR("KFERenderManager::Impl::InitializeViews: One or more view initializations failed.");
-	}
-	else
-	{
-		LOG_SUCCESS("KFERenderManager: All test views initialized!");
-	}
+			cmdList->ClearDepthStencilView(
+				dsvHandle,
+				D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+				1.f, 0u, 0u, nullptr);
 
-	return ok;
+			// Transition RENDER_TARGET to PRESENT
+			barrier = {};
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = swapData.BufferResource;
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+
+			cmdList->ResourceBarrier(1u, &barrier);
+		});
+
+	m_compiledGraph = m_renderGraph.Compile();
+	return true;
+}
+
+void kfe::KFERenderManager::Impl::CreateViewport()
+{
+	auto winSize = m_pWindows->GetWinSize();
+	m_viewport.TopLeftX = 0;
+	m_viewport.TopLeftY = 0;
+	m_viewport.Width = static_cast<float>(winSize.Width);
+	m_viewport.Height = static_cast<float>(winSize.Height);
+	m_viewport.MaxDepth = 1.0f;
+	m_viewport.MinDepth = 0.0f;
+
+	m_scissorRect = { 0, 0,
+		static_cast<long>(winSize.Width),
+		static_cast<long>(winSize.Height) };
 }
