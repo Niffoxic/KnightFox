@@ -167,6 +167,8 @@
     <ClInclude Include="include\engine\render_manager\api\texture\texture_rtv.h" />
     <ClInclude Include="include\engine\render_manager\api\texture\texture_srv.h" />
     <ClInclude Include="include\engine\render_manager\api\texture\texture_uav.h" />
+    <ClInclude Include="include\engine\render_manager\graph\context.h" />
+    <ClInclude Include="include\engine\render_manager\graph\resources.h" />
     <ClInclude Include="include\engine\render_manager\graph\types.h" />
     <ClInclude Include="include\engine\system\common_types.h" />
     <ClInclude Include="include\engine\core.h" />
@@ -224,6 +226,8 @@
     <ClCompile Include="src\render_manager\api\buffer\buffer.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_srv.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_uav.cpp" />
+    <ClCompile Include="src\render_manager\graph\context.cpp" />
+    <ClCompile Include="src\render_manager\graph\resources.cpp" />
     <ClCompile Include="src\system\dependency_resolver.cpp" />
     <ClCompile Include="src\system\event_queue.cpp" />
     <ClCompile Include="src\system\exception\base_exception.cpp" />

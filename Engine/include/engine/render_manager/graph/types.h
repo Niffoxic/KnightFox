@@ -8,7 +8,6 @@
  *  License   : MIT
  *  -----------------------------------------------------------------------------
  */
-
 #pragma once
 
 #include "engine/system/common_types.h"
@@ -30,20 +29,6 @@ namespace kfe::rg
         Present
     };
 
-    NODISCARD inline const char* ToString(RGTextureUsage u) noexcept
-    {
-        switch (u)
-        {
-        case RGTextureUsage::Objects:      return "Objects";
-        case RGTextureUsage::Depth:        return "Depth";
-        case RGTextureUsage::Lighting:     return "Lighting";
-        case RGTextureUsage::PostProcess:  return "PostProcess";
-        case RGTextureUsage::UI:           return "UI";
-        case RGTextureUsage::Present:      return "Present";
-        default:                           return "Unknown";
-        }
-    }
-
     enum class RGBufferUsage : std::uint8_t
     {
         Unknown = 0,
@@ -54,16 +39,23 @@ namespace kfe::rg
         Structured,
     };
 
-    NODISCARD inline const char* ToString(RGBufferUsage u) noexcept
+    enum class RGResourceAccess : std::uint8_t
     {
-        switch (u)
-        {
-        case RGBufferUsage::Vertex:        return "Vertex";
-        case RGBufferUsage::Index:         return "Index";
-        case RGBufferUsage::Constant:      return "Constant";
-        case RGBufferUsage::Structured:    return "Structured";
-        default:                           return "Unknown";
-        }
+        Read = 0,
+        Write,
+        ReadWrite
+    };
+
+    NODISCARD constexpr bool IsReadAccess(RGResourceAccess access) noexcept
+    {
+        return  access == RGResourceAccess::Read ||
+                access == RGResourceAccess::ReadWrite;
+    }
+
+    NODISCARD constexpr bool IsWriteAccess(RGResourceAccess access) noexcept
+    {
+        return  access == RGResourceAccess::Write ||
+                access == RGResourceAccess::ReadWrite;
     }
 
     struct RGTextureHandle
@@ -153,7 +145,52 @@ namespace kfe::rg
         {
             return SizeInBytes > 0;
         }
-    }; 
+    };
+
+    struct RGTextureAccess
+    {
+        RGTextureHandle  Handle{};
+        RGResourceAccess Access{ RGResourceAccess::Read };
+
+        NODISCARD constexpr bool IsValid() const noexcept
+        {
+            return Handle.IsValid();
+        }
+    };
+
+    struct RGBufferAccess
+    {
+        RGBufferHandle   Handle{};
+        RGResourceAccess Access{ RGResourceAccess::Read };
+
+        NODISCARD constexpr bool IsValid() const noexcept
+        {
+            return Handle.IsValid();
+        }
+    };
+
+    struct RenderPassDesc
+    {
+        std::string                   Name;
+        std::vector<RGTextureAccess>  TextureInputs; //~ textures
+        std::vector<RGTextureAccess>  TextureOutputs;
+        std::vector<RGBufferAccess>   BufferInputs; //~ buffers
+        std::vector<RGBufferAccess>   BufferOutputs;
+
+        NODISCARD bool IsValid() const noexcept
+        {
+            return !Name.empty();
+        }
+
+        void Clear() noexcept
+        {
+            Name            .clear();
+            TextureInputs   .clear();
+            TextureOutputs  .clear();
+            BufferInputs    .clear();
+            BufferOutputs   .clear();
+        }
+    };
 } // namespace kfe::rg
 
 //~ hashing 
