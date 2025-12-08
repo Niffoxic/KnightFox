@@ -68,6 +68,7 @@ namespace kfe
 
         // Updates States: Must be called very frame
         void Update() noexcept;
+        void Wait  () noexcept;
 
     private:
         class Impl;

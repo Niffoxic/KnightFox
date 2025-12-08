@@ -1,4 +1,4 @@
-// This is a personal academic project. Dear PVS-Studio, please check it.
+﻿// This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 
 /*
@@ -63,6 +63,10 @@
 #include "engine/render_manager/graph/render_graph.h"
 #include <d3d12.h>
 
+//~ Test Renderable
+#include "engine/render_manager/api/pso.h"
+#include "engine/render_manager/scene/renderable.h"
+
 #pragma region IMPL
 
 class kfe::KFERenderManager::Impl
@@ -77,14 +81,15 @@ public:
 	void FrameEnd  ();
 
 private:
-	bool InitializeComponents();
-	bool InitializeQueues	 ();
-	bool InitializeCommands  ();
-	bool InitializeHeaps	 ();
-	bool InitializeTextures  ();
+	bool InitializeComponents ();
+	bool InitializeQueues	  ();
+	bool InitializeCommands   ();
+	bool InitializeHeaps	  ();
+	bool InitializeTextures   ();
 	bool InitializeRenderGraph();
+	void CreateViewport		  ();
 
-	void CreateViewport();
+	bool InitializeTestTriangle();
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -127,6 +132,18 @@ private:
 	rg::RenderGraph m_renderGraph{};
 	rg::RGCompiled  m_compiledGraph{};
 	float m_totalTime{ 0.0f };
+
+	//~ Test Triangle
+	std::unique_ptr<KFEStagingBuffer> m_triangleStaging;
+	std::unique_ptr<KFEVertexBuffer>  m_vertexView;
+	std::unique_ptr<KFEIndexBuffer>   m_indexView;
+
+	KFEGeometryData                   m_triangleGeometry{};
+	std::unique_ptr<KFETransformNode> m_pTriangleTransform;
+	std::unique_ptr<IKFERenderable>   m_pTriangleRenderable;
+	std::vector<IKFERenderable*>      m_renderables;
+
+	std::unique_ptr<KFEPipelineState> m_pos{ nullptr };
 };
 
 #pragma endregion
@@ -226,6 +243,8 @@ bool kfe::KFERenderManager::Impl::Initialize()
 		return false;
 	}
 
+	m_pos = std::make_unique<KFEPipelineState>();
+
 	KFE_SWAP_CHAIN_CREATE_DESC swap{};
 	swap.Monitor		= m_pMonitor.get();
 	swap.Factory		= m_pFactory.get();
@@ -293,6 +312,8 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	}
 
 	m_bInitialized = true;
+
+	if (!InitializeTestTriangle()) return false;
 
 	return true;
 }
@@ -685,4 +706,175 @@ void kfe::KFERenderManager::Impl::CreateViewport()
 	m_scissorRect = { 0, 0,
 		static_cast<long>(winSize.Width),
 		static_cast<long>(winSize.Height) };
+}
+
+bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
+{
+	if (!m_pDevice || !m_pDevice->GetNative())
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Device is null.");
+		return false;
+	}
+
+	if (!m_pFence)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Fence is null.");
+		return false;
+	}
+
+	auto* gfxQueue = m_pGraphicsQueue->GetNative();
+	if (!gfxQueue)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Graphics queue is null.");
+		return false;
+	}
+
+	{
+		++m_nFenceValue;
+		KFE_RESET_COMMAND_LIST resetter{};
+		resetter.Fence = m_pFence.Get();  // no wait, fresh use
+		resetter.FenceValue = m_nFenceValue;
+		resetter.PSO = nullptr;
+
+		if (!m_pGfxList->Reset(resetter))
+		{
+			LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Failed to reset graphics command list for upload.");
+			return false;
+		}
+	}
+
+	ID3D12GraphicsCommandList* cmdList = m_pGfxList->GetNative();
+	if (!cmdList)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Command list is null.");
+		return false;
+	}
+
+	struct Vertex
+	{
+		DirectX::XMFLOAT3 Position;
+		DirectX::XMFLOAT3 Color;
+	};
+
+	Vertex vertices[3]
+	{
+		{ DirectX::XMFLOAT3(0.0f,  0.5f, 0.0f), DirectX::XMFLOAT3(1.0f, 0.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(0.5f, -0.5f, 0.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f) },
+		{ DirectX::XMFLOAT3(-0.5f, -0.5f, 0.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 1.0f) }
+	};
+
+	std::uint16_t indices[3] = { 0, 1, 2 };
+
+	const std::uint32_t vbSize = static_cast<std::uint32_t>(sizeof(vertices));
+	const std::uint32_t ibSize = static_cast<std::uint32_t>(sizeof(indices));
+	const std::uint32_t totalSize = vbSize + ibSize;
+
+	const std::uint64_t vbOffset = 0u;
+	const std::uint64_t ibOffset = static_cast<std::uint64_t>(vbSize);
+
+	// Create staging buffer (UPLOAD + DEFAULT) for VB + IB
+	m_triangleStaging = std::make_unique<KFEStagingBuffer>();
+
+	KFE_STAGING_BUFFER_CREATE_DESC stagingDesc{};
+	stagingDesc.Device = m_pDevice.get();
+	stagingDesc.SizeInBytes = totalSize;
+
+	if (!m_triangleStaging->Initialize(stagingDesc))
+	{
+		LOG_ERROR("InitializeTestTriangle: Failed to initialize KFEStagingBuffer.");
+		return false;
+	}
+
+	// Write CPU vertex and index data into the UPLOAD heap
+	if (!m_triangleStaging->WriteBytes(vertices, vbSize, vbOffset))
+	{
+		LOG_ERROR("InitializeTestTriangle: Failed to write vertex data into staging upload buffer.");
+		return false;
+	}
+
+	if (!m_triangleStaging->WriteBytes(indices, ibSize, ibOffset))
+	{
+		LOG_ERROR("InitializeTestTriangle: Failed to write index data into staging upload buffer.");
+		return false;
+	}
+
+	// Record UPLOAD → DEFAULT copy on the current GFX command list
+	if (!m_triangleStaging->RecordUploadToDefault(
+		cmdList,
+		totalSize,
+		0u,
+		0u))
+	{
+		LOG_ERROR("InitializeTestTriangle: Failed to record upload from UPLOAD to DEFAULT buffer.");
+		return false;
+	}
+
+	// Transition DEFAULT buffer from COPY_DEST → VB|IB
+	KFEBuffer* defaultBuffer = m_triangleStaging->GetDefaultBuffer();
+	if (!defaultBuffer || !defaultBuffer->GetNative())
+	{
+		LOG_ERROR("InitializeTestTriangle: Default buffer is null.");
+		return false;
+	}
+
+	ID3D12Resource* defaultResource = defaultBuffer->GetNative();
+
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = defaultResource;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter =
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER |
+		D3D12_RESOURCE_STATE_INDEX_BUFFER;
+
+	cmdList->ResourceBarrier(1u, &barrier);
+
+	// Close + execute the upload command list, signal + wait fence
+	HRESULT hr = cmdList->Close();
+	THROW_DX_IF_FAILS(hr);
+
+	ID3D12CommandList* cmdLists[] = { cmdList };
+	gfxQueue->ExecuteCommandLists(1u, cmdLists);
+
+	// bump fence value for this upload submission
+	hr = gfxQueue->Signal(m_pFence.Get(), m_nFenceValue);
+	THROW_DX_IF_FAILS(hr);
+
+	m_pGfxList->Wait();
+
+	// Create vertex buffer view from DEFAULT buffer
+	m_vertexView = std::make_unique<KFEVertexBuffer>();
+
+	KFE_VERTEX_BUFFER_CREATE_DESC vbDesc{};
+	vbDesc.Device = m_pDevice.get();
+	vbDesc.ResourceBuffer = defaultBuffer;
+	vbDesc.StrideInBytes = sizeof(Vertex);
+	vbDesc.OffsetInBytes = vbOffset;
+	vbDesc.DebugName = "Triangle Vertex Buffer";
+
+	if (!m_vertexView->Initialize(vbDesc))
+	{
+		LOG_ERROR("InitializeTestTriangle: Failed to initialize vertex buffer view.");
+		return false;
+	}
+
+	// Create index buffer view from DEFAULT buffer
+	m_indexView = std::make_unique<KFEIndexBuffer>();
+
+	KFE_INDEX_BUFFER_CREATE_DESC ibDesc{};
+	ibDesc.Device = m_pDevice.get();
+	ibDesc.ResourceBuffer = defaultBuffer;
+	ibDesc.Format = DXGI_FORMAT_R16_UINT; // matches std::uint16_t
+	ibDesc.OffsetInBytes = ibOffset;
+
+	if (!m_indexView->Initialize(ibDesc))
+	{
+		LOG_ERROR("InitializeTestTriangle: Failed to initialize index buffer view.");
+		return false;
+	}
+
+	LOG_SUCCESS("InitializeTestTriangle: Triangle geometry uploaded, VB/IB views created successfully.");
+	return true;
 }

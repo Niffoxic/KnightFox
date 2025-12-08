@@ -35,6 +35,7 @@ public:
     NODISCARD bool                       IsInitialized() const noexcept;
 
 	void Update() noexcept;
+	void Wait  () noexcept;
 
 private:
 	bool CreateAllocatorPool(const KFE_GFX_COMMAND_LIST_CREATE_DESC& desc);
@@ -44,6 +45,7 @@ private:
 	bool											  m_bInitialized{ false };
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_pList{ nullptr };
 	std::unique_ptr<KFECommandAllocatorPool>		  m_pPool{ nullptr };
+	KFECommandAllocator* m_pCurrentAllocator{ nullptr };
 };
 
 #pragma endregion
@@ -110,6 +112,11 @@ void kfe::KFEGraphicsCommandList::Update() noexcept
 	m_impl->Update();
 }
 
+void kfe::KFEGraphicsCommandList::Wait() noexcept
+{
+	m_impl->Wait();
+}
+
 #pragma endregion
 
 #pragma region Impl_Implementation
@@ -171,13 +178,13 @@ bool kfe::KFEGraphicsCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& rese
 	}
 
 	// Try to get a free allocator
-	auto* alloc = m_pPool->GetCommandAllocatorWait();
-	if (!alloc)
+	m_pCurrentAllocator = m_pPool->GetCommandAllocatorWait();
+	if (!m_pCurrentAllocator)
 	{
 		LOG_WARNING("No free allocator from pool, trying to create a new one.");
-		alloc = m_pPool->GetCommandAllocatorCreate();
+		m_pCurrentAllocator = m_pPool->GetCommandAllocatorCreate();
 
-		if (!alloc)
+		if (!m_pCurrentAllocator)
 		{
 			THROW_MSG("Failed to acquire allocator: no free or new allocators available!");
 			return false;
@@ -185,20 +192,20 @@ bool kfe::KFEGraphicsCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& rese
 	}
 
 	// Make sure allocator has a native pointer
-	if (!alloc->GetNative())
+	if (!m_pCurrentAllocator->GetNative())
 	{
 		THROW_MSG("Allocator has no native ID3D12CommandAllocator*!");
 		return false;
 	}
 
 	// Reset allocator before reusing it for the command list
-	if (!alloc->Reset())
+	if (!m_pCurrentAllocator->Reset())
 	{
 		THROW_MSG("Failed to reset command allocator in KFEGraphicsCommandList::Impl::Reset!");
 		return false;
 	}
 
-	auto* nativeAlloc = alloc->GetNative();
+	auto* nativeAlloc = m_pCurrentAllocator->GetNative();
 
 	// Reset the graphics command list with allocator
 	HRESULT hr = m_pList->Reset(nativeAlloc, reset.PSO);
@@ -215,7 +222,7 @@ bool kfe::KFEGraphicsCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& rese
 		fence.Fence = reset.Fence;
 		fence.FenceWaitValue = reset.FenceValue;
 
-		if (!alloc->AttachFence(fence))
+		if (!m_pCurrentAllocator->AttachFence(fence))
 		{
 			LOG_WARNING("Failed to attach fence to allocator after graphics list reset.");
 		}
@@ -295,6 +302,14 @@ void kfe::KFEGraphicsCommandList::Impl::Update() noexcept
 	if (m_pPool) 
 	{
 		m_pPool->UpdateAllocators();
+	}
+}
+
+void kfe::KFEGraphicsCommandList::Impl::Wait() noexcept
+{
+	if (m_pCurrentAllocator) 
+	{
+		m_pCurrentAllocator->ForceWait();
 	}
 }
 #pragma endregion

@@ -387,79 +387,82 @@ kfe::KFEPipelineState::Impl::Impl()
 	::ZeroMemory(&m_desc, sizeof(m_desc));
 
 	// Basic defaults
-	m_desc.pRootSignature = nullptr;
-	m_desc.VS = {};
-	m_desc.PS = {};
-	m_desc.GS = {};
-	m_desc.HS = {};
-	m_desc.DS = {};
-	m_desc.StreamOutput = {};
-	m_desc.InputLayout = { nullptr, 0 };
-	m_desc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
+	m_desc.pRootSignature		 = nullptr;
+	m_desc.VS					 = {};
+	m_desc.PS					 = {};
+	m_desc.GS					 = {};
+	m_desc.HS					 = {};
+	m_desc.DS					 = {};
+	m_desc.StreamOutput			 = {};
+	m_desc.InputLayout			 = { nullptr, 0u };
+	m_desc.IBStripCutValue		 = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 	m_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	m_desc.NumRenderTargets = 1;
-	m_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	m_desc.NumRenderTargets		 = 1u;
+	m_desc.RTVFormats[0]		 = DXGI_FORMAT_R8G8B8A8_UNORM;
+
 	for (UINT i = 1; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 	{
 		m_desc.RTVFormats[i] = DXGI_FORMAT_UNKNOWN;
 	}
-	m_desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-	m_desc.SampleDesc.Count = 1;
-	m_desc.SampleDesc.Quality = 0;
-	m_desc.SampleMask = UINT_MAX;
-	m_desc.NodeMask = 0;
-	m_desc.CachedPSO = {};
-	m_desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+	m_desc.DSVFormat			= DXGI_FORMAT_D32_FLOAT;
+	m_desc.SampleDesc.Count		= 1u;
+	m_desc.SampleDesc.Quality	= 0u;
+	m_desc.SampleMask			= UINT_MAX;
+	m_desc.NodeMask				= 0u;
+	m_desc.CachedPSO			= {};
+	m_desc.Flags				= D3D12_PIPELINE_STATE_FLAG_NONE;
 
 	// Rasterizer default
 	D3D12_RASTERIZER_DESC rs{};
-	rs.FillMode = D3D12_FILL_MODE_SOLID;
-	rs.CullMode = D3D12_CULL_MODE_BACK;
-	rs.FrontCounterClockwise = FALSE;
-	rs.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-	rs.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-	rs.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-	rs.DepthClipEnable = TRUE;
-	rs.MultisampleEnable = FALSE;
-	rs.AntialiasedLineEnable = FALSE;
-	rs.ForcedSampleCount = 0;
-	rs.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-	m_desc.RasterizerState = rs;
+	rs.FillMode					= D3D12_FILL_MODE_SOLID;
+	rs.CullMode					= D3D12_CULL_MODE_BACK;
+	rs.FrontCounterClockwise	= FALSE;
+	rs.DepthBias				= D3D12_DEFAULT_DEPTH_BIAS;
+	rs.DepthBiasClamp			= D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	rs.SlopeScaledDepthBias		= D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	rs.DepthClipEnable			= TRUE;
+	rs.MultisampleEnable		= FALSE;
+	rs.AntialiasedLineEnable	= FALSE;
+	rs.ForcedSampleCount		= 0u;
+	rs.ConservativeRaster		= D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+	m_desc.RasterizerState		= rs;
 
 	// Blend default
 	D3D12_BLEND_DESC blend{};
-	blend.AlphaToCoverageEnable = FALSE;
+	blend.AlphaToCoverageEnable  = FALSE;
 	blend.IndependentBlendEnable = FALSE;
+
 	for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 	{
-		auto& rt = blend.RenderTarget[i];
-		rt.BlendEnable = FALSE;
-		rt.LogicOpEnable = FALSE;
-		rt.SrcBlend = D3D12_BLEND_ONE;
-		rt.DestBlend = D3D12_BLEND_ZERO;
-		rt.BlendOp = D3D12_BLEND_OP_ADD;
-		rt.SrcBlendAlpha = D3D12_BLEND_ONE;
-		rt.DestBlendAlpha = D3D12_BLEND_ZERO;
-		rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-		rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+		auto& rt				 = blend.RenderTarget[i];
+		rt.BlendEnable			 = FALSE;
+		rt.LogicOpEnable		 = FALSE;
+		rt.SrcBlend				 = D3D12_BLEND_ONE;
+		rt.DestBlend			 = D3D12_BLEND_ZERO;
+		rt.BlendOp				 = D3D12_BLEND_OP_ADD;
+		rt.SrcBlendAlpha		 = D3D12_BLEND_ONE;
+		rt.DestBlendAlpha		 = D3D12_BLEND_ZERO;
+		rt.BlendOpAlpha			 = D3D12_BLEND_OP_ADD;
+		rt.LogicOp				 = D3D12_LOGIC_OP_NOOP;
 		rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	}
 	m_desc.BlendState = blend;
 
-	// Depth-Stencil default
+	// Depth Stencil default
 	D3D12_DEPTH_STENCIL_DESC ds{};
-	ds.DepthEnable = TRUE;
-	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	ds.StencilEnable = FALSE;
-	ds.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
-	ds.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
-	ds.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	ds.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
-	ds.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	ds.DepthEnable					= TRUE;
+	ds.DepthWriteMask				= D3D12_DEPTH_WRITE_MASK_ALL;
+	ds.DepthFunc					= D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	ds.StencilEnable				= FALSE;
+	ds.StencilReadMask				= D3D12_DEFAULT_STENCIL_READ_MASK;
+	ds.StencilWriteMask				= D3D12_DEFAULT_STENCIL_WRITE_MASK;
+	ds.FrontFace.StencilFunc		= D3D12_COMPARISON_FUNC_ALWAYS;
+	ds.FrontFace.StencilPassOp		= D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilFailOp		= D3D12_STENCIL_OP_KEEP;
 	ds.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	ds.BackFace = ds.FrontFace;
-	m_desc.DepthStencilState = ds;
+	ds.BackFace						= ds.FrontFace;
+	m_desc.DepthStencilState		= ds;
 }
 
 kfe::KFEPipelineState::Impl::~Impl()
