@@ -55,6 +55,9 @@ KFEFileSystem::KFEFileSystem()
 
 KFEFileSystem::~KFEFileSystem() = default;
 
+KFEFileSystem::KFEFileSystem(KFEFileSystem&&) = default;
+KFEFileSystem& KFEFileSystem::operator=(KFEFileSystem&&) = default;
+
 _Use_decl_annotations_
 bool KFEFileSystem::OpenForRead(const std::string& path)
 {

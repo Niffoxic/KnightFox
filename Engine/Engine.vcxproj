@@ -168,6 +168,7 @@
     <ClInclude Include="include\engine\render_manager\api\texture\texture_rtv.h" />
     <ClInclude Include="include\engine\render_manager\api\texture\texture_srv.h" />
     <ClInclude Include="include\engine\render_manager\api\texture\texture_uav.h" />
+    <ClInclude Include="include\engine\render_manager\assets_library\shader_library.h" />
     <ClInclude Include="include\engine\render_manager\scene\renderable.h" />
     <ClInclude Include="include\engine\render_manager\graph\barrier.h" />
     <ClInclude Include="include\engine\render_manager\graph\builder.h" />
@@ -188,6 +189,7 @@
     <ClInclude Include="include\engine\system\exception\win_exception.h" />
     <ClInclude Include="include\engine\system\interface\interface_descriptor_heap.h" />
     <ClInclude Include="include\engine\system\interface\interface_manager.h" />
+    <ClInclude Include="include\engine\system\interface\interface_singleton.h" />
     <ClInclude Include="include\engine\system\key_generator.h" />
     <ClInclude Include="include\engine\system\timer.h" />
     <ClInclude Include="include\engine\render_manager\api\components\adapter.h" />
@@ -209,11 +211,13 @@
     <ClInclude Include="include\engine\utils\file_system.h" />
     <ClInclude Include="include\engine\utils\helpers.h" />
     <ClInclude Include="include\engine\knight_engine.h" />
+    <ClInclude Include="include\engine\utils\json_loader.h" />
     <ClInclude Include="include\engine\utils\logger.h" />
     <ClInclude Include="include\engine\windows_manager\inputs\keyboard_inputs.h" />
     <ClInclude Include="include\engine\windows_manager\inputs\mouse_inputs.h" />
     <ClInclude Include="include\engine\windows_manager\windows_manager.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="src\render_manager\assets_library\shader_library.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
@@ -266,6 +270,7 @@
     <ClCompile Include="src\utils\file_system.cpp" />
     <ClCompile Include="src\utils\helpers.cpp" />
     <ClCompile Include="src\knight_engine.cpp" />
+    <ClCompile Include="src\utils\json_loader.cpp" />
     <ClCompile Include="src\utils\logger.cpp" />
     <ClCompile Include="src\windows_manager\keyboard_inputs.cpp" />
     <ClCompile Include="src\windows_manager\mouse_inputs.cpp" />
