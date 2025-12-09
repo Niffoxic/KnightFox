@@ -1,0 +1,47 @@
+cbuffer CommonCB : register(b0)
+{
+    float4x4 gWorldMatrix;
+    float4x4 gViewMatrix;
+    float4x4 gProjectionMatrix;
+
+    float2   gResolution;
+    float2   gMousePosition;
+
+    float3   gObjectPosition;
+    float    _PaddingObjectPos;
+
+    float3   gCameraPosition;
+    float    _PaddingCameraPos;
+
+    float3   gPlayerPosition;
+    float    _PaddingPlayerPos;
+
+    float    gTime;
+    uint     gFrameIndex;
+    float    gDeltaTime;
+    float    gZNear;
+    float    gZFar;
+
+    float3   _PaddingFinal;
+};
+
+struct PSInput
+{
+    float4 Position  : SV_POSITION;
+    float3 WorldPos  : TEXCOORD0;
+    float3 Normal    : TEXCOORD1;
+    float3 Tangent   : TEXCOORD2;
+    float3 Bitangent : BITANGENT;
+    float2 TexCoord  : TEXCOORD4;
+    float3 Color     : COLOR0;
+};
+
+float4 main(PSInput input) : SV_TARGET
+{
+    float t = gTime;
+    float pulse = 0.5f + 0.5f * sin(t);
+    float3 baseColor = input.Color;
+    float3 finalColor = lerp(baseColor * 0.2f, baseColor, pulse);
+
+    return float4(finalColor, 1.0f);
+}

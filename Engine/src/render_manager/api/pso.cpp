@@ -149,6 +149,15 @@ bool kfe::KFEPipelineState::Build(KFEDevice* device) noexcept
 	return m_impl->Build(device);
 }
 
+void kfe::KFEPipelineState::Destroy() noexcept
+{
+	if (!m_impl)
+	{
+		LOG_ERROR("KFEPipelineState::Destroy: Impl is null.");
+	}
+	m_impl->Destroy();
+}
+
 _Use_decl_annotations_
 bool  kfe::KFEPipelineState::IsInitialized() const noexcept
 {

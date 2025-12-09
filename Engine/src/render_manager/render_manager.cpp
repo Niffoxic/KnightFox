@@ -58,18 +58,23 @@
 #include "engine/system/exception/dx_exception.h"
 #include "engine/system/common_types.h"
 
-#include "engine/render_manager/graph/compiled_graph.h"
-#include "engine/render_manager/graph/frame_context.h"
-#include "engine/render_manager/graph/render_graph.h"
 #include <d3d12.h>
 
 //~ Test Renderable
 #include "engine/render_manager/api/pso.h"
-#include "engine/render_manager/scene/renderable.h"
 #include "engine/render_manager/assets_library/shader_library.h"
+#include "engine/render_manager/api/root_signature.h"
 #include "engine/utils/file_system.h"
+#include "engine/render_manager/scene/cube_scene.h"
 
 #pragma region IMPL
+
+struct TestCB
+{
+	float  iTime;   
+	float  padding0; 
+	float iResolution[2];
+};
 
 class kfe::KFERenderManager::Impl
 {
@@ -88,7 +93,6 @@ private:
 	bool InitializeCommands   ();
 	bool InitializeHeaps	  ();
 	bool InitializeTextures   ();
-	bool InitializeRenderGraph();
 	void CreateViewport		  ();
 
 	bool InitializeTestTriangle();
@@ -131,21 +135,8 @@ private:
 	D3D12_VIEWPORT m_viewport{};
 	D3D12_RECT     m_scissorRect{};
 
-	rg::RenderGraph m_renderGraph{};
-	rg::RGCompiled  m_compiledGraph{};
 	float m_totalTime{ 0.0f };
-
-	//~ Test Triangle
-	std::unique_ptr<KFEStagingBuffer> m_triangleStaging;
-	std::unique_ptr<KFEVertexBuffer>  m_vertexView;
-	std::unique_ptr<KFEIndexBuffer>   m_indexView;
-
-	KFEGeometryData                   m_triangleGeometry{};
-	std::unique_ptr<KFETransformNode> m_pTriangleTransform;
-	std::unique_ptr<IKFERenderable>   m_pTriangleRenderable;
-	std::vector<IKFERenderable*>      m_renderables;
-
-	std::unique_ptr<KFEPipelineState> m_pos{ nullptr };
+	std::unique_ptr<KEFCubeSceneObject> m_cube{ nullptr };
 };
 
 #pragma endregion
@@ -216,10 +207,8 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pResourceHeap = std::make_unique<KFEResourceHeap>();
 	m_pSamplerHeap  = std::make_unique<KFESamplerHeap> ();
 
-	//~ Test Textures
+	//~ DSV Textures and views
 	m_pDSVBuffer = std::make_unique<KFETexture>();
-
-	//~ views
 	m_pDSV = std::make_unique<KFETextureDSV>();
 }
 
@@ -244,8 +233,6 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	{
 		return false;
 	}
-
-	m_pos = std::make_unique<KFEPipelineState>();
 
 	KFE_SWAP_CHAIN_CREATE_DESC swap{};
 	swap.Monitor		= m_pMonitor.get();
@@ -307,12 +294,6 @@ bool kfe::KFERenderManager::Impl::Initialize()
 
 	CreateViewport();
 
-
-	if (!InitializeRenderGraph())
-	{
-		return false;
-	}
-
 	m_bInitialized = true;
 
 	if (!InitializeTestTriangle()) return false;
@@ -343,22 +324,73 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 
 	if (!m_pGfxList->Reset(resetter))
 	{
-		THROW_MSG("Failed to Render!");
+		THROW_MSG("Failed to reset graphics command list.");
 	}
 
-	kfe::FrameContext frameCtx{};
-	frameCtx.CommandList = m_pGfxList.get();
-	frameCtx.Device = m_pDevice.get();
-	frameCtx.RtvHeap = m_pRTVHeap.get();
-	frameCtx.DsvHeap = m_pDSVHeap.get();
-	frameCtx.CbvSrvUavHeap = m_pResourceHeap.get();
-	frameCtx.FrameConstantBuffer = nullptr;
-	frameCtx.FrameIndex = static_cast<std::uint32_t>(m_nFenceValue);
+	ID3D12GraphicsCommandList* cmdList = m_pGfxList->GetNative();
+	if (!cmdList)
+	{
+		THROW_MSG("Graphics command list is null.");
+	}
 
-	m_compiledGraph.Execute(frameCtx);
+	auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
+		m_pFence.Get(), m_nFenceValue);
 
-	auto* cmdList = m_pGfxList->GetNative();
-	cmdList->Close();
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = swapData.BufferResource;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+	cmdList->ResourceBarrier(1u, &barrier);
+
+	cmdList->RSSetViewports(1u, &m_viewport);
+	cmdList->RSSetScissorRects(1u, &m_scissorRect);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapData.BufferHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pDSV->GetCPUHandle();
+
+	cmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
+
+	const float color[4]
+	{
+		std::sinf(m_totalTime),
+		std::cosf(m_totalTime),
+		std::sinf(std::sinf(m_totalTime) + std::cosf(m_totalTime)),
+		1.0f
+	};
+
+	cmdList->ClearRenderTargetView(
+		rtvHandle,
+		color,
+		0u,
+		nullptr);
+
+	cmdList->ClearDepthStencilView(
+		dsvHandle,
+		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+		1.f,
+		0u,
+		0u,
+		nullptr);
+
+	m_cube->Update(dt);
+	//~ Draw objects
+	KFE_RENDER_OBJECT_DESC obj{};
+	obj.CommandList = m_pGfxList.get();
+	obj.Fence		= m_pFence.Get();
+	obj.FenceValue	= m_nFenceValue;
+	m_cube->Render(obj);
+
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+
+	cmdList->ResourceBarrier(1u, &barrier);
+
+	HRESULT hr = cmdList->Close();
+	THROW_DX_IF_FAILS(hr);
 
 	auto* queue = m_pGraphicsQueue->GetNative();
 	ID3D12CommandList* cmdLists[] = { cmdList };
@@ -558,17 +590,18 @@ bool kfe::KFERenderManager::Impl::InitializeTextures()
 
 	if (!m_pDSVBuffer) m_pDSVBuffer = std::make_unique<KFETexture>();
 
-	const DXGI_FORMAT testFormat			 = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	const D3D12_HEAP_TYPE heapType			 = D3D12_HEAP_TYPE_DEFAULT;
+	auto winSize = m_pWindows->GetWinSize();
+
+	const DXGI_FORMAT testFormat = DXGI_FORMAT_D32_FLOAT;
+	const D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_DEFAULT;
 	const D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	const D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-	// 1D Texture Test
 	KFE_TEXTURE_CREATE_DESC tex1D{};
 	tex1D.Device = m_pDevice.get();
 	tex1D.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	tex1D.Width = 256u;
-	tex1D.Height = 1u;
+	tex1D.Width = winSize.Width;
+	tex1D.Height = winSize.Height;
 	tex1D.DepthOrArraySize = 1u;
 	tex1D.MipLevels = 1u;
 	tex1D.Format = testFormat;
@@ -577,146 +610,20 @@ bool kfe::KFERenderManager::Impl::InitializeTextures()
 	tex1D.ResourceFlags = resourceFlags;
 	tex1D.HeapType = heapType;
 	tex1D.InitialState = initialState;
-	
+
 	D3D12_CLEAR_VALUE depthClear{};
 	depthClear.Format = testFormat;
 	depthClear.DepthStencil.Depth = 1.0f;
 	depthClear.DepthStencil.Stencil = 0;
-
 	tex1D.ClearValue = &depthClear;
 
 	if (!m_pDSVBuffer->Initialize(tex1D))
 	{
-		LOG_ERROR("Failed to initialize Test Texture 1D.");
+		LOG_ERROR("Failed to initialize Test Texture 2D depth buffer.");
 		return false;
 	}
 
-	LOG_INFO("TestTexture1D: dim={}, {}x{}, mip={}, fmt={}",
-		static_cast<int>(m_pDSVBuffer->GetDimension()),
-		m_pDSVBuffer->GetWidth(),
-		m_pDSVBuffer->GetHeight(),
-		m_pDSVBuffer->GetMipLevels(),
-		static_cast<int>(m_pDSVBuffer->GetFormat()));
-
 	LOG_SUCCESS("All test textures initialized successfully.");
-	return true;
-}
-
-bool kfe::KFERenderManager::Impl::InitializeRenderGraph()
-{
-	using namespace kfe::rg;
-
-	m_renderGraph = RenderGraph{};
-
-	std::string passName = "MainTrianglePass";
-	m_renderGraph.AddPass(
-		passName,
-		// Build
-		[&](RGBuilder& builder)
-		{
-			// No logical RG resources yet; swapchain + depth are externals for now
-			(void)builder;
-		},
-		// Execute
-		[this](RGExecutionContext& ctx)
-		{
-			KFEGraphicsCommandList* gfxList = ctx.GetCommandList();
-			if (!gfxList)
-				return;
-
-			ID3D12GraphicsCommandList* cmdList = gfxList->GetNative();
-			if (!cmdList)
-				return;
-
-			// Make sure triangle resources exist
-			if (!m_pos || !m_vertexView || !m_indexView)
-				return;
-
-			auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
-				m_pFence.Get(), m_nFenceValue);
-
-			// Transition PRESENT -> RENDER_TARGET
-			D3D12_RESOURCE_BARRIER barrier{};
-			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			barrier.Transition.pResource = swapData.BufferResource;
-			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			cmdList->ResourceBarrier(1u, &barrier);
-
-			// Depth buffer: make sure it's in DEPTH_WRITE for clear/draw
-			ID3D12Resource* depthRes = m_pDSVBuffer->GetNative();
-			if (depthRes)
-			{
-				D3D12_RESOURCE_BARRIER depthBarrier{};
-				depthBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-				depthBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-				depthBarrier.Transition.pResource = depthRes;
-				depthBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-				depthBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;       // adjust if you start tracking real state
-				depthBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-				cmdList->ResourceBarrier(1u, &depthBarrier);
-			}
-
-			cmdList->RSSetViewports(1u, &m_viewport);
-			cmdList->RSSetScissorRects(1u, &m_scissorRect);
-
-			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapData.BufferHandle;
-			D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pDSV->GetCPUHandle();
-
-			cmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
-
-			const float color[4]
-			{
-				std::sinf(m_totalTime),
-				std::cosf(m_totalTime),
-				std::sinf(std::sinf(m_totalTime) + std::cosf(m_totalTime)),
-				1.0f
-			};
-
-			cmdList->ClearRenderTargetView(
-				rtvHandle,
-				color,
-				0u,
-				nullptr);
-
-			cmdList->ClearDepthStencilView(
-				dsvHandle,
-				D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-				1.f,
-				0u,
-				0u,
-				nullptr);
-
-			cmdList->SetPipelineState(m_pos->GetNative());
-
-			if (auto* rs = m_pos->GetRootSignature())
-			{
-				cmdList->SetGraphicsRootSignature(rs);
-			}
-
-			const D3D12_VERTEX_BUFFER_VIEW vbView = m_vertexView->GetView();
-			const D3D12_INDEX_BUFFER_VIEW  ibView = m_indexView->GetView();
-
-			cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			cmdList->IASetVertexBuffers(0u, 1u, &vbView);
-			cmdList->IASetIndexBuffer(&ibView);
-
-			// Draw triangle
-			cmdList->DrawIndexedInstanced(
-				3u,   // IndexCountPerInstance
-				1u,   // InstanceCount
-				0u,   // StartIndexLocation
-				0,    // BaseVertexLocation
-				0u); 
-
-			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-			cmdList->ResourceBarrier(1u, &barrier);
-		});
-
-	m_compiledGraph = m_renderGraph.Compile();
 	return true;
 }
 
@@ -737,39 +644,21 @@ void kfe::KFERenderManager::Impl::CreateViewport()
 
 bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 {
-	if (!m_pDevice || !m_pDevice->GetNative())
-	{
-		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Device is null.");
-		return false;
-	}
-
-	if (!m_pFence)
-	{
-		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Fence is null.");
-		return false;
-	}
 
 	auto* gfxQueue = m_pGraphicsQueue->GetNative();
-	if (!gfxQueue)
+
+	++m_nFenceValue;
+	KFE_RESET_COMMAND_LIST resetter{};
+	resetter.Fence		= m_pFence.Get();
+	resetter.FenceValue = m_nFenceValue;
+	resetter.PSO		= nullptr;
+
+	if (!m_pGfxList->Reset(resetter))
 	{
-		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Graphics queue is null.");
+		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Failed to reset graphics command list for upload.");
 		return false;
 	}
-
-	{
-		++m_nFenceValue;
-		KFE_RESET_COMMAND_LIST resetter{};
-		resetter.Fence = m_pFence.Get();  // no wait, fresh use
-		resetter.FenceValue = m_nFenceValue;
-		resetter.PSO = nullptr;
-
-		if (!m_pGfxList->Reset(resetter))
-		{
-			LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Failed to reset graphics command list for upload.");
-			return false;
-		}
-	}
-
+	
 	ID3D12GraphicsCommandList* cmdList = m_pGfxList->GetNative();
 	if (!cmdList)
 	{
@@ -777,177 +666,29 @@ bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 		return false;
 	}
 
-	struct Vertex
+	m_cube = std::make_unique<KEFCubeSceneObject>();
+
+	KFE_BUILD_OBJECT_DESC obj{};
+	obj.ComandQueue =  m_pGraphicsQueue.get();
+	obj.CommandList  = m_pGfxList	   .get();
+	obj.Device		 = m_pDevice	   .get();
+	obj.Fence		 = m_pFence		   .Get();
+	obj.ResourceHeap = m_pResourceHeap .get();
+	obj.FenceValue	 = m_nFenceValue;
+
+	if (!m_cube->Build(obj))
 	{
-		DirectX::XMFLOAT3 Position;
-		DirectX::XMFLOAT3 Color;
-	};
-
-	Vertex vertices[3]
-	{
-		{ DirectX::XMFLOAT3(0.0f,  0.5f, 0.0f), DirectX::XMFLOAT3(1.0f, 0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.5f, -0.5f, 0.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(-0.5f, -0.5f, 0.0f), DirectX::XMFLOAT3(0.0f, 0.0f, 1.0f) }
-	};
-
-	std::uint16_t indices[3] = { 0, 1, 2 };
-
-	const std::uint32_t vbSize = static_cast<std::uint32_t>(sizeof(vertices));
-	const std::uint32_t ibSize = static_cast<std::uint32_t>(sizeof(indices));
-	const std::uint32_t totalSize = vbSize + ibSize;
-
-	const std::uint64_t vbOffset = 0u;
-	const std::uint64_t ibOffset = static_cast<std::uint64_t>(vbSize);
-
-	// Create staging buffer (UPLOAD + DEFAULT) for VB + IB
-	m_triangleStaging = std::make_unique<KFEStagingBuffer>();
-
-	KFE_STAGING_BUFFER_CREATE_DESC stagingDesc{};
-	stagingDesc.Device = m_pDevice.get();
-	stagingDesc.SizeInBytes = totalSize;
-
-	if (!m_triangleStaging->Initialize(stagingDesc))
-	{
-		LOG_ERROR("InitializeTestTriangle: Failed to initialize KFEStagingBuffer.");
+		THROW_MSG("Faile to init cube!");
 		return false;
 	}
-
-	// Write CPU vertex and index data into the UPLOAD heap
-	if (!m_triangleStaging->WriteBytes(vertices, vbSize, vbOffset))
-	{
-		LOG_ERROR("InitializeTestTriangle: Failed to write vertex data into staging upload buffer.");
-		return false;
-	}
-
-	if (!m_triangleStaging->WriteBytes(indices, ibSize, ibOffset))
-	{
-		LOG_ERROR("InitializeTestTriangle: Failed to write index data into staging upload buffer.");
-		return false;
-	}
-
-	// Record UPLOAD → DEFAULT copy on the current GFX command list
-	if (!m_triangleStaging->RecordUploadToDefault(
-		cmdList,
-		totalSize,
-		0u,
-		0u))
-	{
-		LOG_ERROR("InitializeTestTriangle: Failed to record upload from UPLOAD to DEFAULT buffer.");
-		return false;
-	}
-
-	// Transition DEFAULT buffer from COPY_DEST → VB|IB
-	KFEBuffer* defaultBuffer = m_triangleStaging->GetDefaultBuffer();
-	if (!defaultBuffer || !defaultBuffer->GetNative())
-	{
-		LOG_ERROR("InitializeTestTriangle: Default buffer is null.");
-		return false;
-	}
-
-	ID3D12Resource* defaultResource = defaultBuffer->GetNative();
-
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = defaultResource;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter =
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER |
-		D3D12_RESOURCE_STATE_INDEX_BUFFER;
-
-	cmdList->ResourceBarrier(1u, &barrier);
-
-	HRESULT hr = cmdList->Close();
-	THROW_DX_IF_FAILS(hr);
+	cmdList->Close();
 
 	ID3D12CommandList* cmdLists[] = { cmdList };
 	gfxQueue->ExecuteCommandLists(1u, cmdLists);
 
-	hr = gfxQueue->Signal(m_pFence.Get(), m_nFenceValue);
+	HRESULT hr = gfxQueue->Signal(m_pFence.Get(), m_nFenceValue);
 	THROW_DX_IF_FAILS(hr);
 
 	m_pGfxList->Wait();
-
-	m_vertexView = std::make_unique<KFEVertexBuffer>();
-
-	KFE_VERTEX_BUFFER_CREATE_DESC vbDesc{};
-	vbDesc.Device = m_pDevice.get();
-	vbDesc.ResourceBuffer = defaultBuffer;
-	vbDesc.StrideInBytes = sizeof(Vertex);
-	vbDesc.OffsetInBytes = vbOffset;
-	vbDesc.DebugName = "Triangle Vertex Buffer";
-
-	if (!m_vertexView->Initialize(vbDesc))
-	{
-		LOG_ERROR("InitializeTestTriangle: Failed to initialize vertex buffer view.");
-		return false;
-	}
-
-	m_indexView = std::make_unique<KFEIndexBuffer>();
-
-	KFE_INDEX_BUFFER_CREATE_DESC ibDesc{};
-	ibDesc.Device = m_pDevice.get();
-	ibDesc.ResourceBuffer = defaultBuffer;
-	ibDesc.Format = DXGI_FORMAT_R16_UINT;
-	ibDesc.OffsetInBytes = ibOffset;
-
-	if (!m_indexView->Initialize(ibDesc))
-	{
-		LOG_ERROR("InitializeTestTriangle: Failed to initialize index buffer view.");
-		return false;
-	}
-
-	std::string path = "shaders/test/vertex.hlsl";
-
-	ID3DBlob* vertexBlob = shaders::GetOrCompile(path);
-	ID3DBlob* pixelBlob  = shaders::GetOrCompile("shaders/test/pixel.hlsl",
-		"main", "ps_5_0");
-
-	m_pos = std::make_unique<KFEPipelineState>();
-
-	std::vector<D3D12_INPUT_ELEMENT_DESC> inputs
-	{
-		{
-			"POSITION",
-			0,
-			DXGI_FORMAT_R32G32B32_FLOAT,      
-			0,
-			0,                            
-			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-			0
-		},
-		{
-			"COLOR",
-			0,
-			DXGI_FORMAT_R32G32B32_FLOAT,      
-			0,
-			12,                 
-			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-			0
-		}
-	};
-	m_pos->SetInputLayout(inputs.data(),
-		static_cast<std::uint32_t>(inputs.size()));
-
-	D3D12_SHADER_BYTECODE vsBC{};
-	vsBC.pShaderBytecode = vertexBlob->GetBufferPointer();
-	vsBC.BytecodeLength = vertexBlob->GetBufferSize();
-	m_pos->SetVS(vsBC);
-
-	D3D12_SHADER_BYTECODE psBC{};
-	psBC.pShaderBytecode = pixelBlob->GetBufferPointer();
-	psBC.BytecodeLength  = pixelBlob->GetBufferSize();
-	m_pos->SetPS(psBC);
-
-	m_pos->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-
-	if (!m_pos->Build(m_pDevice.get()))
-	{
-		LOG_ERROR("InitializeTestTriangle: Failed to build pipeline state object.");
-		return false;
-	}
-
-	LOG_SUCCESS("InitializeTestTriangle: Triangle geometry uploaded, VB/IB views created, and PSO built successfully.");
 	return true;
 }

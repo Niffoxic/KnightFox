@@ -158,8 +158,8 @@ namespace kfe::shaders
             const std::string& targetProfile = "vs_5_0")
     {
         SHADER_DESC desc{};
-        desc.SourcePath = sourcePath;
-        desc.EntryPoint = entryPoint;
+        desc.SourcePath    = sourcePath;
+        desc.EntryPoint    = entryPoint;
         desc.TargetProfile = targetProfile;
         return GetOrCompile(desc);
     }

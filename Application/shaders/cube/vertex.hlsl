@@ -46,14 +46,34 @@ struct PSInput
     float3 Color     : COLOR0;
 };
 
+float3 RotateY(float3 p, float angle)
+{
+    float s = sin(angle);
+    float c = cos(angle);
+
+    float3 r;
+    r.x = p.x * c + p.z * s;
+    r.y = p.y;
+    r.z = -p.x * s + p.z * c;
+
+    return r;
+}
+
 PSInput main(VSInput input)
 {
     PSInput output;
-    float3 worldPos = input.Position;
+
+    static float angle = 0.0f;
+    angle += gTime;
+
+    float3 worldPos = RotateY(input.Position, angle);
+
     float3 camPos  = float3(0.0f, 0.0f, -5.0f);
     float3 viewPos = worldPos - camPos;
+
     float z = max(viewPos.z, 0.1f);
     float fovFactor = 1.5f;
+
     float2 ndcXY = (viewPos.xy / (z * fovFactor));
     output.Position = float4(ndcXY, 0.0f, 1.0f);
 
