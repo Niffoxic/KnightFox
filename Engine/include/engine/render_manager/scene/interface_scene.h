@@ -30,6 +30,7 @@ namespace kfe
         DirectX::XMMATRIX WorldMatrix;
         DirectX::XMMATRIX ViewMatrix;
         DirectX::XMMATRIX ProjectionMatrix;
+        DirectX::XMMATRIX OrthogonalMatrix;
         DirectX::XMFLOAT2 Resolution;
         DirectX::XMFLOAT2 MousePosition;
         DirectX::XMFLOAT3 ObjectPosition;
@@ -68,6 +69,20 @@ namespace kfe
         std::uint64_t           FenceValue;
     } KFE_RENDER_OBJECT_DESC;
 
+    typedef struct _KFE_UPDATE_OBJECT_DESC
+    {
+        float deltaTime;
+        float ZNear;
+        float ZFar;
+        DirectX::XMFLOAT3 CameraPosition;
+        DirectX::XMFLOAT2 Resolution;
+        DirectX::XMFLOAT2 MousePosition;
+        DirectX::XMFLOAT3 PlayerPosition;
+        DirectX::XMMATRIX ViewMatrix;
+        DirectX::XMMATRIX PerpectiveMatrix;
+        DirectX::XMMATRIX OrthographicMatrix;
+    } KFE_UPDATE_OBJECT_DESC;
+
 	/// <summary>
 	/// Base interface for any scene object
 	/// </summary>
@@ -79,7 +94,7 @@ namespace kfe
                   virtual void SetVisible(bool visible) noexcept;
         NODISCARD virtual bool IsVisible () const       noexcept;
 
-        virtual void Update(float deltaTime) = 0;
+        virtual void Update(const KFE_UPDATE_OBJECT_DESC& desc) = 0;
 
         NODISCARD virtual bool Build    (_In_ const KFE_BUILD_OBJECT_DESC& desc) = 0;
         NODISCARD virtual bool Destroy  () = 0;

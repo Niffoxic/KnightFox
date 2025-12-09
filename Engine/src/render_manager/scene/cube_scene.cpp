@@ -77,14 +77,12 @@ public:
 class kfe::KEFCubeSceneObject::Impl 
 {
 public:
-	Impl(const std::uint32_t multiple = 1)
-		: m_nVertexMultiples(multiple)
-	{
-
-	}
+	Impl(KEFCubeSceneObject* obj, const std::uint32_t multiple = 1)
+		: m_pObject(obj), m_nVertexMultiples(multiple)
+	{}
 	~Impl() = default;
 
-	void Update(float deltaTime);
+	void Update(const KFE_UPDATE_OBJECT_DESC& desc);
 	bool Build(_In_ const KFE_BUILD_OBJECT_DESC& desc);
 
 	bool Destroy();
@@ -97,7 +95,7 @@ private:
 	bool BuildRootSignature	(_In_ const KFE_BUILD_OBJECT_DESC& desc);
 	bool BuildPipeline		(_In_ const KFE_BUILD_OBJECT_DESC& desc);
 
-	void UpdateConstantBuffer(float time);
+	void UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc);
 
 	//~ helpers
 	std::vector<CubeVertex>    GetVertices() const noexcept;
@@ -105,6 +103,7 @@ private:
 
 private:
 	//~ Configurations
+	KEFCubeSceneObject* m_pObject{ nullptr };
 	float m_nTimeLived{ 0.0f };
 
 	//~ Shaders
@@ -133,11 +132,11 @@ private:
 #pragma region CubeScene_Body
 
 kfe::KEFCubeSceneObject::KEFCubeSceneObject()
-	: m_impl(std::make_unique<kfe::KEFCubeSceneObject::Impl>())
+	: m_impl(std::make_unique<kfe::KEFCubeSceneObject::Impl>(this))
 {}
 
 kfe::KEFCubeSceneObject::KEFCubeSceneObject(const std::uint32_t multiple)
-	: m_impl(std::make_unique<kfe::KEFCubeSceneObject::Impl>(multiple))
+	: m_impl(std::make_unique<kfe::KEFCubeSceneObject::Impl>(this, multiple))
 {}
 
 kfe::KEFCubeSceneObject::~KEFCubeSceneObject() = default;
@@ -152,9 +151,9 @@ std::string kfe::KEFCubeSceneObject::GetDescription() const noexcept
 	return "A Cube Object that can be used for rendering debug cube for colliders";
 }
 
-void kfe::KEFCubeSceneObject::Update(float deltaTime)
+void kfe::KEFCubeSceneObject::Update(const KFE_UPDATE_OBJECT_DESC& desc)
 {
-	m_impl->Update(deltaTime);
+	m_impl->Update(desc);
 }
 
 _Use_decl_annotations_
@@ -183,10 +182,10 @@ void kfe::KEFCubeSceneObject::Render(const KFE_RENDER_OBJECT_DESC& desc)
 
 #pragma region Impl_body
 
-void kfe::KEFCubeSceneObject::Impl::Update(float deltaTime)
+void kfe::KEFCubeSceneObject::Impl::Update(const KFE_UPDATE_OBJECT_DESC& desc)
 {
-	m_nTimeLived += deltaTime;
-	UpdateConstantBuffer(deltaTime);
+	m_nTimeLived += desc.deltaTime;
+	UpdateConstantBuffer(desc);
 }
 
 bool kfe::KEFCubeSceneObject::Impl::Build(_In_ const KFE_BUILD_OBJECT_DESC& desc)
@@ -537,29 +536,32 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(const KFE_BUILD_OBJECT_DESC& d
 	return true;
 }
 
-void kfe::KEFCubeSceneObject::Impl::UpdateConstantBuffer(float time)
+void kfe::KEFCubeSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc)
 {
 	auto* cv = static_cast<KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC*>(m_pCBV->GetMappedData());
 	if (!cv) return;
 
-	cv->Resolution	  = DirectX::XMFLOAT2(800.f, 600.0f);
-	cv->MousePosition = DirectX::XMFLOAT2(0.0f, 0.0f);
+	cv->WorldMatrix		  = m_pObject->GetWorldMatrix();
+	cv->ViewMatrix		  = desc.ViewMatrix;
+	cv->ProjectionMatrix  = desc.PerpectiveMatrix;
+	cv->OrthogonalMatrix  = desc.OrthographicMatrix;
+	cv->Resolution		  = desc.Resolution;
+	cv->MousePosition	  = desc.MousePosition;
+	cv->ObjectPosition	  = m_pObject->GetPosition();
+	cv->_PaddingObjectPos = 0.f;
+	cv->CameraPosition	  = desc.CameraPosition;
+	cv->_PaddingCameraPos = 0.f;
+	cv->PlayerPosition	  = desc.PlayerPosition;
+	cv->_PaddingPlayerPos = 0.f;
+	cv->Time			  = m_nTimeLived;
+	cv->FrameIndex		  = 0u;
+	cv->DeltaTime		  = desc.deltaTime;
+	cv->ZNear			  = desc.ZNear;
+	cv->ZFar			  = desc.ZFar;
 
-	cv->PlayerPosition	  = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
-
-	cv->CameraPosition    = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
-
-	cv->Time		= m_nTimeLived;
-	cv->FrameIndex	= 0u;
-	cv->ZNear		= 0.1f;
-	cv->ZFar		= 1000.0f;
-
-	//~ Set Paddings
-	cv->_PaddingCameraPos = 0.0f;
-	cv->_PaddingPlayerPos = 0.0f;
-	cv->_PaddingFinal[0] = 0.0f;
-	cv->_PaddingFinal[1] = 0.0f;
-	cv->_PaddingFinal[2] = 0.0f;
+	cv->_PaddingFinal[0] = 0.f;
+	cv->_PaddingFinal[1] = 0.f;
+	cv->_PaddingFinal[2] = 0.f;
 }
 
 std::vector<CubeVertex> kfe::KEFCubeSceneObject::Impl::GetVertices() const noexcept
@@ -567,9 +569,6 @@ std::vector<CubeVertex> kfe::KEFCubeSceneObject::Impl::GetVertices() const noexc
 	using namespace DirectX;
 
 	std::vector<CubeVertex> v;
-
-	// Hard-coded cube with 6 faces × 2 triangles × 3 vertices = 36 verts
-	// Position, Normal, Tangent, Bitangent, UV, Color
 
 	const XMFLOAT3 normals[6] =
 	{
@@ -583,10 +582,10 @@ std::vector<CubeVertex> kfe::KEFCubeSceneObject::Impl::GetVertices() const noexc
 
 	const XMFLOAT3 tangents[6] =
 	{
-		{ 1, 0, 0 }, // Front
+		{ 1, 0, 0 },  // Front
 		{ -1, 0, 0 }, // Back
-		{ 1, 0, 0 }, // Top
-		{ 1, 0, 0 }, // Bottom
+		{ 1, 0, 0 },  // Top
+		{ 1, 0, 0 },  // Bottom
 		{ 0, 0, -1 }, // Right
 		{ 0, 0,  1 }  // Left
 	};

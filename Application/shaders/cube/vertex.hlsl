@@ -3,6 +3,7 @@ cbuffer CommonCB : register(b0)
     float4x4 gWorldMatrix;
     float4x4 gViewMatrix;
     float4x4 gProjectionMatrix;
+    float4x4 gOrthogonalMatrix;
 
     float2   gResolution;
     float2   gMousePosition;
@@ -63,26 +64,31 @@ PSInput main(VSInput input)
 {
     PSInput output;
 
-    static float angle = 0.0f;
-    angle += gTime;
+    float angle = gTime;
+    float3 localPos = RotateY(input.Position, angle);
 
-    float3 worldPos = RotateY(input.Position, angle);
+    float4 worldPos4 = mul(gWorldMatrix, float4(localPos, 1.0f));
+    float3 worldPos  = worldPos4.xyz;
 
-    float3 camPos  = float3(0.0f, 0.0f, -5.0f);
-    float3 viewPos = worldPos - camPos;
+    float4 viewPos4 = mul(gViewMatrix, worldPos4);
+    float4 clipPos  = mul(gProjectionMatrix, viewPos4);
 
-    float z = max(viewPos.z, 0.1f);
-    float fovFactor = 1.5f;
+    output.Position = clipPos;
+    output.WorldPos = worldPos;
 
-    float2 ndcXY = (viewPos.xy / (z * fovFactor));
-    output.Position = float4(ndcXY, 0.0f, 1.0f);
+    float3 worldNormal =
+        mul(gWorldMatrix, float4(input.Normal,    0.0f)).xyz;
+    float3 worldTangent =
+        mul(gWorldMatrix, float4(input.Tangent,   0.0f)).xyz;
+    float3 worldBitangent =
+        mul(gWorldMatrix, float4(input.Bitangent, 0.0f)).xyz;
 
-    output.WorldPos  = worldPos;
-    output.Normal    = input.Normal;
-    output.Tangent   = input.Tangent;
-    output.Bitangent = input.Bitangent;
-    output.TexCoord  = input.TexCoord;
-    output.Color     = input.Color;
+    output.Normal    = normalize(worldNormal);
+    output.Tangent   = normalize(worldTangent);
+    output.Bitangent = normalize(worldBitangent);
+
+    output.TexCoord = input.TexCoord;
+    output.Color    = input.Color;
 
     return output;
 }

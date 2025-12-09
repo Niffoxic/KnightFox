@@ -27,7 +27,7 @@ namespace kfe
 		std::string GetName		  () const noexcept override;
 		std::string GetDescription() const noexcept override;
 		
-		void Update(float deltaTime)   override;
+		void Update(const KFE_UPDATE_OBJECT_DESC& desc)     override;
 		bool Build (_In_ const KFE_BUILD_OBJECT_DESC& desc) override;
 		
 		bool Destroy() override;

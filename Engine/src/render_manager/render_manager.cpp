@@ -66,6 +66,7 @@
 #include "engine/render_manager/api/root_signature.h"
 #include "engine/utils/file_system.h"
 #include "engine/render_manager/scene/cube_scene.h"
+#include "engine/render_manager/components/camera.h"
 
 #pragma region IMPL
 
@@ -96,6 +97,8 @@ private:
 	void CreateViewport		  ();
 
 	bool InitializeTestTriangle();
+
+	void HandleInput(float dt);
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -137,6 +140,8 @@ private:
 
 	float m_totalTime{ 0.0f };
 	std::unique_ptr<KEFCubeSceneObject> m_cube{ nullptr };
+
+	KFECamera m_camera{};
 };
 
 #pragma endregion
@@ -214,6 +219,8 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 
 bool kfe::KFERenderManager::Impl::Initialize()
 {
+	m_camera.SetPosition({ 0, 0, -10.f });
+
 	if (!InitializeComponents())
 	{
 		return false;
@@ -308,8 +315,10 @@ bool kfe::KFERenderManager::Impl::Release()
 
 void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 {
+	HandleInput(dt);
 	m_totalTime += dt;
 
+	m_camera.Update(dt);
 	if (!m_pFence)
 	{
 		THROW_MSG("Fence is null!");
@@ -376,7 +385,23 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		0u,
 		nullptr);
 
-	m_cube->Update(dt);
+	KFE_UPDATE_OBJECT_DESC update{};
+	update.CameraPosition		= m_camera.GetPosition();
+	update.deltaTime			= dt;
+	update.MousePosition		= { 0, 0 };
+	update.OrthographicMatrix	= m_camera.GetOrthographicMatrix();
+	update.PerpectiveMatrix		= m_camera.GetPerspectiveMatrix();
+	update.PlayerPosition		= { 0, 0, 0 };
+
+	auto winSize	  = m_pWindows->GetWinSize();
+	update.Resolution = { static_cast<float>(winSize.Width),
+						  static_cast<float>(winSize.Height) };
+	update.ViewMatrix = m_camera.GetViewMatrix();
+	update.ZFar		  = m_camera.GetFarZ();
+	update.ZNear	  = m_camera.GetNearZ();
+
+	m_cube->Update(update);
+
 	//~ Draw objects
 	KFE_RENDER_OBJECT_DESC obj{};
 	obj.CommandList = m_pGfxList.get();
@@ -691,4 +716,8 @@ bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 
 	m_pGfxList->Wait();
 	return true;
+}
+
+void kfe::KFERenderManager::Impl::HandleInput(float dt)
+{
 }

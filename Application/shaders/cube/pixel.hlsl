@@ -3,6 +3,7 @@ cbuffer CommonCB : register(b0)
     float4x4 gWorldMatrix;
     float4x4 gViewMatrix;
     float4x4 gProjectionMatrix;
+    float4x4 gOrthogonalMatrix;
 
     float2   gResolution;
     float2   gMousePosition;
