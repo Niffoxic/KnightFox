@@ -21,12 +21,6 @@
 #include <limits>
 #include <cstring>
 
-namespace
-{
-    constexpr std::uint32_t KFE_INVALID_DESCRIPTOR_INDEX =
-        std::numeric_limits<std::uint32_t>::max();
-}
-
 #pragma region Impl_Declaration
 
 class kfe::KFEConstantBuffer::Impl
@@ -71,7 +65,7 @@ private:
     std::uint32_t     m_alignedSizeInBytes{ 0u };
     std::uint64_t     m_offsetInBytes     { 0u };
 
-    std::uint32_t     m_cbvDescriptorIndex{ KFE_INVALID_DESCRIPTOR_INDEX };
+    std::uint32_t     m_cbvDescriptorIndex{ KFE_INVALID_INDEX };
 
     void* m_mappedBase{ nullptr };
     bool  m_bInitialized{ false };
@@ -272,10 +266,10 @@ bool kfe::KFEConstantBuffer::Impl::Initialize(const KFE_CONSTANT_BUFFER_CREATE_D
     }
 
     // Allocate CBV descriptor from heap and create the CBV
-    m_cbvDescriptorIndex = KFE_INVALID_DESCRIPTOR_INDEX;
+    m_cbvDescriptorIndex = KFE_INVALID_INDEX;
 
     const std::uint32_t cbvIndex = m_pResourceHeap->Allocate();
-    if (cbvIndex == KFE_INVALID_DESCRIPTOR_INDEX)
+    if (cbvIndex == KFE_INVALID_INDEX)
     {
         LOG_ERROR("KFEConstantBuffer::Impl::Initialize: Failed to allocate CBV descriptor from heap.");
         return false;
@@ -323,7 +317,7 @@ _Use_decl_annotations_
 bool kfe::KFEConstantBuffer::Impl::Destroy() noexcept
 {
     // Free CBV descriptor back to the heap
-    if (m_pResourceHeap && m_cbvDescriptorIndex != KFE_INVALID_DESCRIPTOR_INDEX)
+    if (m_pResourceHeap && m_cbvDescriptorIndex != KFE_INVALID_INDEX)
     {
         if (!m_pResourceHeap->Free(m_cbvDescriptorIndex))
         {
@@ -333,7 +327,7 @@ bool kfe::KFEConstantBuffer::Impl::Destroy() noexcept
         }
     }
 
-    m_cbvDescriptorIndex = KFE_INVALID_DESCRIPTOR_INDEX;
+    m_cbvDescriptorIndex = KFE_INVALID_INDEX;
 
     m_pDevice           = nullptr;
     m_pResourceBuffer   = nullptr;

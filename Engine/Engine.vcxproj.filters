@@ -177,31 +177,28 @@
     <ClInclude Include="include\engine\render_manager\api\texture\texture_dsv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\graph\types.h">
+    <ClInclude Include="include\engine\render_manager\api\pso.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\graph\resources.h">
+    <ClInclude Include="include\engine\render_manager\assets_library\shader_library.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\graph\context.h">
+    <ClInclude Include="include\engine\utils\json_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\graph\pass.h">
+    <ClInclude Include="include\engine\system\interface\interface_singleton.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\graph\builder.h">
+    <ClInclude Include="include\engine\render_manager\api\root_signature.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\graph\render_graph.h">
+    <ClInclude Include="include\engine\render_manager\scene\interface_scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\graph\barrier.h">
+    <ClInclude Include="include\engine\render_manager\scene\cube_scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\graph\compiled_graph.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\engine\render_manager\graph\frame_context.h">
+    <ClInclude Include="include\engine\render_manager\components\camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -350,22 +347,22 @@
     <ClCompile Include="src\render_manager\api\texture\texture_uav.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\render_manager\graph\resources.cpp">
+    <ClCompile Include="src\render_manager\api\pso.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\render_manager\graph\context.cpp">
+    <ClCompile Include="src\utils\json_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\render_manager\graph\builder.cpp">
+    <ClCompile Include="src\render_manager\api\root_signature.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\render_manager\graph\render_graph.cpp">
+    <ClCompile Include="src\render_manager\scene\interface_scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\render_manager\graph\barrier.cpp">
+    <ClCompile Include="src\render_manager\scene\cube_scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\render_manager\graph\compiled_graph.cpp">
+    <ClCompile Include="src\render_manager\components\camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

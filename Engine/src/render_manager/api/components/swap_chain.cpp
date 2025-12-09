@@ -28,13 +28,7 @@ class kfe::KFESwapChain::Impl
 {
 public:
 	 Impl() = default;
-	~Impl()
-	{
-		if (!Destroy())
-		{
-			LOG_ERROR("Failed to Destroy Swap Chain successfully!");
-		}
-	}
+	 ~Impl() = default;
 
 	NODISCARD bool Initialize(_In_ const KFE_SWAP_CHAIN_CREATE_DESC& desc);
 	

@@ -24,8 +24,10 @@
 class kfe::KFEWindows::Impl
 {
 public:
-    Impl() = default;
-	Impl(_In_ const KFE_WINDOW_CREATE_DESC& desc);
+    Impl(KFEWindows* windows)
+        : m_pWindows(windows)
+    {}
+	Impl(KFEWindows* windows, _In_ const KFE_WINDOW_CREATE_DESC& desc);
 
 	_NODISCARD _Check_return_ _Must_inspect_result_
 	_Success_(return != 0)
@@ -64,17 +66,18 @@ public:
 	EScreenState	m_eScreenState	  { EScreenState::Windowed };
 	WINDOWPLACEMENT m_WindowPlacement { sizeof(m_WindowPlacement) };
 	UINT			m_nIconID		  { 0u };
+    KFEWindows*     m_pWindows        { nullptr };
 };
 
 #pragma endregion
 
 kfe::KFEWindows::KFEWindows()
-    : m_impl(std::make_unique<KFEWindows::Impl>())
+    : m_impl(std::make_unique<KFEWindows::Impl>(this))
 {}
 
 _Use_decl_annotations_
 kfe::KFEWindows::KFEWindows(const KFE_WINDOW_CREATE_DESC& desc)
-    : m_impl(std::make_unique<KFEWindows::Impl>(desc))
+    : m_impl(std::make_unique<KFEWindows::Impl>(this, desc))
 {}
 
 kfe::KFEWindows::~KFEWindows()
@@ -109,6 +112,8 @@ bool kfe::KFEWindows::Initialize()
         LOG_ERROR("Failed to Initialize Window!");
         return false;
     }
+    if (auto handle = GetWindowsHandle())
+        Mouse.AttachWindowHandle(handle);
     LOG_SUCCESS("Initialized Window!");
 	return true;
 }
@@ -122,10 +127,14 @@ bool kfe::KFEWindows::Release()
 _Use_decl_annotations_
 void kfe::KFEWindows::OnFrameBegin(float deltaTime)
 {
+    Keyboard.OnFrameBegin(deltaTime);
+    Mouse   .OnFrameBegin(deltaTime);
 }
 
 void kfe::KFEWindows::OnFrameEnd()
 {
+    Keyboard.OnFrameEnd();
+    Mouse   .OnFrameEnd();
 }
 
 _Use_decl_annotations_
@@ -211,7 +220,8 @@ void kfe::KFEWindows::SetWindowMessageOnTitle(const std::string& message) const
 
 //~ KFE IMPL
 _Use_decl_annotations_
-kfe::KFEWindows::Impl::Impl(const KFE_WINDOW_CREATE_DESC& desc)
+kfe::KFEWindows::Impl::Impl(KFEWindows* windows, const KFE_WINDOW_CREATE_DESC& desc)
+    : m_pWindows(windows)
 {
     m_nWindowsHeight = desc.Height;
     m_nWindowsWidth  = desc.Width;
@@ -300,6 +310,9 @@ bool kfe::KFEWindows::Impl::InitWindowScreen()
 _Use_decl_annotations_
 LRESULT kfe::KFEWindows::Impl::MessageHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    if (m_pWindows->Keyboard.ProcessMessage(msg, wParam, lParam)) return S_OK;
+    if (m_pWindows->Mouse.ProcessMessage(msg, wParam, lParam))    return S_OK;
+
     switch (msg)
     {
     case WM_SIZE:

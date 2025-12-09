@@ -232,8 +232,6 @@ kfe::KFECommandAllocator* kfe::KFECommandAllocatorPool::Impl::GetCommandAllocato
 	KID id = GetFreePool();
 	if (id == 0u) return nullptr;
 
-	LOG_WARNING("I'm giving {}, Allocator!", id);
-
 	m_mapAllocatorState   [id] = EAllocState::Working;
 	return m_mapAllocators[id].get();
 }

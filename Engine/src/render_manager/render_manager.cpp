@@ -1,4 +1,4 @@
-// This is a personal academic project. Dear PVS-Studio, please check it.
+﻿// This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 
 /*
@@ -58,12 +58,24 @@
 #include "engine/system/exception/dx_exception.h"
 #include "engine/system/common_types.h"
 
-#include "engine/render_manager/graph/compiled_graph.h"
-#include "engine/render_manager/graph/frame_context.h"
-#include "engine/render_manager/graph/render_graph.h"
 #include <d3d12.h>
 
+//~ Test Renderable
+#include "engine/render_manager/api/pso.h"
+#include "engine/render_manager/assets_library/shader_library.h"
+#include "engine/render_manager/api/root_signature.h"
+#include "engine/utils/file_system.h"
+#include "engine/render_manager/scene/cube_scene.h"
+#include "engine/render_manager/components/camera.h"
+
 #pragma region IMPL
+
+struct TestCB
+{
+	float  iTime;   
+	float  padding0; 
+	float iResolution[2];
+};
 
 class kfe::KFERenderManager::Impl
 {
@@ -77,14 +89,16 @@ public:
 	void FrameEnd  ();
 
 private:
-	bool InitializeComponents();
-	bool InitializeQueues	 ();
-	bool InitializeCommands  ();
-	bool InitializeHeaps	 ();
-	bool InitializeTextures  ();
-	bool InitializeRenderGraph();
+	bool InitializeComponents ();
+	bool InitializeQueues	  ();
+	bool InitializeCommands   ();
+	bool InitializeHeaps	  ();
+	bool InitializeTextures   ();
+	void CreateViewport		  ();
 
-	void CreateViewport();
+	bool InitializeTestTriangle();
+
+	void HandleInput(float dt);
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -124,9 +138,11 @@ private:
 	D3D12_VIEWPORT m_viewport{};
 	D3D12_RECT     m_scissorRect{};
 
-	rg::RenderGraph m_renderGraph{};
-	rg::RGCompiled  m_compiledGraph{};
 	float m_totalTime{ 0.0f };
+	std::unique_ptr<KEFCubeSceneObject> m_cube{ nullptr };
+	std::unique_ptr<KEFCubeSceneObject> m_cube2{ nullptr };
+
+	KFECamera m_camera{};
 };
 
 #pragma endregion
@@ -197,15 +213,15 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pResourceHeap = std::make_unique<KFEResourceHeap>();
 	m_pSamplerHeap  = std::make_unique<KFESamplerHeap> ();
 
-	//~ Test Textures
+	//~ DSV Textures and views
 	m_pDSVBuffer = std::make_unique<KFETexture>();
-
-	//~ views
 	m_pDSV = std::make_unique<KFETextureDSV>();
 }
 
 bool kfe::KFERenderManager::Impl::Initialize()
 {
+	m_camera.SetPosition({ 0, 0, -10.f });
+
 	if (!InitializeComponents())
 	{
 		return false;
@@ -286,13 +302,9 @@ bool kfe::KFERenderManager::Impl::Initialize()
 
 	CreateViewport();
 
-
-	if (!InitializeRenderGraph())
-	{
-		return false;
-	}
-
 	m_bInitialized = true;
+
+	if (!InitializeTestTriangle()) return false;
 
 	return true;
 }
@@ -304,8 +316,10 @@ bool kfe::KFERenderManager::Impl::Release()
 
 void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 {
+	HandleInput(dt);
 	m_totalTime += dt;
 
+	m_camera.Update(dt);
 	if (!m_pFence)
 	{
 		THROW_MSG("Fence is null!");
@@ -318,26 +332,93 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 	resetter.FenceValue = m_nFenceValue;
 	resetter.PSO = nullptr;
 
-	LOG_INFO("Fence Value: {}", m_pFence->GetCompletedValue());
-
 	if (!m_pGfxList->Reset(resetter))
 	{
-		THROW_MSG("Failed to Render!");
+		THROW_MSG("Failed to reset graphics command list.");
 	}
 
-	kfe::FrameContext frameCtx{};
-	frameCtx.CommandList = m_pGfxList.get();
-	frameCtx.Device = m_pDevice.get();
-	frameCtx.RtvHeap = m_pRTVHeap.get();
-	frameCtx.DsvHeap = m_pDSVHeap.get();
-	frameCtx.CbvSrvUavHeap = m_pResourceHeap.get();
-	frameCtx.FrameConstantBuffer = nullptr;
-	frameCtx.FrameIndex = static_cast<std::uint32_t>(m_nFenceValue);
+	ID3D12GraphicsCommandList* cmdList = m_pGfxList->GetNative();
+	if (!cmdList)
+	{
+		THROW_MSG("Graphics command list is null.");
+	}
 
-	m_compiledGraph.Execute(frameCtx);
+	auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
+		m_pFence.Get(), m_nFenceValue);
 
-	auto* cmdList = m_pGfxList->GetNative();
-	cmdList->Close();
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = swapData.BufferResource;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+	cmdList->ResourceBarrier(1u, &barrier);
+
+	cmdList->RSSetViewports(1u, &m_viewport);
+	cmdList->RSSetScissorRects(1u, &m_scissorRect);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapData.BufferHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pDSV->GetCPUHandle();
+
+	cmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
+
+	const float color[4]
+	{
+		std::sinf(m_totalTime),
+		std::cosf(m_totalTime),
+		std::sinf(std::sinf(m_totalTime) + std::cosf(m_totalTime)),
+		1.0f
+	};
+
+	cmdList->ClearRenderTargetView(
+		rtvHandle,
+		color,
+		0u,
+		nullptr);
+
+	cmdList->ClearDepthStencilView(
+		dsvHandle,
+		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+		1.f,
+		0u,
+		0u,
+		nullptr);
+
+	KFE_UPDATE_OBJECT_DESC update{};
+	update.CameraPosition		= m_camera.GetPosition();
+	update.deltaTime			= dt;
+	update.MousePosition		= { 0, 0 };
+	update.OrthographicMatrix	= m_camera.GetOrthographicMatrix();
+	update.PerpectiveMatrix		= m_camera.GetPerspectiveMatrix();
+	update.PlayerPosition		= { 0, 0, 0 };
+
+	auto winSize	  = m_pWindows->GetWinSize();
+	update.Resolution = { static_cast<float>(winSize.Width),
+						  static_cast<float>(winSize.Height) };
+	update.ViewMatrix = m_camera.GetViewMatrix();
+	update.ZFar		  = m_camera.GetFarZ();
+	update.ZNear	  = m_camera.GetNearZ();
+
+	m_cube->Update(update);
+	m_cube2->Update(update);
+
+	//~ Draw objects
+	KFE_RENDER_OBJECT_DESC obj{};
+	obj.CommandList = m_pGfxList.get();
+	obj.Fence		= m_pFence.Get();
+	obj.FenceValue	= m_nFenceValue;
+	m_cube ->Render(obj);
+	m_cube2->Render(obj);
+
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+
+	cmdList->ResourceBarrier(1u, &barrier);
+
+	HRESULT hr = cmdList->Close();
+	THROW_DX_IF_FAILS(hr);
 
 	auto* queue = m_pGraphicsQueue->GetNative();
 	ID3D12CommandList* cmdLists[] = { cmdList };
@@ -537,17 +618,18 @@ bool kfe::KFERenderManager::Impl::InitializeTextures()
 
 	if (!m_pDSVBuffer) m_pDSVBuffer = std::make_unique<KFETexture>();
 
-	const DXGI_FORMAT testFormat			 = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	const D3D12_HEAP_TYPE heapType			 = D3D12_HEAP_TYPE_DEFAULT;
+	auto winSize = m_pWindows->GetWinSize();
+
+	const DXGI_FORMAT testFormat = DXGI_FORMAT_D32_FLOAT;
+	const D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_DEFAULT;
 	const D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	const D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-	// 1D Texture Test
 	KFE_TEXTURE_CREATE_DESC tex1D{};
 	tex1D.Device = m_pDevice.get();
 	tex1D.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	tex1D.Width = 256u;
-	tex1D.Height = 1u;
+	tex1D.Width = winSize.Width;
+	tex1D.Height = winSize.Height;
 	tex1D.DepthOrArraySize = 1u;
 	tex1D.MipLevels = 1u;
 	tex1D.Format = testFormat;
@@ -556,119 +638,20 @@ bool kfe::KFERenderManager::Impl::InitializeTextures()
 	tex1D.ResourceFlags = resourceFlags;
 	tex1D.HeapType = heapType;
 	tex1D.InitialState = initialState;
-	
+
 	D3D12_CLEAR_VALUE depthClear{};
 	depthClear.Format = testFormat;
 	depthClear.DepthStencil.Depth = 1.0f;
 	depthClear.DepthStencil.Stencil = 0;
-
 	tex1D.ClearValue = &depthClear;
 
 	if (!m_pDSVBuffer->Initialize(tex1D))
 	{
-		LOG_ERROR("Failed to initialize Test Texture 1D.");
+		LOG_ERROR("Failed to initialize Test Texture 2D depth buffer.");
 		return false;
 	}
 
-	LOG_INFO("TestTexture1D: dim={}, {}x{}, mip={}, fmt={}",
-		static_cast<int>(m_pDSVBuffer->GetDimension()),
-		m_pDSVBuffer->GetWidth(),
-		m_pDSVBuffer->GetHeight(),
-		m_pDSVBuffer->GetMipLevels(),
-		static_cast<int>(m_pDSVBuffer->GetFormat()));
-
 	LOG_SUCCESS("All test textures initialized successfully.");
-	return true;
-}
-
-bool kfe::KFERenderManager::Impl::InitializeRenderGraph()
-{
-	using namespace kfe::rg;
-
-	std::string passName = "MainClearPass";
-
-	m_renderGraph = RenderGraph{};
-
-	m_renderGraph.AddPass(
-		passName,
-		// Build function no logical resources yet
-		[&](RGBuilder& builder)
-		{
-			// no RG textures or buffers
-			(void)builder;
-		},
-		[this](RGExecutionContext& ctx)
-		{
-			KFEGraphicsCommandList* gfxList = ctx.GetCommandList();
-			if (!gfxList)
-			{
-				return;
-			}
-
-			ID3D12GraphicsCommandList* cmdList = gfxList->GetNative();
-			if (!cmdList)
-			{
-				return;
-			}
-
-			// Acquire current backbuffer
-			auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
-				m_pFence.Get(), m_nFenceValue);
-
-			// Transition PRESENT to RENDER_TARGET
-			D3D12_RESOURCE_BARRIER barrier{};
-			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			barrier.Transition.pResource = swapData.BufferResource;
-			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-
-			cmdList->ResourceBarrier(1u, &barrier);
-			cmdList->RSSetViewports(1u, &m_viewport);
-			cmdList->RSSetScissorRects(1u, &m_scissorRect);
-
-			const float color[4]
-			{
-				std::sinf(m_totalTime),
-				std::cosf(m_totalTime),
-				std::sinf(std::sinf(m_totalTime) + std::cosf(m_totalTime)),
-				std::sinf(m_totalTime)
-			};
-
-			cmdList->ClearRenderTargetView(swapData.BufferHandle, color, 0u, nullptr);
-
-			auto dsvHandle = m_pDSV->GetCPUHandle();
-			ID3D12Resource* depthRes = m_pDSVBuffer->GetNative();
-
-			D3D12_RESOURCE_BARRIER depthBarrier{};
-			depthBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			depthBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			depthBarrier.Transition.pResource = depthRes;
-			depthBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			depthBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
-			depthBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-
-			cmdList->ResourceBarrier(1u, &depthBarrier);
-
-			cmdList->ClearDepthStencilView(
-				dsvHandle,
-				D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-				1.f, 0u, 0u, nullptr);
-
-			// Transition RENDER_TARGET to PRESENT
-			barrier = {};
-			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			barrier.Transition.pResource = swapData.BufferResource;
-			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-
-			cmdList->ResourceBarrier(1u, &barrier);
-		});
-
-	m_compiledGraph = m_renderGraph.Compile();
 	return true;
 }
 
@@ -685,4 +668,130 @@ void kfe::KFERenderManager::Impl::CreateViewport()
 	m_scissorRect = { 0, 0,
 		static_cast<long>(winSize.Width),
 		static_cast<long>(winSize.Height) };
+}
+
+bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
+{
+
+	auto* gfxQueue = m_pGraphicsQueue->GetNative();
+
+	++m_nFenceValue;
+	KFE_RESET_COMMAND_LIST resetter{};
+	resetter.Fence		= m_pFence.Get();
+	resetter.FenceValue = m_nFenceValue;
+	resetter.PSO		= nullptr;
+
+	if (!m_pGfxList->Reset(resetter))
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Failed to reset graphics command list for upload.");
+		return false;
+	}
+	
+	ID3D12GraphicsCommandList* cmdList = m_pGfxList->GetNative();
+	if (!cmdList)
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Command list is null.");
+		return false;
+	}
+
+	m_cube = std::make_unique<KEFCubeSceneObject>();
+	m_cube2 = std::make_unique<KEFCubeSceneObject>();
+
+	KFE_BUILD_OBJECT_DESC obj{};
+	obj.ComandQueue =  m_pGraphicsQueue.get();
+	obj.CommandList  = m_pGfxList	   .get();
+	obj.Device		 = m_pDevice	   .get();
+	obj.Fence		 = m_pFence		   .Get();
+	obj.ResourceHeap = m_pResourceHeap .get();
+	obj.FenceValue	 = m_nFenceValue;
+
+	if (!m_cube->Build(obj))
+	{
+		THROW_MSG("Faile to init cube!");
+		return false;
+	}
+
+	if (!m_cube2->Build(obj))
+	{
+		THROW_MSG("Faile to init cube!");
+		return false;
+	}
+
+	m_cube2->SetPosition({ 3, 3, 0 });
+
+	cmdList->Close();
+
+	ID3D12CommandList* cmdLists[] = { cmdList };
+	gfxQueue->ExecuteCommandLists(1u, cmdLists);
+
+	HRESULT hr = gfxQueue->Signal(m_pFence.Get(), m_nFenceValue);
+	THROW_DX_IF_FAILS(hr);
+
+	m_pGfxList->Wait();
+	return true;
+}
+
+void kfe::KFERenderManager::Impl::HandleInput(float dt)
+{
+	auto& keyboard = m_pWindows->Keyboard;
+	auto& mouse    = m_pWindows->Mouse;
+
+	float moveDt = dt;
+	const bool isRunning = keyboard.IsKeyPressed(VK_SHIFT);
+	if (isRunning)
+	{
+		const float runMultiplier = 2.5f;
+		moveDt *= runMultiplier;
+	}
+
+	if (keyboard.IsKeyPressed('W'))
+	{
+		m_camera.MoveForward(moveDt);
+	}
+	if (keyboard.IsKeyPressed('S'))
+	{
+		m_camera.MoveBackward(moveDt);
+	}
+
+	if (keyboard.IsKeyPressed('A'))
+	{
+		m_camera.MoveLeft(moveDt);
+	}
+	if (keyboard.IsKeyPressed('D'))
+	{
+		m_camera.MoveRight(moveDt);
+	}
+
+	if (keyboard.IsKeyPressed(VK_SPACE))
+	{
+		m_camera.MoveUp(moveDt);
+	}
+	if (keyboard.IsKeyPressed(VK_CONTROL))
+	{
+		m_camera.MoveDown(moveDt);
+	}
+
+	// Mouse look
+	int dx = 0;
+	int dy = 0;
+	mouse.GetMouseDelta(dx, dy);
+
+	if (dx != 0 || dy != 0)
+	{
+		const float mouseSensitivity = 0.0025f;
+
+		// Current orientation
+		float yaw		 = m_camera.GetYaw();
+		float pitch		 = m_camera.GetPitch();
+		const float roll = m_camera.GetRoll();
+
+		yaw   += static_cast<float>(dx) * mouseSensitivity;
+		pitch += static_cast<float>(dy) * mouseSensitivity;
+
+		constexpr float pitchLimit = DirectX::XMConvertToRadians(89.0f);
+		if (pitch > pitchLimit) pitch  = pitchLimit;
+		if (pitch < -pitchLimit) pitch = -pitchLimit;
+
+		m_camera.SetEulerAngles(pitch, yaw, roll);
+	}
 }

@@ -15,6 +15,7 @@
 // DirectX 12 / DXGI / WRL
 #include <d3d12.h>
 #include <dxgi1_6.h>
+#include <DirectXMath.h>
 #include <wrl/client.h>
 
 // STL core utilities

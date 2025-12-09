@@ -22,11 +22,11 @@ public:
      KFEFileSystem();
     ~KFEFileSystem();
 
-    KFEFileSystem(_In_ const KFEFileSystem&) = delete;
-    KFEFileSystem(_Inout_ KFEFileSystem&&)   = delete;
+    KFEFileSystem(const KFEFileSystem&) = delete;
+    KFEFileSystem(KFEFileSystem&&);
 
     KFEFileSystem& operator=(const KFEFileSystem&) = delete;
-    KFEFileSystem& operator=(KFEFileSystem&&)      = delete;
+    KFEFileSystem& operator=(KFEFileSystem&&);
 
     NODISCARD bool OpenForRead (_In_ const std::string& path);
     NODISCARD bool OpenForWrite(_In_ const std::string& path);
@@ -49,7 +49,4 @@ public:
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
-
-    HANDLE m_fileHandle{ INVALID_HANDLE_VALUE };
-    bool   m_bReadMode { false };
 };
