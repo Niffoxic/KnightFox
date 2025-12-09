@@ -19,7 +19,7 @@
 
 #include "engine/render_manager/api/components/device.h"
 #include "engine/utils/logger.h"
-
+#include "engine/system/exception/dx_exception.h"
 
 #pragma region Impl_Definition
 
@@ -488,18 +488,10 @@ bool kfe::KFEPipelineState::Impl::Build(KFEDevice* device) noexcept
 
 	Destroy();
 
-	const HRESULT hr = native->CreateGraphicsPipelineState(
+	THROW_DX_IF_FAILS(native->CreateGraphicsPipelineState(
 		&m_desc,
 		IID_PPV_ARGS(m_pipelineState.ReleaseAndGetAddressOf())
-	);
-
-	if (FAILED(hr))
-	{
-		LOG_ERROR("KFEPipelineState::Impl::Build: CreateGraphicsPipelineState failed. hr=0x{:08X}", hr);
-		m_pipelineState.Reset();
-		return false;
-	}
-
+	));
 	return true;
 }
 

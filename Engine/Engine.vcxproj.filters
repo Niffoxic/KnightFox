@@ -213,13 +213,13 @@
     <ClInclude Include="include\engine\render_manager\assets_library\shader_library.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\render_manager\assets_library\shader_library.cpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\engine\utils\json_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\engine\system\interface\interface_singleton.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\api\root_signature.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -390,6 +390,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\utils\json_loader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\api\root_signature.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

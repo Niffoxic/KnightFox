@@ -227,8 +227,6 @@ bool kfe::KFEGraphicsCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& rese
 			LOG_WARNING("Failed to attach fence to allocator after graphics list reset.");
 		}
 	}
-
-	LOG_SUCCESS("Graphics List Reset: Success!");
 	return true;
 }
 

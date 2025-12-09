@@ -12,7 +12,7 @@
 #include "engine/render_manager/graph/render_graph.h"
 #include "engine/render_manager/graph/compiled_graph.h"
 
-
+_Use_decl_annotations_
 kfe::rg::RGCompiled kfe::rg::RenderGraph::Compile() const
 {
 	RGCompiled compiled{};

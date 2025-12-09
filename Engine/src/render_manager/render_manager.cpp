@@ -66,6 +66,8 @@
 //~ Test Renderable
 #include "engine/render_manager/api/pso.h"
 #include "engine/render_manager/scene/renderable.h"
+#include "engine/render_manager/assets_library/shader_library.h"
+#include "engine/utils/file_system.h"
 
 #pragma region IMPL
 
@@ -339,8 +341,6 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 	resetter.FenceValue = m_nFenceValue;
 	resetter.PSO = nullptr;
 
-	LOG_INFO("Fence Value: {}", m_pFence->GetCompletedValue());
-
 	if (!m_pGfxList->Reset(resetter))
 	{
 		THROW_MSG("Failed to Render!");
@@ -606,37 +606,36 @@ bool kfe::KFERenderManager::Impl::InitializeRenderGraph()
 {
 	using namespace kfe::rg;
 
-	std::string passName = "MainClearPass";
-
 	m_renderGraph = RenderGraph{};
 
+	std::string passName = "MainTrianglePass";
 	m_renderGraph.AddPass(
 		passName,
-		// Build function no logical resources yet
+		// Build
 		[&](RGBuilder& builder)
 		{
-			// no RG textures or buffers
+			// No logical RG resources yet; swapchain + depth are externals for now
 			(void)builder;
 		},
+		// Execute
 		[this](RGExecutionContext& ctx)
 		{
 			KFEGraphicsCommandList* gfxList = ctx.GetCommandList();
 			if (!gfxList)
-			{
 				return;
-			}
 
 			ID3D12GraphicsCommandList* cmdList = gfxList->GetNative();
 			if (!cmdList)
-			{
 				return;
-			}
 
-			// Acquire current backbuffer
+			// Make sure triangle resources exist
+			if (!m_pos || !m_vertexView || !m_indexView)
+				return;
+
 			auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
 				m_pFence.Get(), m_nFenceValue);
 
-			// Transition PRESENT to RENDER_TARGET
+			// Transition PRESENT -> RENDER_TARGET
 			D3D12_RESOURCE_BARRIER barrier{};
 			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -644,48 +643,76 @@ bool kfe::KFERenderManager::Impl::InitializeRenderGraph()
 			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-
 			cmdList->ResourceBarrier(1u, &barrier);
+
+			// Depth buffer: make sure it's in DEPTH_WRITE for clear/draw
+			ID3D12Resource* depthRes = m_pDSVBuffer->GetNative();
+			if (depthRes)
+			{
+				D3D12_RESOURCE_BARRIER depthBarrier{};
+				depthBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+				depthBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+				depthBarrier.Transition.pResource = depthRes;
+				depthBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+				depthBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;       // adjust if you start tracking real state
+				depthBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+				cmdList->ResourceBarrier(1u, &depthBarrier);
+			}
+
 			cmdList->RSSetViewports(1u, &m_viewport);
 			cmdList->RSSetScissorRects(1u, &m_scissorRect);
+
+			D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapData.BufferHandle;
+			D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pDSV->GetCPUHandle();
+
+			cmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
 
 			const float color[4]
 			{
 				std::sinf(m_totalTime),
 				std::cosf(m_totalTime),
 				std::sinf(std::sinf(m_totalTime) + std::cosf(m_totalTime)),
-				std::sinf(m_totalTime)
+				1.0f
 			};
 
-			cmdList->ClearRenderTargetView(swapData.BufferHandle, color, 0u, nullptr);
-
-			auto dsvHandle = m_pDSV->GetCPUHandle();
-			ID3D12Resource* depthRes = m_pDSVBuffer->GetNative();
-
-			D3D12_RESOURCE_BARRIER depthBarrier{};
-			depthBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			depthBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			depthBarrier.Transition.pResource = depthRes;
-			depthBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			depthBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
-			depthBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-
-			cmdList->ResourceBarrier(1u, &depthBarrier);
+			cmdList->ClearRenderTargetView(
+				rtvHandle,
+				color,
+				0u,
+				nullptr);
 
 			cmdList->ClearDepthStencilView(
 				dsvHandle,
 				D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-				1.f, 0u, 0u, nullptr);
+				1.f,
+				0u,
+				0u,
+				nullptr);
 
-			// Transition RENDER_TARGET to PRESENT
-			barrier = {};
-			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			barrier.Transition.pResource = swapData.BufferResource;
-			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			cmdList->SetPipelineState(m_pos->GetNative());
+
+			if (auto* rs = m_pos->GetRootSignature())
+			{
+				cmdList->SetGraphicsRootSignature(rs);
+			}
+
+			const D3D12_VERTEX_BUFFER_VIEW vbView = m_vertexView->GetView();
+			const D3D12_INDEX_BUFFER_VIEW  ibView = m_indexView->GetView();
+
+			cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			cmdList->IASetVertexBuffers(0u, 1u, &vbView);
+			cmdList->IASetIndexBuffer(&ibView);
+
+			// Draw triangle
+			cmdList->DrawIndexedInstanced(
+				3u,   // IndexCountPerInstance
+				1u,   // InstanceCount
+				0u,   // StartIndexLocation
+				0,    // BaseVertexLocation
+				0u); 
+
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-
 			cmdList->ResourceBarrier(1u, &barrier);
 		});
 
@@ -831,20 +858,17 @@ bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 
 	cmdList->ResourceBarrier(1u, &barrier);
 
-	// Close + execute the upload command list, signal + wait fence
 	HRESULT hr = cmdList->Close();
 	THROW_DX_IF_FAILS(hr);
 
 	ID3D12CommandList* cmdLists[] = { cmdList };
 	gfxQueue->ExecuteCommandLists(1u, cmdLists);
 
-	// bump fence value for this upload submission
 	hr = gfxQueue->Signal(m_pFence.Get(), m_nFenceValue);
 	THROW_DX_IF_FAILS(hr);
 
 	m_pGfxList->Wait();
 
-	// Create vertex buffer view from DEFAULT buffer
 	m_vertexView = std::make_unique<KFEVertexBuffer>();
 
 	KFE_VERTEX_BUFFER_CREATE_DESC vbDesc{};
@@ -860,13 +884,12 @@ bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 		return false;
 	}
 
-	// Create index buffer view from DEFAULT buffer
 	m_indexView = std::make_unique<KFEIndexBuffer>();
 
 	KFE_INDEX_BUFFER_CREATE_DESC ibDesc{};
 	ibDesc.Device = m_pDevice.get();
 	ibDesc.ResourceBuffer = defaultBuffer;
-	ibDesc.Format = DXGI_FORMAT_R16_UINT; // matches std::uint16_t
+	ibDesc.Format = DXGI_FORMAT_R16_UINT;
 	ibDesc.OffsetInBytes = ibOffset;
 
 	if (!m_indexView->Initialize(ibDesc))
@@ -875,6 +898,56 @@ bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 		return false;
 	}
 
-	LOG_SUCCESS("InitializeTestTriangle: Triangle geometry uploaded, VB/IB views created successfully.");
+	std::string path = "shaders/test/vertex.hlsl";
+
+	ID3DBlob* vertexBlob = shaders::GetOrCompile(path);
+	ID3DBlob* pixelBlob  = shaders::GetOrCompile("shaders/test/pixel.hlsl",
+		"main", "ps_5_0");
+
+	m_pos = std::make_unique<KFEPipelineState>();
+
+	std::vector<D3D12_INPUT_ELEMENT_DESC> inputs
+	{
+		{
+			"POSITION",
+			0,
+			DXGI_FORMAT_R32G32B32_FLOAT,      
+			0,
+			0,                            
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+			0
+		},
+		{
+			"COLOR",
+			0,
+			DXGI_FORMAT_R32G32B32_FLOAT,      
+			0,
+			12,                 
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+			0
+		}
+	};
+	m_pos->SetInputLayout(inputs.data(),
+		static_cast<std::uint32_t>(inputs.size()));
+
+	D3D12_SHADER_BYTECODE vsBC{};
+	vsBC.pShaderBytecode = vertexBlob->GetBufferPointer();
+	vsBC.BytecodeLength = vertexBlob->GetBufferSize();
+	m_pos->SetVS(vsBC);
+
+	D3D12_SHADER_BYTECODE psBC{};
+	psBC.pShaderBytecode = pixelBlob->GetBufferPointer();
+	psBC.BytecodeLength  = pixelBlob->GetBufferSize();
+	m_pos->SetPS(psBC);
+
+	m_pos->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+
+	if (!m_pos->Build(m_pDevice.get()))
+	{
+		LOG_ERROR("InitializeTestTriangle: Failed to build pipeline state object.");
+		return false;
+	}
+
+	LOG_SUCCESS("InitializeTestTriangle: Triangle geometry uploaded, VB/IB views created, and PSO built successfully.");
 	return true;
 }

@@ -80,7 +80,6 @@ namespace kfe
 		void SetSampleMask(_In_ std::uint32_t mask)				  noexcept;
 		void SetFlags	  (_In_ D3D12_PIPELINE_STATE_FLAGS flags) noexcept;
 
-
 		//~ Getters
 		NODISCARD ID3D12RootSignature*  GetRootSignature() const noexcept;
 		NODISCARD D3D12_SHADER_BYTECODE GetVS			() const noexcept;

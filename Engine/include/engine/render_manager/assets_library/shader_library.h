@@ -9,68 +9,187 @@
  *  -----------------------------------------------------------------------------
  */
 #pragma once
-#include "EngineAPI.h"
 #include "engine/core.h"
-#include "engine/system/interface/interface_singleton.h"
 
-#include <memory>
 #include <string>
 #include <cstdint>
-#include <d3d12.h>
+#include <cstddef>
+#include <unordered_map>
+#include <sstream>
 
-namespace kfe
+#include <d3dcompiler.h>
+#include <wrl/client.h>
+
+#include "engine/utils/logger.h"
+#include "engine/utils/helpers.h"
+
+namespace kfe::shaders
 {
-	/// <summary>
-	/// High level shader library that:
-	/// Compiles shaders on demand and,
-	/// Caches compiled blobs in memory and,
-	/// Persists compiled shaders to disk and,
-	/// Reloads cached shaders from disk on startup / request
-	/// </summary>
-	class KFE_API KFEShaderLibrary final: public ISingleton<KFEShaderLibrary>
-	{
-		friend class ISingleton<KFEShaderLibrary>;
-	public:
-		struct COMPILE_DESC
-		{
-			std::string   SourcePath;
-			std::string   EntryPoint;
-			std::string   TargetProfile;
-			std::string   CacheKeyOverride;
-			bool          ForceRecompile  { false };
-			bool          EnableDebug	  { false };
-			bool          WarningsAsErrors{ true };
-			std::uint32_t ReservedFlags	  { 0u };
-		};
+    using BlobPtr = Microsoft::WRL::ComPtr<ID3DBlob>;
 
-		KFEShaderLibrary(const KFEShaderLibrary&)	  = delete;
-		KFEShaderLibrary(KFEShaderLibrary&&) noexcept = delete;
+    struct SHADER_DESC
+    {
+        std::string SourcePath;
+        std::string EntryPoint{ "main" };
+        std::string TargetProfile{ "vs_5_0" };
 
-		KFEShaderLibrary& operator=(const KFEShaderLibrary&)	 = delete;
-		KFEShaderLibrary& operator=(KFEShaderLibrary&&) noexcept = delete;
+        bool         EnableDebug{ false };
+        bool         WarningsAsErrors{ true };
+        std::uint32_t ReservedFlags{ 0u };
+    };
 
-		void SetCacheDirectory(_In_ const std::string& directory);
-		NODISCARD const std::string& GetCacheDirectory() const noexcept;
+    namespace detail
+    {
+        using CacheMap = std::unordered_map<std::string, BlobPtr>;
+        // Single global cache, thanks to C++17 inline variables
+        inline CacheMap g_ShaderCache{};
 
-		NODISCARD ID3DBlob* GetShader(_In_ const std::string& path);
-		NODISCARD ID3DBlob* GetShader(_In_ const COMPILE_DESC& desc);
+        inline std::string MakeKey(
+            const std::string& path,
+            const std::string& entry,
+            const std::string& target)
+        {
+            std::ostringstream oss;
+            oss << path << '|' << entry << '|' << target;
+            return oss.str();
+        }
 
-		NODISCARD bool Contains(_In_ const std::string& cacheKey) const;
-		NODISCARD bool Remove  (_In_ const std::string& cacheKey);
+        inline UINT BuildD3DCompileFlags(const SHADER_DESC& desc)
+        {
+            UINT flags = 0u;
 
-		void Clear() noexcept;
-		NODISCARD std::size_t GetCachedShaderCount() const noexcept;
+            if (desc.EnableDebug)
+            {
+                flags |= D3DCOMPILE_DEBUG;
+                flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+            }
+            if (desc.WarningsAsErrors)
+            {
+                flags |= D3DCOMPILE_WARNINGS_ARE_ERRORS;
+            }
 
-		NODISCARD bool Load(_In_ const std::string& path);
-		NODISCARD bool Save(_In_ const std::string& path) const;
-		NODISCARD bool ReloadFromDisk();
+            flags |= desc.ReservedFlags;
+            return flags;
+        }
 
-	private:
-		 KFEShaderLibrary();
-		~KFEShaderLibrary();
+        inline void LogCompileError(ID3DBlob* errorBlob, const std::string& sourcePath)
+        {
+            if (!errorBlob)
+            {
+                LOG_ERROR("Shader compile failed for {} with unknown error.", sourcePath);
+                return;
+            }
 
-	private:
-		class Impl;
-		std::unique_ptr<Impl> m_impl;
-	};
-} // namespace kfe
+            const char* msg = static_cast<const char*>(errorBlob->GetBufferPointer());
+            const size_t msgLen = errorBlob->GetBufferSize();
+
+            std::string errorStr(msg, msg + msgLen);
+            LOG_ERROR("Shader compilation error for {}:\n{}", sourcePath, errorStr);
+        }
+    } // namespace detail
+
+    // ========================================================================
+    // Public API (header-only)
+    // ========================================================================
+
+    _Use_decl_annotations_
+        inline ID3DBlob* GetOrCompile(const SHADER_DESC& desc)
+    {
+        if (desc.SourcePath.empty())
+        {
+            LOG_ERROR("kfe::shaders::GetOrCompile: SourcePath is empty.");
+            return nullptr;
+        }
+        if (desc.EntryPoint.empty() || desc.TargetProfile.empty())
+        {
+            LOG_ERROR("kfe::shaders::GetOrCompile: EntryPoint or TargetProfile is empty for {}.",
+                desc.SourcePath);
+            return nullptr;
+        }
+
+        const std::string key = detail::MakeKey(desc.SourcePath, desc.EntryPoint, desc.TargetProfile);
+
+        // 1) Cache hit
+        {
+            auto it = detail::g_ShaderCache.find(key);
+            if (it != detail::g_ShaderCache.end() && it->second)
+            {
+                return it->second.Get();
+            }
+        }
+
+        // 2) Compile
+        const std::wstring widePath = kfe_helpers::AnsiToWide(desc.SourcePath);
+        const UINT         flags = detail::BuildD3DCompileFlags(desc);
+
+        BlobPtr shaderBlob;
+        BlobPtr errorBlob;
+
+        HRESULT hr = D3DCompileFromFile(
+            widePath.c_str(),
+            nullptr,
+            D3D_COMPILE_STANDARD_FILE_INCLUDE,
+            desc.EntryPoint.c_str(),
+            desc.TargetProfile.c_str(),
+            flags,
+            0,
+            shaderBlob.GetAddressOf(),
+            errorBlob.GetAddressOf()
+        );
+
+        if (FAILED(hr))
+        {
+            detail::LogCompileError(errorBlob.Get(), desc.SourcePath);
+            return nullptr;
+        }
+
+        detail::g_ShaderCache[key] = shaderBlob;
+
+        LOG_INFO("kfe::shaders: Compiled and cached shader: {} (Entry: {}, Target: {})",
+            desc.SourcePath, desc.EntryPoint, desc.TargetProfile);
+
+        return shaderBlob.Get();
+    }
+
+    _Use_decl_annotations_
+        inline ID3DBlob* GetOrCompile(
+            const std::string& sourcePath,
+            const std::string& entryPoint = "main",
+            const std::string& targetProfile = "vs_5_0")
+    {
+        SHADER_DESC desc{};
+        desc.SourcePath = sourcePath;
+        desc.EntryPoint = entryPoint;
+        desc.TargetProfile = targetProfile;
+        return GetOrCompile(desc);
+    }
+
+    _Use_decl_annotations_
+        inline bool Remove(
+            const std::string& sourcePath,
+            const std::string& entryPoint = "main",
+            const std::string& targetProfile = "vs_5_0")
+    {
+        const std::string key = detail::MakeKey(sourcePath, entryPoint, targetProfile);
+        auto it = detail::g_ShaderCache.find(key);
+        if (it == detail::g_ShaderCache.end())
+        {
+            return false;
+        }
+
+        detail::g_ShaderCache.erase(it);
+        return true;
+    }
+
+    inline void ClearCache() noexcept
+    {
+        detail::g_ShaderCache.clear();
+    }
+
+    [[nodiscard]]
+    inline std::size_t GetCachedCount() noexcept
+    {
+        return detail::g_ShaderCache.size();
+    }
+
+} // namespace kfe::shaders
