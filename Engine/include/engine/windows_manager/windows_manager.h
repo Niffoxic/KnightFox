@@ -16,6 +16,9 @@
 #include "engine/system/interface/interface_manager.h"
 #include "engine/system/common_types.h"
 
+#include "inputs/keyboard_inputs.h"
+#include "inputs/mouse_inputs.h"
+
 #include <windows.h>
 #include <sal.h>
 #include <memory>
@@ -67,6 +70,9 @@ namespace kfe
 		void SetWindowTitle			(_In_ const std::string& title);
 		void SetWindowMessageOnTitle(_In_ const std::string& message) const;
 
+		//~ Components
+		KFEKeyboardInput Keyboard{};
+		KFEMouseInputs	 Mouse   {};
 	private:
 		class Impl;
 		std::unique_ptr<Impl> m_impl{ nullptr };

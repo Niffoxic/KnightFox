@@ -140,6 +140,7 @@ private:
 
 	float m_totalTime{ 0.0f };
 	std::unique_ptr<KEFCubeSceneObject> m_cube{ nullptr };
+	std::unique_ptr<KEFCubeSceneObject> m_cube2{ nullptr };
 
 	KFECamera m_camera{};
 };
@@ -401,13 +402,15 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 	update.ZNear	  = m_camera.GetNearZ();
 
 	m_cube->Update(update);
+	m_cube2->Update(update);
 
 	//~ Draw objects
 	KFE_RENDER_OBJECT_DESC obj{};
 	obj.CommandList = m_pGfxList.get();
 	obj.Fence		= m_pFence.Get();
 	obj.FenceValue	= m_nFenceValue;
-	m_cube->Render(obj);
+	m_cube ->Render(obj);
+	m_cube2->Render(obj);
 
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -692,6 +695,7 @@ bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 	}
 
 	m_cube = std::make_unique<KEFCubeSceneObject>();
+	m_cube2 = std::make_unique<KEFCubeSceneObject>();
 
 	KFE_BUILD_OBJECT_DESC obj{};
 	obj.ComandQueue =  m_pGraphicsQueue.get();
@@ -706,6 +710,15 @@ bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 		THROW_MSG("Faile to init cube!");
 		return false;
 	}
+
+	if (!m_cube2->Build(obj))
+	{
+		THROW_MSG("Faile to init cube!");
+		return false;
+	}
+
+	m_cube2->SetPosition({ 3, 3, 0 });
+
 	cmdList->Close();
 
 	ID3D12CommandList* cmdLists[] = { cmdList };
@@ -720,4 +733,65 @@ bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 
 void kfe::KFERenderManager::Impl::HandleInput(float dt)
 {
+	auto& keyboard = m_pWindows->Keyboard;
+	auto& mouse    = m_pWindows->Mouse;
+
+	float moveDt = dt;
+	const bool isRunning = keyboard.IsKeyPressed(VK_SHIFT);
+	if (isRunning)
+	{
+		const float runMultiplier = 2.5f;
+		moveDt *= runMultiplier;
+	}
+
+	if (keyboard.IsKeyPressed('W'))
+	{
+		m_camera.MoveForward(moveDt);
+	}
+	if (keyboard.IsKeyPressed('S'))
+	{
+		m_camera.MoveBackward(moveDt);
+	}
+
+	if (keyboard.IsKeyPressed('A'))
+	{
+		m_camera.MoveLeft(moveDt);
+	}
+	if (keyboard.IsKeyPressed('D'))
+	{
+		m_camera.MoveRight(moveDt);
+	}
+
+	if (keyboard.IsKeyPressed(VK_SPACE))
+	{
+		m_camera.MoveUp(moveDt);
+	}
+	if (keyboard.IsKeyPressed(VK_CONTROL))
+	{
+		m_camera.MoveDown(moveDt);
+	}
+
+	// Mouse look
+	int dx = 0;
+	int dy = 0;
+	mouse.GetMouseDelta(dx, dy);
+
+	if (dx != 0 || dy != 0)
+	{
+		const float mouseSensitivity = 0.0025f;
+
+		// Current orientation
+		float yaw		 = m_camera.GetYaw();
+		float pitch		 = m_camera.GetPitch();
+		const float roll = m_camera.GetRoll();
+
+		yaw   += static_cast<float>(dx) * mouseSensitivity;
+		pitch += static_cast<float>(dy) * mouseSensitivity;
+
+		constexpr float pitchLimit = DirectX::XMConvertToRadians(89.0f);
+		if (pitch > pitchLimit) pitch  = pitchLimit;
+		if (pitch < -pitchLimit) pitch = -pitchLimit;
+
+		m_camera.SetEulerAngles(pitch, yaw, roll);
+	}
 }
