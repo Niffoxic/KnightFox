@@ -72,6 +72,7 @@ bool KFEFileSystem::OpenForWrite(const std::string& path)
 
 void KFEFileSystem::Close()
 {
+	if (!m_impl) return;
 	m_impl->Close();
 }
 

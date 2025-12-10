@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "engine/knight_engine.h"
 
 #include "engine/windows_manager/windows_manager.h"
@@ -10,6 +10,14 @@
 #include "engine/system/event_system/event_queue.h"
 #include "engine/system/event_system/windows_events.h"
 #include "engine/system/timer.h"
+
+#if defined(DEBUG) || defined(_DEBUG)
+
+#include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
+#include "imgui/imgui_impl_dx12.h"
+#include "imgui/imgui_impl_win32.h"
+#endif
 
 #pragma region IMPL
 
@@ -75,7 +83,9 @@ kfe::IKFEngine::~IKFEngine()
 		LOG_ERROR("Failed to shutdown smoothly!");
 	}
 #if defined(DEBUG) || defined(_DEBUG)
-	gLogger->Close();
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 #endif
 }
 
@@ -146,11 +156,22 @@ bool kfe::IKFEngine::Impl::CreateManagers(const KFE_ENGINE_CREATE_DESC& desc)
 void kfe::IKFEngine::Impl::CreateUtilities()
 {
 #ifdef _DEBUG
-	KFE_LOGGER_CREATE_DESC logDesc{};
-	logDesc.LogPrefix = "GameLog";
-	logDesc.EnableTerminal = true;
-	logDesc.LogPath = "logs";
-	INIT_GLOBAL_LOGGER(&logDesc);
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+	ImGui::StyleColorsDark();
+
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		ImGuiStyle& style = ImGui::GetStyle();
+		style.WindowRounding = 0.0f;
+		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+	}
 #endif
 
 	m_pTimer = std::make_unique<KFETimer>();

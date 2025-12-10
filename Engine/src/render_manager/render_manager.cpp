@@ -68,12 +68,54 @@
 #include "engine/render_manager/scene/cube_scene.h"
 #include "engine/render_manager/components/camera.h"
 
+//~ Add Imgui
+#if defined(DEBUG) || defined(_DEBUG)
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_win32.h"
+#include "imgui/imgui_impl_dx12.h"
+#endif
+
 #pragma region IMPL
+
+namespace
+{
+	static void KFE_ImGuiDockspace()
+	{
+		ImGuiIO& io = ImGui::GetIO();
+
+		ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+		ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
+
+		ImGuiViewport* viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(viewport->Pos);
+		ImGui::SetNextWindowSize(viewport->Size);
+		ImGui::SetNextWindowViewport(viewport->ID);
+
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+		window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+			ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+		window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+		window_flags |= ImGuiWindowFlags_NoBackground;
+
+		bool open = true;
+		ImGui::Begin("KFE_DockSpaceHost", &open, window_flags);
+		ImGui::PopStyleVar(3);
+
+		ImGuiID dockspace_id = ImGui::GetID("KFE_Dockspace");
+		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+
+		ImGui::End();
+	}
+}
 
 struct TestCB
 {
-	float  iTime;   
-	float  padding0; 
+	float iTime;   
+	float padding0; 
 	float iResolution[2];
 };
 
@@ -220,6 +262,9 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 
 bool kfe::KFERenderManager::Impl::Initialize()
 {
+#if defined(DEBUG) || defined(_DEBUG)
+	//~ Init Imgui
+#endif
 	m_camera.SetPosition({ 0, 0, -10.f });
 
 	if (!InitializeComponents())
@@ -306,6 +351,25 @@ bool kfe::KFERenderManager::Impl::Initialize()
 
 	if (!InitializeTestTriangle()) return false;
 
+#if defined(DEBUG) || defined(_DEBUG)
+	//~ Init Imgui
+
+	auto* srvHeap = m_pResourceHeap->GetNative();
+	ImGui_ImplDX12_Init(
+		m_pDevice->GetNative(),
+		m_pSwapChain->GetBufferCount(),
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		srvHeap,
+		srvHeap->GetCPUDescriptorHandleForHeapStart(),
+		srvHeap->GetGPUDescriptorHandleForHeapStart()
+	);
+
+	ImGuiIO& io = ImGui::GetIO();
+	unsigned char* pixels = nullptr;
+	int texWidth = 0, texHeight = 0;
+	io.Fonts->GetTexDataAsRGBA32(&pixels, &texWidth, &texHeight);
+#endif
+
 	return true;
 }
 
@@ -387,34 +451,68 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		nullptr);
 
 	KFE_UPDATE_OBJECT_DESC update{};
-	update.CameraPosition		= m_camera.GetPosition();
-	update.deltaTime			= dt;
-	update.MousePosition		= { 0, 0 };
-	update.OrthographicMatrix	= m_camera.GetOrthographicMatrix();
-	update.PerpectiveMatrix		= m_camera.GetPerspectiveMatrix();
-	update.PlayerPosition		= { 0, 0, 0 };
+	update.CameraPosition = m_camera.GetPosition();
+	update.deltaTime = dt;
+	update.MousePosition = { 0, 0 };
+	update.OrthographicMatrix = m_camera.GetOrthographicMatrix();
+	update.PerpectiveMatrix = m_camera.GetPerspectiveMatrix();
+	update.PlayerPosition = { 0, 0, 0 };
 
-	auto winSize	  = m_pWindows->GetWinSize();
+	auto winSize = m_pWindows->GetWinSize();
 	update.Resolution = { static_cast<float>(winSize.Width),
-						  static_cast<float>(winSize.Height) };
+							static_cast<float>(winSize.Height) };
 	update.ViewMatrix = m_camera.GetViewMatrix();
-	update.ZFar		  = m_camera.GetFarZ();
-	update.ZNear	  = m_camera.GetNearZ();
+	update.ZFar = m_camera.GetFarZ();
+	update.ZNear = m_camera.GetNearZ();
 
 	m_cube->Update(update);
 	m_cube2->Update(update);
 
-	//~ Draw objects
 	KFE_RENDER_OBJECT_DESC obj{};
 	obj.CommandList = m_pGfxList.get();
-	obj.Fence		= m_pFence.Get();
-	obj.FenceValue	= m_nFenceValue;
-	m_cube ->Render(obj);
+	obj.Fence = m_pFence.Get();
+	obj.FenceValue = m_nFenceValue;
+
+	m_cube->Render(obj);
 	m_cube2->Render(obj);
+
+#ifdef _DEBUG
+	{
+		ID3D12DescriptorHeap* heaps[] = { m_pResourceHeap->GetNative() };
+		cmdList->SetDescriptorHeaps(1, heaps);
+
+		ImGui_ImplWin32_NewFrame();
+		ImGui_ImplDX12_NewFrame();
+		ImGui::NewFrame();
+
+		KFE_ImGuiDockspace();
+
+		ImGui::Begin("Scene");
+		ImGui::Text("KnightFox Scene View");
+		ImGui::End();
+
+		ImGui::Begin("Inspector");
+		ImGui::Text("Inspector / Properties");
+		ImGui::End();
+
+		ImGui::Begin("Console");
+		ImGui::Text("Logs go brrrr...");
+		ImGui::End();
+
+		ImGui::Render();
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList);
+
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+		}
+	}
+#endif
 
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-
 	cmdList->ResourceBarrier(1u, &barrier);
 
 	HRESULT hr = cmdList->Close();
@@ -425,9 +523,9 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 	queue->ExecuteCommandLists(1u, cmdLists);
 
 	m_pSwapChain->Present();
-
 	queue->Signal(m_pFence.Get(), m_nFenceValue);
 }
+
 
 void kfe::KFERenderManager::Impl::FrameEnd()
 {
@@ -620,30 +718,30 @@ bool kfe::KFERenderManager::Impl::InitializeTextures()
 
 	auto winSize = m_pWindows->GetWinSize();
 
-	const DXGI_FORMAT testFormat = DXGI_FORMAT_D32_FLOAT;
-	const D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_DEFAULT;
+	const DXGI_FORMAT testFormat			 = DXGI_FORMAT_D32_FLOAT;
+	const D3D12_HEAP_TYPE heapType			 = D3D12_HEAP_TYPE_DEFAULT;
 	const D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 	const D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
 	KFE_TEXTURE_CREATE_DESC tex1D{};
-	tex1D.Device = m_pDevice.get();
-	tex1D.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	tex1D.Width = winSize.Width;
-	tex1D.Height = winSize.Height;
-	tex1D.DepthOrArraySize = 1u;
-	tex1D.MipLevels = 1u;
-	tex1D.Format = testFormat;
-	tex1D.SampleDesc.Count = 1u;
+	tex1D.Device			 = m_pDevice.get();
+	tex1D.Dimension			 = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	tex1D.Width				 = winSize.Width;
+	tex1D.Height			 = winSize.Height;
+	tex1D.DepthOrArraySize	 = 1u;
+	tex1D.MipLevels			 = 1u;
+	tex1D.Format			 = testFormat;
+	tex1D.SampleDesc.Count	 = 1u;
 	tex1D.SampleDesc.Quality = 0u;
-	tex1D.ResourceFlags = resourceFlags;
-	tex1D.HeapType = heapType;
-	tex1D.InitialState = initialState;
+	tex1D.ResourceFlags		 = resourceFlags;
+	tex1D.HeapType			 = heapType;
+	tex1D.InitialState		 = initialState;
 
 	D3D12_CLEAR_VALUE depthClear{};
-	depthClear.Format = testFormat;
-	depthClear.DepthStencil.Depth = 1.0f;
+	depthClear.Format				= testFormat;
+	depthClear.DepthStencil.Depth	= 1.0f;
 	depthClear.DepthStencil.Stencil = 0;
-	tex1D.ClearValue = &depthClear;
+	tex1D.ClearValue				= &depthClear;
 
 	if (!m_pDSVBuffer->Initialize(tex1D))
 	{
@@ -657,14 +755,14 @@ bool kfe::KFERenderManager::Impl::InitializeTextures()
 
 void kfe::KFERenderManager::Impl::CreateViewport()
 {
-	auto winSize = m_pWindows->GetWinSize();
+	auto winSize		= m_pWindows->GetWinSize();
 	m_viewport.TopLeftX = 0;
 	m_viewport.TopLeftY = 0;
-	m_viewport.Width = static_cast<float>(winSize.Width);
-	m_viewport.Height = static_cast<float>(winSize.Height);
+	m_viewport.Width	= static_cast<float>(winSize.Width);
+	m_viewport.Height	= static_cast<float>(winSize.Height);
 	m_viewport.MaxDepth = 1.0f;
 	m_viewport.MinDepth = 0.0f;
-
+ 
 	m_scissorRect = { 0, 0,
 		static_cast<long>(winSize.Width),
 		static_cast<long>(winSize.Height) };
@@ -672,7 +770,6 @@ void kfe::KFERenderManager::Impl::CreateViewport()
 
 bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 {
-
 	auto* gfxQueue = m_pGraphicsQueue->GetNative();
 
 	++m_nFenceValue;
