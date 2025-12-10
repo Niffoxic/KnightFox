@@ -158,6 +158,11 @@
     <ClInclude Include="externals\imgui\imstb_rectpack.h" />
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
+    <ClInclude Include="include\engine\editor\commands\command_stack.h" />
+    <ClInclude Include="include\engine\editor\commands\interface_command.h" />
+    <ClInclude Include="include\engine\editor\editor.h" />
+    <ClInclude Include="include\engine\editor\editor_context.h" />
+    <ClInclude Include="include\engine\editor\editor_state.h" />
     <ClInclude Include="include\engine\render_manager\api\buffer\constant_buffer.h" />
     <ClInclude Include="include\engine\render_manager\api\buffer\index_buffer.h" />
     <ClInclude Include="include\engine\render_manager\api\buffer\raw_buffer.h" />
@@ -232,6 +237,7 @@
     <ClCompile Include="externals\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="externals\imgui\imgui_tables.cpp" />
     <ClCompile Include="externals\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="src\editor\commands\command_stack.cpp" />
     <ClCompile Include="src\render_manager\api\pso.cpp" />
     <ClCompile Include="src\render_manager\api\root_signature.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_dsv.cpp" />
