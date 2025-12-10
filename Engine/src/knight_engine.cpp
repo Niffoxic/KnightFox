@@ -156,6 +156,14 @@ bool kfe::IKFEngine::Impl::CreateManagers(const KFE_ENGINE_CREATE_DESC& desc)
 void kfe::IKFEngine::Impl::CreateUtilities()
 {
 #ifdef _DEBUG
+	KFE_LOGGER_CREATE_DESC logDesc{};
+	logDesc.LogPrefix = "GameLog";
+	logDesc.EnableTerminal = true;
+	logDesc.LogPath = "logs";
+	INIT_GLOBAL_LOGGER(&logDesc);
+#endif
+
+#ifdef _DEBUG
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();

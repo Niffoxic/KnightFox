@@ -22,7 +22,7 @@
 class kfe::KFECopyCommandList::Impl
 {
 public:
-    Impl() = default;
+     Impl() = default;
     ~Impl()
     {
         if (!Destroy())
@@ -41,6 +41,7 @@ public:
     NODISCARD bool                       IsInitialized() const noexcept;
 
     void Update() noexcept;
+    void Wait  () noexcept;
 
 private:
     bool CreateAllocatorPool(const KFE_COPY_COMMAND_LIST_CREATE_DESC& desc);
@@ -50,6 +51,7 @@ private:
     bool                                              m_bInitialized{ false };
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_pList{ nullptr };
     std::unique_ptr<KFECommandAllocatorPool>          m_pPool{ nullptr };
+    KFECommandAllocator* m_pCurrentAllocator{ nullptr };
 };
 
 #pragma endregion
@@ -117,6 +119,11 @@ void kfe::KFECopyCommandList::Update() noexcept
     m_impl->Update();
 }
 
+void kfe::KFECopyCommandList::Wait() noexcept
+{
+    m_impl->Wait();
+}
+
 #pragma endregion
 
 #pragma region Impl_Implementation
@@ -179,13 +186,13 @@ bool kfe::KFECopyCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& reset)
     }
 
     // Try to get a free allocator
-    auto* alloc = m_pPool->GetCommandAllocatorWait();
-    if (!alloc)
+    auto* m_pCurrentAllocator = m_pPool->GetCommandAllocatorWait();
+    if (!m_pCurrentAllocator)
     {
         LOG_WARNING("No free allocator from pool for CopyCommandList, trying to create a new one.");
-        alloc = m_pPool->GetCommandAllocatorCreate();
+        m_pCurrentAllocator = m_pPool->GetCommandAllocatorCreate();
 
-        if (!alloc)
+        if (!m_pCurrentAllocator)
         {
             THROW_MSG("Failed to acquire allocator for CopyCommandList: no free or new allocators available!");
             return false;
@@ -193,20 +200,20 @@ bool kfe::KFECopyCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& reset)
     }
 
     // Make sure allocator has a native pointer
-    if (!alloc->GetNative())
+    if (!m_pCurrentAllocator->GetNative())
     {
         THROW_MSG("CopyCommandList allocator has no native ID3D12CommandAllocator*!");
         return false;
     }
 
     // Reset allocator before reusing it for the command list
-    if (!alloc->Reset())
+    if (!m_pCurrentAllocator->Reset())
     {
         THROW_MSG("Failed to reset command allocator in KFECopyCommandList::Impl::Reset!");
         return false;
     }
 
-    auto* nativeAlloc = alloc->GetNative();
+    auto* nativeAlloc = m_pCurrentAllocator->GetNative();
 
     // Reset the copy command list with allocator
     HRESULT hr = m_pList->Reset(nativeAlloc, nullptr);
@@ -223,7 +230,7 @@ bool kfe::KFECopyCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& reset)
         fence.Fence          = reset.Fence;
         fence.FenceWaitValue = reset.FenceValue;
 
-        if (!alloc->AttachFence(fence))
+        if (!m_pCurrentAllocator->AttachFence(fence))
         {
             LOG_WARNING("Failed to attach fence to allocator after CopyCommandList reset.");
         }
@@ -304,6 +311,11 @@ void kfe::KFECopyCommandList::Impl::Update() noexcept
     {
         m_pPool->UpdateAllocators();
     }
+}
+
+void kfe::KFECopyCommandList::Impl::Wait() noexcept
+{
+
 }
 
 #pragma endregion

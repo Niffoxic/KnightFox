@@ -225,6 +225,9 @@
     <ClInclude Include="externals\imgui\imstb_truetype.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\engine\render_manager\components\render_queue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -408,6 +411,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\components\render_queue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

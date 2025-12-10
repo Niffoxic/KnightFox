@@ -56,7 +56,7 @@ struct KFE_WinSize
 
 	template<typename Type>
 	_Check_return_ _NODISCARD
-	Type As()
+	auto As()
 	{
 		return KFE_WinSize<Type>(static_cast<Type>(Width),
 								 static_cast<Type>(Height));

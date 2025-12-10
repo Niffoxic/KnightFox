@@ -41,6 +41,7 @@ public:
     NODISCARD bool                       IsInitialized() const noexcept;
 
     void Update() noexcept;
+    void Wait  () noexcept;
 
 private:
     bool CreateAllocatorPool(const KFE_COMPUTE_COMMAND_LIST_CREATE_DESC& desc);
@@ -50,6 +51,8 @@ private:
     bool                                              m_bInitialized{ false };
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_pList{ nullptr };
     std::unique_ptr<KFECommandAllocatorPool>          m_pPool{ nullptr };
+    KFECommandAllocator* m_pCurrentAllocator{ nullptr };
+
 };
 
 #pragma endregion
@@ -105,6 +108,11 @@ bool kfe::KFEComputeCommandList::IsInitialized() const noexcept
 void kfe::KFEComputeCommandList::Update() noexcept
 {
     m_impl->Update();
+}
+
+void kfe::KFEComputeCommandList::Wait() noexcept
+{
+    m_impl->Wait();
 }
 
 std::string kfe::KFEComputeCommandList::GetName() const noexcept
@@ -179,13 +187,13 @@ bool kfe::KFEComputeCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& reset
     }
 
     // Try to get a free allocator
-    auto* alloc = m_pPool->GetCommandAllocatorWait();
-    if (!alloc)
+    m_pCurrentAllocator = m_pPool->GetCommandAllocatorWait();
+    if (!m_pCurrentAllocator)
     {
         LOG_WARNING("No free allocator from pool for ComputeCommandList, trying to create a new one.");
-        alloc = m_pPool->GetCommandAllocatorCreate();
+        m_pCurrentAllocator = m_pPool->GetCommandAllocatorCreate();
 
-        if (!alloc)
+        if (!m_pCurrentAllocator)
         {
             THROW_MSG("Failed to acquire allocator for ComputeCommandList: no free or new allocators available!");
             return false;
@@ -193,20 +201,20 @@ bool kfe::KFEComputeCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& reset
     }
 
     // Make sure allocator has a native pointer
-    if (!alloc->GetNative())
+    if (!m_pCurrentAllocator->GetNative())
     {
         THROW_MSG("ComputeCommandList allocator has no native ID3D12CommandAllocator*!");
         return false;
     }
 
     // Reset allocator before reusing it for the command list
-    if (!alloc->Reset())
+    if (!m_pCurrentAllocator->Reset())
     {
         THROW_MSG("Failed to reset command allocator in KFEComputeCommandList::Impl::Reset!");
         return false;
     }
 
-    auto* nativeAlloc = alloc->GetNative();
+    auto* nativeAlloc = m_pCurrentAllocator->GetNative();
 
     // Reset the compute command list with allocator + optional PSO
     HRESULT hr = m_pList->Reset(nativeAlloc, reset.PSO);
@@ -223,7 +231,7 @@ bool kfe::KFEComputeCommandList::Impl::Reset(const KFE_RESET_COMMAND_LIST& reset
         fence.Fence = reset.Fence;
         fence.FenceWaitValue = reset.FenceValue;
 
-        if (!alloc->AttachFence(fence))
+        if (!m_pCurrentAllocator->AttachFence(fence))
         {
             LOG_WARNING("Failed to attach fence to allocator after ComputeCommandList reset.");
         }
@@ -303,6 +311,14 @@ void kfe::KFEComputeCommandList::Impl::Update() noexcept
     if (m_pPool)
     {
         m_pPool->UpdateAllocators();
+    }
+}
+
+void kfe::KFEComputeCommandList::Impl::Wait() noexcept
+{
+    if (m_pCurrentAllocator)
+    {
+        m_pCurrentAllocator->ForceWait();
     }
 }
 

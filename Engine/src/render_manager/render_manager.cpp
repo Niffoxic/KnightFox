@@ -75,6 +75,9 @@
 #include "imgui/imgui_impl_dx12.h"
 #endif
 
+//~ Render Queue
+#include "engine/render_manager/components/render_queue.h"
+
 #pragma region IMPL
 
 namespace
@@ -155,11 +158,11 @@ private:
 	//~ Queues
 	std::unique_ptr<KFEGraphicsCmdQ> m_pGraphicsQueue{ nullptr };
 	std::unique_ptr<KFEComputeCmdQ>  m_pComputeQueue { nullptr };
-	std::unique_ptr<KFECopyCmdQ>	 m_pCopyQueue	 { nullptr };
+	std::unique_ptr<KFEGraphicsCmdQ> m_pCopyQueue	 { nullptr };
 
 	std::unique_ptr<KFEGraphicsCommandList>  m_pGfxList		 { nullptr };
 	std::unique_ptr<KFEComputeCommandList>   m_pComputeList  { nullptr };
-	std::unique_ptr<KFECopyCommandList>		 m_pCopyList	 { nullptr };
+	std::unique_ptr<KFEGraphicsCommandList>  m_pCopyList	 { nullptr };
 
 	//~ Test Heaps
 	std::unique_ptr<KFERTVHeap>		 m_pRTVHeap		{ nullptr };
@@ -242,12 +245,12 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	//~ Create Dx Queues
 	m_pGraphicsQueue = std::make_unique<KFEGraphicsCmdQ>();
 	m_pComputeQueue  = std::make_unique<KFEComputeCmdQ> ();
-	m_pCopyQueue	 = std::make_unique<KFECopyCmdQ>	();
+	m_pCopyQueue	 = std::make_unique<KFEGraphicsCmdQ>();
 
 	//~ tests
 	m_pGfxList		 = std::make_unique<KFEGraphicsCommandList>	();
 	m_pComputeList	 = std::make_unique<KFEComputeCommandList>	();
-	m_pCopyList		 = std::make_unique<KFECopyCommandList>		();
+	m_pCopyList		 = std::make_unique<KFEGraphicsCommandList>	();
 
 	//~ Test Heaps
 	m_pRTVHeap		= std::make_unique<KFERTVHeap>	   ();
@@ -349,6 +352,19 @@ bool kfe::KFERenderManager::Impl::Initialize()
 
 	m_bInitialized = true;
 
+	//~ Init Render Queue
+	KFE_RENDER_QUEUE_INIT_DESC initRenderQ{};
+	initRenderQ.pCamera				 = &m_camera;
+	initRenderQ.pDevice				 = m_pDevice.get();
+	initRenderQ.pGraphicsCommandList = m_pGfxList.get();
+	initRenderQ.pGraphicsCommandQ	 = m_pGraphicsQueue.get();
+	initRenderQ.pResourceHeap		 = m_pResourceHeap.get();
+	initRenderQ.pRTVHeap			 = m_pRTVHeap.get();
+	initRenderQ.pSamplerHeap		 = m_pSamplerHeap.get();
+	initRenderQ.pSwapChain			 = m_pSwapChain.get();
+	initRenderQ.pWindows			 = m_pWindows;
+
+	if (!KFERenderQueue::Instance().Initialize(initRenderQ)) return false;
 	if (!InitializeTestTriangle()) return false;
 
 #if defined(DEBUG) || defined(_DEBUG)
@@ -380,6 +396,7 @@ bool kfe::KFERenderManager::Impl::Release()
 
 void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 {
+	KFERenderQueue::Instance().Update(dt);
 	HandleInput(dt);
 	m_totalTime += dt;
 
@@ -450,31 +467,11 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		0u,
 		nullptr);
 
-	KFE_UPDATE_OBJECT_DESC update{};
-	update.CameraPosition = m_camera.GetPosition();
-	update.deltaTime = dt;
-	update.MousePosition = { 0, 0 };
-	update.OrthographicMatrix = m_camera.GetOrthographicMatrix();
-	update.PerpectiveMatrix = m_camera.GetPerspectiveMatrix();
-	update.PlayerPosition = { 0, 0, 0 };
-
-	auto winSize = m_pWindows->GetWinSize();
-	update.Resolution = { static_cast<float>(winSize.Width),
-							static_cast<float>(winSize.Height) };
-	update.ViewMatrix = m_camera.GetViewMatrix();
-	update.ZFar = m_camera.GetFarZ();
-	update.ZNear = m_camera.GetNearZ();
-
-	m_cube->Update(update);
-	m_cube2->Update(update);
-
-	KFE_RENDER_OBJECT_DESC obj{};
-	obj.CommandList = m_pGfxList.get();
-	obj.Fence = m_pFence.Get();
-	obj.FenceValue = m_nFenceValue;
-
-	m_cube->Render(obj);
-	m_cube2->Render(obj);
+	KFE_RENDER_QUEUE_RENDER_DESC render{};
+	render.FenceValue			= m_nFenceValue;
+	render.GraphicsCommandList	= m_pGfxList.get();
+	render.pFence				= m_pFence.Get();
+	KFERenderQueue::Instance().RenderSceneObject(render);
 
 #ifdef _DEBUG
 	{
@@ -630,13 +627,7 @@ bool kfe::KFERenderManager::Impl::InitializeCommands()
 		return false;
 	}
 
-	KFE_COPY_COMMAND_LIST_CREATE_DESC copy{};
-	copy.BlockMaxTime  = 5u;
-	copy.Device		   = m_pDevice.get();
-	copy.InitialCounts = 3u;
-	copy.MaxCounts	   = 10u;
-
-	if (!m_pCopyList->Initialize(copy))
+	if (!m_pCopyList->Initialize(graphics))
 	{
 		LOG_ERROR("Failed To Initialize Test Copy Command List");
 		return false;
@@ -770,61 +761,12 @@ void kfe::KFERenderManager::Impl::CreateViewport()
 
 bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
 {
-	auto* gfxQueue = m_pGraphicsQueue->GetNative();
-
-	++m_nFenceValue;
-	KFE_RESET_COMMAND_LIST resetter{};
-	resetter.Fence		= m_pFence.Get();
-	resetter.FenceValue = m_nFenceValue;
-	resetter.PSO		= nullptr;
-
-	if (!m_pGfxList->Reset(resetter))
-	{
-		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Failed to reset graphics command list for upload.");
-		return false;
-	}
-	
-	ID3D12GraphicsCommandList* cmdList = m_pGfxList->GetNative();
-	if (!cmdList)
-	{
-		LOG_ERROR("KFERenderManager::Impl::InitializeTestTriangle: Command list is null.");
-		return false;
-	}
-
-	m_cube = std::make_unique<KEFCubeSceneObject>();
+	m_cube = std::make_unique<KEFCubeSceneObject> ();
 	m_cube2 = std::make_unique<KEFCubeSceneObject>();
 
-	KFE_BUILD_OBJECT_DESC obj{};
-	obj.ComandQueue =  m_pGraphicsQueue.get();
-	obj.CommandList  = m_pGfxList	   .get();
-	obj.Device		 = m_pDevice	   .get();
-	obj.Fence		 = m_pFence		   .Get();
-	obj.ResourceHeap = m_pResourceHeap .get();
-	obj.FenceValue	 = m_nFenceValue;
+	KFERenderQueue::Instance().AddSceneObject(m_cube.get());
+	KFERenderQueue::Instance().AddSceneObject(m_cube2.get());
 
-	if (!m_cube->Build(obj))
-	{
-		THROW_MSG("Faile to init cube!");
-		return false;
-	}
-
-	if (!m_cube2->Build(obj))
-	{
-		THROW_MSG("Faile to init cube!");
-		return false;
-	}
-
-	m_cube2->SetPosition({ 3, 3, 0 });
-
-	cmdList->Close();
-
-	ID3D12CommandList* cmdLists[] = { cmdList };
-	gfxQueue->ExecuteCommandLists(1u, cmdLists);
-
-	HRESULT hr = gfxQueue->Signal(m_pFence.Get(), m_nFenceValue);
-	THROW_DX_IF_FAILS(hr);
-
-	m_pGfxList->Wait();
 	return true;
 }
 
