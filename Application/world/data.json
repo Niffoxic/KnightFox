@@ -1,0 +1,104 @@
+{
+	"45": {
+		"ID": "45",
+		"Data": {
+			"Transformation": {
+				"Position": {
+					"x": "5.000000",
+					"y": "5.000000",
+					"z": "0.000000"
+				},
+				"Scale": {
+					"x": "4.000000",
+					"y": "4.000000",
+					"z": "4.000000"
+				},
+				"Orientation": {
+					"x": "0.050000",
+					"y": "0.100000",
+					"z": "0.800000",
+					"w": "1.000000"
+				}
+			},
+			"Properties": {
+				"PixelShader": "shaders/cube/pixel.hlsl",
+				"VertexShader": "shaders/cube/vertex.hlsl",
+				"CullMode": "None",
+				"DomainShader": "",
+				"GeometryShader": "",
+				"DrawMode": "Triangle",
+				"HullShader": "",
+				"ComputeShader": ""
+			}
+		},
+		"Type": "KEFCubeSceneObject"
+	},
+	"46": {
+		"ID": "46",
+		"Data": {
+			"Transformation": {
+				"Position": {
+					"x": "0.000000",
+					"y": "0.000000",
+					"z": "0.000000"
+				},
+				"Scale": {
+					"x": "1.000000",
+					"y": "1.000000",
+					"z": "1.000000"
+				},
+				"Orientation": {
+					"x": "0.000000",
+					"y": "0.000000",
+					"z": "0.000000",
+					"w": "1.000000"
+				}
+			},
+			"Properties": {
+				"PixelShader": "shaders/cube/pixel.hlsl",
+				"VertexShader": "shaders/cube/vertex.hlsl",
+				"CullMode": "None",
+				"DomainShader": "",
+				"GeometryShader": "",
+				"DrawMode": "Triangle",
+				"HullShader": "",
+				"ComputeShader": ""
+			}
+		},
+		"Type": "KEFCubeSceneObject"
+	},
+	"47": {
+		"ID": "47",
+		"Data": {
+			"Transformation": {
+				"Position": {
+					"x": "0.000000",
+					"y": "0.000000",
+					"z": "0.000000"
+				},
+				"Scale": {
+					"x": "1.000000",
+					"y": "1.000000",
+					"z": "1.000000"
+				},
+				"Orientation": {
+					"x": "0.000000",
+					"y": "0.000000",
+					"z": "0.000000",
+					"w": "1.000000"
+				}
+			},
+			"Properties": {
+				"PixelShader": "shaders/cube/pixel.hlsl",
+				"VertexShader": "shaders/cube/vertex.hlsl",
+				"CullMode": "None",
+				"DomainShader": "",
+				"GeometryShader": "",
+				"DrawMode": "Triangle",
+				"HullShader": "",
+				"ComputeShader": ""
+			}
+		},
+		"Type": "KEFCubeSceneObject"
+	}
+}

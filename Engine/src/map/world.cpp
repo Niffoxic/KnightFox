@@ -18,6 +18,8 @@
 
 #include <algorithm>
 
+#include "engine/utils/logger.h"
+
 namespace kfe
 {
     bool KFEWorld::Initialize()
@@ -130,6 +132,8 @@ namespace kfe
 
             scene->LoadFromJson(dataNode);
             AddSceneObject(std::move(scene));
+
+            LOG_SUCCESS("Added {}", typeName);
         }
     }
 

@@ -11,6 +11,7 @@
 #include "pch.h"
 #include "engine/editor/editor.h"
 #include "engine/editor/widgets/assets_panel.h"
+#include "engine/editor/widgets/creational_panel.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
@@ -23,14 +24,14 @@
 class kfe::KFEEditor::Impl
 {
 public:
-	Impl(KFEWorld* world) 
+	Impl(KFEWorld* world)
+		: m_pWorld(world)
 	{
-
 	}
 	~Impl() = default;
 
 	NODISCARD bool Initialize();
-	NODISCARD bool Release   ();
+	NODISCARD bool Release();
 
 	void Update(float deltaTime);
 	void Render();
@@ -38,8 +39,9 @@ private:
 	void SetupDockspace();
 
 private:
-	KFEAssetPanel m_assetsPanel{};
-	KFEWorld*	  m_pWorld{ nullptr };
+	KFEAssetPanel    m_assetsPanel{};
+	KFECreationPanel m_creationPanel{};
+	KFEWorld* m_pWorld{ nullptr };
 
 	ImGuiID m_mainDockspaceId{ 0 };
 	bool    m_dockLayoutInitialized{ false };
@@ -119,29 +121,43 @@ std::string kfe::KFEEditor::GetName() const noexcept
 _Use_decl_annotations_
 bool kfe::KFEEditor::Impl::Initialize()
 {
+	// Assets panel
 	m_assetsPanel.SetPanelName("Assets");
 	m_assetsPanel.SetRootPath("assets");
 	m_assetsPanel.SetVisible(true);
 
-	return m_assetsPanel.Initialize();
+	bool ok = m_assetsPanel.Initialize();
+
+	// Creation panel on the left; uses only KFEWorld
+	m_creationPanel.SetPanelName("Create");
+	m_creationPanel.SetVisible(true);
+	ok = m_creationPanel.Initialize(m_pWorld) && ok;
+
+	return ok;
 }
 
 _Use_decl_annotations_
 bool kfe::KFEEditor::Impl::Release()
 {
-	return m_assetsPanel.Release();
+	bool ok = true;
+	ok = m_creationPanel.Release() && ok;
+	ok = m_assetsPanel.Release() && ok;
+	return ok;
 }
 
-void kfe::KFEEditor::Impl::Update(float dt)
+void kfe::KFEEditor::Impl::Update(float /*dt*/)
 {
+	// Editor-level per-frame logic can go here later if needed
 }
 
 void kfe::KFEEditor::Impl::Render()
 {
 	SetupDockspace();
-    m_assetsPanel.SetDockspaceId(m_mainDockspaceId);
-    m_assetsPanel.Draw();
-    ImGui::End();
+
+	m_assetsPanel.Draw();
+	m_creationPanel.Draw();
+
+	ImGui::End();
 }
 
 void kfe::KFEEditor::Impl::SetupDockspace()
@@ -176,27 +192,6 @@ void kfe::KFEEditor::Impl::SetupDockspace()
 		ImGuiDockNodeFlags_PassthruCentralNode
 	);
 
-	if (!m_dockLayoutInitialized)
-	{
-		m_dockLayoutInitialized = true;
-
-		ImGui::DockBuilderRemoveNode(m_mainDockspaceId);
-		ImGui::DockBuilderAddNode(m_mainDockspaceId, ImGuiDockNodeFlags_DockSpace);
-
-		ImGuiID dockMainId = m_mainDockspaceId;
-		ImGuiID dockBottomId = 0;
-
-		dockBottomId = ImGui::DockBuilderSplitNode(
-			dockMainId,
-			ImGuiDir_Down,
-			0.25f,
-			nullptr,
-			&dockMainId
-		);
-
-		ImGui::DockBuilderDockWindow("Assets", dockBottomId);
-		ImGui::DockBuilderFinish(m_mainDockspaceId);
-	}
 }
 
 #pragma endregion
