@@ -239,7 +239,7 @@ void kfe::KEFCubeSceneObject::ImguiView(float deltaTime)
 		if (ImGui::InputText("Name", nameBuf, sizeof(nameBuf)))
 		{
 			// Update object name if changed
-			SetOjbjectName(std::string{ nameBuf });
+			SetObjectName(std::string{ nameBuf });
 		}
 	}
 

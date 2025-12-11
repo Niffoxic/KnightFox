@@ -131,7 +131,7 @@ namespace kfe
             if (!scene)
                 continue;
 
-            scene->SetOjbjectName(name);
+            scene->SetObjectName(name);
             scene->LoadFromJson(dataNode);
             AddSceneObject(std::move(scene));
 
@@ -151,10 +151,10 @@ namespace kfe
             const std::string idStr = std::to_string(id);
 
             JsonLoader& objNode = root[idStr];
-            objNode["ID"] = idStr;
-            objNode["Type"] = scene->GetTypeName();
-            objNode["Data"] = scene->GetJsonData();
-            objNode["Name"] = scene->GetName    ();
+            objNode["ID"]   = idStr;
+            objNode["Type"] = scene->GetTypeName  ();
+            objNode["Data"] = scene->GetJsonData  ();
+            objNode["Name"] = scene->GetObjectName();
         }
 
         return root;

@@ -13,8 +13,8 @@ int CALLBACK WinMain(
     try
     {
         kfe::KFE_ENGINE_CREATE_DESC desc{};
-        desc.WindowsDesc.Width  = 800u;
-        desc.WindowsDesc.Height = 600u;
+        desc.WindowsDesc.Width  = 1280u;
+        desc.WindowsDesc.Height = 720u;
 
         GameApplication application{ desc };
 

@@ -242,7 +242,7 @@ namespace kfe
         void        SetTypeName(const std::string& typeName) { m_szTypeName = typeName; }
         std::string GetTypeName() const { return m_szTypeName; }
 
-        void        SetOjbjectName(const std::string& typeName) { m_szName = typeName; }
+        void        SetObjectName(const std::string& typeName) { m_szName = typeName; }
         std::string GetObjectName() const { return m_szName; }
 
     protected:

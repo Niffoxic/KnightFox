@@ -4,12 +4,12 @@
 		"Data": {
 			"Transformation": {
 				"Position": {
-					"x": "5.000000",
-					"y": "5.000000",
-					"z": "0.000000"
+					"x": "13.100000",
+					"y": "7.900000",
+					"z": "9.600000"
 				},
 				"Scale": {
-					"x": "4.000000",
+					"x": "2.340000",
 					"y": "4.000000",
 					"z": "4.000000"
 				},
@@ -32,14 +32,14 @@
 			}
 		},
 		"Type": "KEFCubeSceneObject",
-		"Name": "KEFCubeSceneObject"
+		"Name": "obj1"
 	},
 	"46": {
 		"ID": "46",
 		"Data": {
 			"Transformation": {
 				"Position": {
-					"x": "0.000000",
+					"x": "-0.100000",
 					"y": "0.000000",
 					"z": "0.000000"
 				},
@@ -67,7 +67,7 @@
 			}
 		},
 		"Type": "KEFCubeSceneObject",
-		"Name": "KEFCubeSceneObject"
+		"Name": "obj2"
 	},
 	"47": {
 		"ID": "47",
@@ -79,15 +79,15 @@
 					"z": "0.000000"
 				},
 				"Scale": {
-					"x": "1.000000",
+					"x": "1.890000",
 					"y": "1.000000",
 					"z": "1.000000"
 				},
 				"Orientation": {
-					"x": "0.000000",
+					"x": "0.109884",
 					"y": "0.000000",
 					"z": "0.000000",
-					"w": "1.000000"
+					"w": "0.993944"
 				}
 			},
 			"Properties": {
@@ -102,6 +102,6 @@
 			}
 		},
 		"Type": "KEFCubeSceneObject",
-		"Name": "KEFCubeSceneObject"
+		"Name": "obj3"
 	}
 }

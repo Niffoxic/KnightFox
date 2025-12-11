@@ -144,6 +144,8 @@ private:
 	std::unique_ptr<KEFCubeSceneObject> m_cube{ nullptr };
 	std::unique_ptr<KEFCubeSceneObject> m_cube2{ nullptr };
 
+	bool  m_inputPaused{ false };
+	float m_spaceToggleCooldown{ 0.0f };
 	KFECamera m_camera{};
 };
 
@@ -403,10 +405,10 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 
 	const float color[4]
 	{
-		std::sinf(m_totalTime),
-		std::cosf(m_totalTime),
-		std::sinf(std::sinf(m_totalTime) + std::cosf(m_totalTime)),
-		1.0f
+		0.f,
+		0.f,
+		0.f,
+		0.f
 	};
 
 	cmdList->ClearRenderTargetView(
@@ -718,7 +720,25 @@ void kfe::KFERenderManager::Impl::CreateViewport()
 void kfe::KFERenderManager::Impl::HandleInput(float dt)
 {
 	auto& keyboard = m_pWindows->Keyboard;
-	auto& mouse    = m_pWindows->Mouse;
+	auto& mouse = m_pWindows->Mouse;
+
+	if (m_spaceToggleCooldown > 0.0f)
+	{
+		m_spaceToggleCooldown -= dt;
+		if (m_spaceToggleCooldown < 0.0f)
+			m_spaceToggleCooldown = 0.0f;
+	}
+
+	if (keyboard.IsKeyPressed(VK_SPACE) && m_spaceToggleCooldown <= 0.0f)
+	{
+		m_inputPaused = !m_inputPaused;
+		m_spaceToggleCooldown = 0.25f;
+	}
+
+	if (m_inputPaused)
+	{
+		return;
+	}
 
 	float moveDt = dt;
 	const bool isRunning = keyboard.IsKeyPressed(VK_SHIFT);
@@ -746,16 +766,11 @@ void kfe::KFERenderManager::Impl::HandleInput(float dt)
 		m_camera.MoveRight(moveDt);
 	}
 
-	if (keyboard.IsKeyPressed(VK_SPACE))
-	{
-		m_camera.MoveUp(moveDt);
-	}
 	if (keyboard.IsKeyPressed(VK_CONTROL))
 	{
 		m_camera.MoveDown(moveDt);
 	}
 
-	// Mouse look
 	int dx = 0;
 	int dy = 0;
 	mouse.GetMouseDelta(dx, dy);
@@ -764,16 +779,15 @@ void kfe::KFERenderManager::Impl::HandleInput(float dt)
 	{
 		const float mouseSensitivity = 0.0025f;
 
-		// Current orientation
-		float yaw		 = m_camera.GetYaw();
-		float pitch		 = m_camera.GetPitch();
+		float yaw = m_camera.GetYaw();
+		float pitch = m_camera.GetPitch();
 		const float roll = m_camera.GetRoll();
 
-		yaw   += static_cast<float>(dx) * mouseSensitivity;
+		yaw += static_cast<float>(dx) * mouseSensitivity;
 		pitch += static_cast<float>(dy) * mouseSensitivity;
 
 		constexpr float pitchLimit = DirectX::XMConvertToRadians(89.0f);
-		if (pitch > pitchLimit) pitch  = pitchLimit;
+		if (pitch > pitchLimit) pitch = pitchLimit;
 		if (pitch < -pitchLimit) pitch = -pitchLimit;
 
 		m_camera.SetEulerAngles(pitch, yaw, roll);
