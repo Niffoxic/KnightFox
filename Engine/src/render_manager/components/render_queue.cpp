@@ -261,6 +261,7 @@ void kfe::KFERenderQueue::Impl::BuildSceneObjects()
 		builder.Fence		 = m_pFence.Get();
 		builder.FenceValue   = m_nCopyFenceValue;
 		builder.ResourceHeap = m_pResourceHeap;
+		builder.SamplerHeap  = m_pSamplerHeap;
 
 		if (!obj->Build(builder))
 		{
@@ -275,7 +276,6 @@ void kfe::KFERenderQueue::Impl::BuildSceneObjects()
 	HRESULT hr = copyQueue->Signal(m_pFence.Get(), m_nCopyFenceValue);
 
 	m_pCopyCommandList->Wait();
-
 	m_sceneObjectToBuild.clear();
 }
 

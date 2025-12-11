@@ -26,6 +26,9 @@ cbuffer CommonCB : register(b0)
     float3   _PaddingFinal;
 };
 
+Texture2D    gDiffuseTexture : register(t0);
+SamplerState gSampler        : register(s0);
+
 struct PSInput
 {
     float4 Position  : SV_POSITION;
@@ -39,10 +42,9 @@ struct PSInput
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float t = gTime;
-    float pulse = 0.5f + 0.5f * sin(t);
-    float3 baseColor = input.Color;
-    float3 finalColor = lerp(baseColor * 0.2f, baseColor, pulse);
+    float4 texColor    = gDiffuseTexture.Sample(gSampler, input.TexCoord);
+    float3 tintedColor = texColor.rgb * input.Color;
+    float3 final       = lerp(tintedColor * 0.2f, tintedColor, 1.f);
 
-    return float4(finalColor, 1.0f);
+    return float4(final, texColor.a);
 }

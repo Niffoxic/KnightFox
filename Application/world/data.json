@@ -1,15 +1,15 @@
 {
-	"45": {
-		"ID": "45",
+	"46": {
+		"ID": "46",
 		"Data": {
 			"Transformation": {
 				"Position": {
-					"x": "5.000000",
-					"y": "5.000000",
-					"z": "0.000000"
+					"x": "9.400000",
+					"y": "7.900000",
+					"z": "9.600000"
 				},
 				"Scale": {
-					"x": "4.000000",
+					"x": "2.340000",
 					"y": "4.000000",
 					"z": "4.000000"
 				},
@@ -22,57 +22,25 @@
 			},
 			"Properties": {
 				"PixelShader": "shaders/cube/pixel.hlsl",
-				"VertexShader": "shaders/cube/vertex.hlsl",
 				"CullMode": "None",
-				"DomainShader": "",
+				"VertexShader": "shaders/cube/vertex.hlsl",
 				"GeometryShader": "",
+				"DomainShader": "",
 				"DrawMode": "Triangle",
 				"HullShader": "",
-				"ComputeShader": ""
+				"ComputeShader": "",
+				"TexturePath": "assets/cloud.jpg"
 			}
 		},
-		"Type": "KEFCubeSceneObject"
-	},
-	"46": {
-		"ID": "46",
-		"Data": {
-			"Transformation": {
-				"Position": {
-					"x": "0.000000",
-					"y": "0.000000",
-					"z": "0.000000"
-				},
-				"Scale": {
-					"x": "1.000000",
-					"y": "1.000000",
-					"z": "1.000000"
-				},
-				"Orientation": {
-					"x": "0.000000",
-					"y": "0.000000",
-					"z": "0.000000",
-					"w": "1.000000"
-				}
-			},
-			"Properties": {
-				"PixelShader": "shaders/cube/pixel.hlsl",
-				"VertexShader": "shaders/cube/vertex.hlsl",
-				"CullMode": "None",
-				"DomainShader": "",
-				"GeometryShader": "",
-				"DrawMode": "Triangle",
-				"HullShader": "",
-				"ComputeShader": ""
-			}
-		},
-		"Type": "KEFCubeSceneObject"
+		"Type": "KEFCubeSceneObject",
+		"Name": "obj1"
 	},
 	"47": {
 		"ID": "47",
 		"Data": {
 			"Transformation": {
 				"Position": {
-					"x": "0.000000",
+					"x": "-0.600000",
 					"y": "0.000000",
 					"z": "0.000000"
 				},
@@ -90,15 +58,53 @@
 			},
 			"Properties": {
 				"PixelShader": "shaders/cube/pixel.hlsl",
-				"VertexShader": "shaders/cube/vertex.hlsl",
 				"CullMode": "None",
-				"DomainShader": "",
+				"VertexShader": "shaders/cube/vertex.hlsl",
 				"GeometryShader": "",
+				"DomainShader": "",
 				"DrawMode": "Triangle",
 				"HullShader": "",
-				"ComputeShader": ""
+				"ComputeShader": "",
+				"TexturePath": "assets/01.png"
 			}
 		},
-		"Type": "KEFCubeSceneObject"
+		"Type": "KEFCubeSceneObject",
+		"Name": "obj2"
+	},
+	"48": {
+		"ID": "48",
+		"Data": {
+			"Transformation": {
+				"Position": {
+					"x": "-0.100000",
+					"y": "3.100000",
+					"z": "0.000000"
+				},
+				"Scale": {
+					"x": "1.890000",
+					"y": "1.000000",
+					"z": "1.000000"
+				},
+				"Orientation": {
+					"x": "0.109884",
+					"y": "0.000000",
+					"z": "0.000000",
+					"w": "0.993944"
+				}
+			},
+			"Properties": {
+				"PixelShader": "shaders/cube/pixel.hlsl",
+				"CullMode": "None",
+				"VertexShader": "shaders/cube/vertex.hlsl",
+				"GeometryShader": "",
+				"DomainShader": "",
+				"DrawMode": "WireFrame",
+				"HullShader": "",
+				"ComputeShader": "",
+				"TexturePath": "assets/02.png"
+			}
+		},
+		"Type": "KEFCubeSceneObject",
+		"Name": "obj3"
 	}
 }

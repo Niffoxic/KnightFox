@@ -9,7 +9,7 @@
  *  -----------------------------------------------------------------------------
  */
 #include "pch.h"
-#include "engine/render_manager/scene/cube_scene.h"
+#include "engine/render_manager/scene/model_scene.h"
 
 #include "engine/render_manager/api/buffer/buffer.h"
 #include "engine/render_manager/api/buffer/vertex_buffer.h"
@@ -21,27 +21,23 @@
 #include "engine/render_manager/api/pso.h"
 #include "engine/render_manager/api/queue/graphics_queue.h"
 #include "engine/render_manager/api/heap/heap_cbv_srv_uav.h"
-#include "engine/render_manager/api/heap/heap_sampler.h"
-#include "engine/render_manager/api/sampler.h"
-#include "engine/render_manager/api/texture/texture_srv.h"
-
-#include "engine/render_manager/assets_library/shader_library.h"
-#include "engine/render_manager/assets_library/texture_library.h"
-
-#include "engine/utils/logger.h"
-#include "engine/utils/helpers.h"
-
-#include "imgui/imgui.h"
-#include "engine/editor/widgets/assets_panel.h"
-#include "engine/system/exception/base_exception.h"
 
 #include <d3d12.h>
 #include <vector>
 #include <cstring>
 
-#pragma region Impl_Definition
+#include "engine/utils/logger.h"
+#include "engine/render_manager/assets_library/shader_library.h"
+#include "engine/utils/helpers.h"
 
-struct CubeVertex
+#include "imgui/imgui.h"
+#include "engine/editor/widgets/assets_panel.h"
+
+#pragma region Vertex_Declaration
+
+ // You can later rename this to something shared (e.g. KFEStandardVertex)
+ // and re-use across cube + model paths. Layout matches your cube.
+struct StaticModelVertex
 {
     DirectX::XMFLOAT3 Position;
     DirectX::XMFLOAT3 Normal;
@@ -51,7 +47,6 @@ struct CubeVertex
     DirectX::XMFLOAT3 Color;
 
 public:
-
     static std::vector<D3D12_INPUT_ELEMENT_DESC> GetInputLayout()
     {
         std::vector<D3D12_INPUT_ELEMENT_DESC> layout;
@@ -79,24 +74,28 @@ public:
 
     static constexpr UINT GetStride() noexcept
     {
-        return sizeof(CubeVertex);
+        return sizeof(StaticModelVertex);
     }
 };
 
-class kfe::KEFCubeSceneObject::Impl
+#pragma endregion
+
+#pragma region Impl_Declaration
+
+class kfe::KFEStaticSceneObject::Impl
 {
 public:
-    Impl(KEFCubeSceneObject* obj, const std::uint32_t multiple = 1)
+    Impl(KFEStaticSceneObject* obj, const std::uint32_t multiple = 1)
         : m_pObject(obj), m_nVertexMultiples(multiple)
     {
     }
+
     ~Impl() = default;
 
     void Update(const KFE_UPDATE_OBJECT_DESC& desc);
     bool Build(_In_ const KFE_BUILD_OBJECT_DESC& desc);
 
     bool Destroy();
-
     void Render(_In_ const KFE_RENDER_OBJECT_DESC& desc);
 
     // Shader path setters
@@ -107,57 +106,59 @@ public:
     void SetDomainShaderPath(const std::string& path) noexcept;
     void SetComputeShaderPath(const std::string& path) noexcept;
 
+    // Model path
+    void        SetModelPath(const std::string& path) noexcept { m_modelPath = path; }
+    const std::string& GetModelPath() const noexcept { return m_modelPath; }
+
     // Shader path getters
-    const std::string& GetVertexShaderPath() const noexcept { return m_vertexShaderPath; }
-    const std::string& GetPixelShaderPath() const noexcept { return m_pixelShaderPath; }
+    const std::string& GetVertexShaderPath()   const noexcept { return m_vertexShaderPath; }
+    const std::string& GetPixelShaderPath()    const noexcept { return m_pixelShaderPath; }
     const std::string& GetGeometryShaderPath() const noexcept { return m_geometryShaderPath; }
-    const std::string& GetHullShaderPath() const noexcept { return m_hullShaderPath; }
-    const std::string& GetDomainShaderPath() const noexcept { return m_domainShaderPath; }
-    const std::string& GetComputeShaderPath() const noexcept { return m_computeShaderPath; }
+    const std::string& GetHullShaderPath()     const noexcept { return m_hullShaderPath; }
+    const std::string& GetDomainShaderPath()   const noexcept { return m_domainShaderPath; }
+    const std::string& GetComputeShaderPath()  const noexcept { return m_computeShaderPath; }
 
     JsonLoader GetJsonData() const                      noexcept;
     void       LoadFromJson(const JsonLoader& loader)   noexcept;
 
     void ImguiView(float deltaTime);
 
+public:
+    // ~ public configurations
+    ECullMode m_cullMode{ ECullMode::None };
+    EDrawMode m_drawMode{ EDrawMode::Triangle };
+    bool      m_bPipelineDirty{ false };
+
 private:
     bool BuildGeometry(_In_ const KFE_BUILD_OBJECT_DESC& desc);
     bool BuildConstantBuffer(_In_ const KFE_BUILD_OBJECT_DESC& desc);
     bool BuildRootSignature(_In_ const KFE_BUILD_OBJECT_DESC& desc);
     bool BuildPipeline(KFEDevice* device);
-    bool BuildSampler(_In_ const KFE_BUILD_OBJECT_DESC& desc);
-    bool BindTextureFromPath(KFEGraphicsCommandList* cmdList);
 
     void UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc);
 
-    std::vector<CubeVertex>    GetVertices() const noexcept;
-    std::vector<std::uint16_t> GetIndices() const noexcept;
-
-    void SetTexture(const std::string& texture)
-    {
-        m_texturePath = texture;
-        m_bTextureDirty = true;
-    }
-
-public:
-    ECullMode m_cullMode      { ECullMode::None };
-    EDrawMode m_drawMode      { EDrawMode::Triangle };
-    bool      m_bPipelineDirty{ false };
-    bool      m_bTextureDirty { true };
+    // helper – for now we generate a unit cube as placeholder
+    std::vector<StaticModelVertex> GetVertices()  const noexcept;
+    std::vector<std::uint16_t>     GetIndices()   const noexcept;
 
 private:
-    KEFCubeSceneObject* m_pObject{ nullptr };
-    float               m_nTimeLived{ 0.0f };
+    // configuration
+    KFEStaticSceneObject* m_pObject{ nullptr };
+    float                 m_nTimeLived{ 0.0f };
 
-    // Shaders
-    std::string m_vertexShaderPath  { "shaders/cube/vertex.hlsl" };
-    std::string m_pixelShaderPath   { "shaders/cube/pixel.hlsl" };
+    // NEW: model path (used by your future model loader)
+    std::string m_modelPath{};
+
+    // Shaders (paths)
+    std::string m_vertexShaderPath{ "shaders/model/vertex.hlsl" };
+    std::string m_pixelShaderPath{ "shaders/model/pixel.hlsl" };
     std::string m_geometryShaderPath{};
-    std::string m_hullShaderPath    {};
-    std::string m_domainShaderPath  {};
-    std::string m_computeShaderPath {};
+    std::string m_hullShaderPath{};
+    std::string m_domainShaderPath{};
+    std::string m_computeShaderPath{};
 
-    std::unique_ptr<KFERootSignature>  m_pRootSignature{ nullptr };
+    // Root sig
+    std::unique_ptr<KFERootSignature> m_pRootSignature{ nullptr };
 
     // Geometry
     std::uint32_t m_nVertexMultiples{};
@@ -174,57 +175,46 @@ private:
     // Pipeline
     std::unique_ptr<KFEPipelineState>  m_pPipeline{ nullptr };
     KFEDevice* m_pDevice{ nullptr };
-
-    // Textures / sampling
-    KFEResourceHeap* m_pResourceHeap{ nullptr };
-    KFESamplerHeap* m_pSamplerHeap{ nullptr };
-
-    std::string      m_texturePath{ "assets/textures/default.png" };
-    KFETextureSRV* m_pTextureSrv{ nullptr };
-
-    std::unique_ptr<KFESampler> m_pSampler{ nullptr };
-
-    std::uint32_t m_srvIndex{ KFE_INVALID_INDEX };
-    std::uint32_t m_samplerIndex{ KFE_INVALID_INDEX };
 };
 
 #pragma endregion
 
-#pragma region CubeScene_Body
+#pragma region KFEStaticSceneObject_Body
 
-kfe::KEFCubeSceneObject::KEFCubeSceneObject()
-    : m_impl(std::make_unique<kfe::KEFCubeSceneObject::Impl>(this))
+kfe::KFEStaticSceneObject::KFEStaticSceneObject()
+    : m_impl(std::make_unique<kfe::KFEStaticSceneObject::Impl>(this))
 {
-    SetTypeName("KEFCubeSceneObject");
+    SetTypeName("KFEStaticSceneObject");
 }
 
-kfe::KEFCubeSceneObject::KEFCubeSceneObject(const std::uint32_t multiple)
-    : m_impl(std::make_unique<kfe::KEFCubeSceneObject::Impl>(this, multiple))
+kfe::KFEStaticSceneObject::KFEStaticSceneObject(const std::uint32_t multiple)
+    : m_impl(std::make_unique<kfe::KFEStaticSceneObject::Impl>(this, multiple))
 {
+    SetTypeName("KFEStaticSceneObject");
 }
 
-kfe::KEFCubeSceneObject::~KEFCubeSceneObject() = default;
+kfe::KFEStaticSceneObject::~KFEStaticSceneObject() = default;
 
-kfe::KEFCubeSceneObject::KEFCubeSceneObject(KEFCubeSceneObject&&) = default;
-kfe::KEFCubeSceneObject& kfe::KEFCubeSceneObject::operator=(KEFCubeSceneObject&&) = default;
+kfe::KFEStaticSceneObject::KFEStaticSceneObject(KFEStaticSceneObject&&) = default;
+kfe::KFEStaticSceneObject& kfe::KFEStaticSceneObject::operator=(KFEStaticSceneObject&&) = default;
 
-std::string kfe::KEFCubeSceneObject::GetName() const noexcept
+std::string kfe::KFEStaticSceneObject::GetName() const noexcept
 {
-    return "KEFCubeSceneObject";
+    return "KFEStaticSceneObject";
 }
 
-std::string kfe::KEFCubeSceneObject::GetDescription() const noexcept
+std::string kfe::KFEStaticSceneObject::GetDescription() const noexcept
 {
-    return "A Cube Object that can be used for rendering debug cube for colliders";
+    return "A static model object (uses shared geometry via model path / loader)";
 }
 
-void kfe::KEFCubeSceneObject::Update(const KFE_UPDATE_OBJECT_DESC& desc)
+void kfe::KFEStaticSceneObject::Update(const KFE_UPDATE_OBJECT_DESC& desc)
 {
     m_impl->Update(desc);
 }
 
 _Use_decl_annotations_
-bool kfe::KEFCubeSceneObject::Build(const KFE_BUILD_OBJECT_DESC& desc)
+bool kfe::KFEStaticSceneObject::Build(const KFE_BUILD_OBJECT_DESC& desc)
 {
     if (m_impl->Build(desc))
     {
@@ -234,19 +224,20 @@ bool kfe::KEFCubeSceneObject::Build(const KFE_BUILD_OBJECT_DESC& desc)
     return false;
 }
 
-bool kfe::KEFCubeSceneObject::Destroy()
+bool kfe::KFEStaticSceneObject::Destroy()
 {
     return m_impl->Destroy();
 }
 
 _Use_decl_annotations_
-void kfe::KEFCubeSceneObject::Render(const KFE_RENDER_OBJECT_DESC& desc)
+void kfe::KFEStaticSceneObject::Render(const KFE_RENDER_OBJECT_DESC& desc)
 {
     m_impl->Render(desc);
 }
 
-void kfe::KEFCubeSceneObject::ImguiView(float deltaTime)
+void kfe::KFEStaticSceneObject::ImguiView(float deltaTime)
 {
+    // --- Object header: Name + Type ---
     if (ImGui::CollapsingHeader("Object", ImGuiTreeNodeFlags_DefaultOpen))
     {
         const std::string typeName = GetTypeName();
@@ -263,158 +254,134 @@ void kfe::KEFCubeSceneObject::ImguiView(float deltaTime)
         }
     }
 
+    // Static-model specific settings (modes, shaders, model path, etc.)
     m_impl->ImguiView(deltaTime);
+
+    // Generic transform at the bottom
     ImguiTransformView(deltaTime);
 }
 
-void kfe::KEFCubeSceneObject::SetCullMode(const ECullMode mode)
+// ~ Draw properties
+
+void kfe::KFEStaticSceneObject::SetCullMode(const ECullMode mode)
 {
     if (!m_impl) return;
     m_impl->m_cullMode = mode;
     m_impl->m_bPipelineDirty = true;
 }
 
-void kfe::KEFCubeSceneObject::SetCullMode(const std::string& mode)
+void kfe::KFEStaticSceneObject::SetCullMode(const std::string& mode)
 {
     if (!m_impl) return;
     m_impl->m_cullMode = FromStringToCull(mode);
     m_impl->m_bPipelineDirty = true;
 }
 
-void kfe::KEFCubeSceneObject::SetDrawMode(const EDrawMode mode)
+void kfe::KFEStaticSceneObject::SetDrawMode(const EDrawMode mode)
 {
     if (!m_impl) return;
     m_impl->m_drawMode = mode;
     m_impl->m_bPipelineDirty = true;
 }
 
-void kfe::KEFCubeSceneObject::SetDrawMode(const std::string& mode)
+void kfe::KFEStaticSceneObject::SetDrawMode(const std::string& mode)
 {
     if (!m_impl) return;
     m_impl->m_drawMode = FromStringToDraw(mode);
     m_impl->m_bPipelineDirty = true;
 }
 
-kfe::ECullMode kfe::KEFCubeSceneObject::GetCullMode() const
+kfe::ECullMode kfe::KFEStaticSceneObject::GetCullMode() const
 {
     return m_impl ? m_impl->m_cullMode : ECullMode::Back;
 }
 
-std::string kfe::KEFCubeSceneObject::GetCullModeString() const
+std::string kfe::KFEStaticSceneObject::GetCullModeString() const
 {
     return m_impl ? ToString(m_impl->m_cullMode) : "Back";
 }
 
-kfe::EDrawMode kfe::KEFCubeSceneObject::GetDrawMode() const
+kfe::EDrawMode kfe::KFEStaticSceneObject::GetDrawMode() const
 {
     return m_impl ? m_impl->m_drawMode : EDrawMode::Triangle;
 }
 
-std::string kfe::KEFCubeSceneObject::GetDrawModeString() const
+std::string kfe::KFEStaticSceneObject::GetDrawModeString() const
 {
     return m_impl ? ToString(m_impl->m_drawMode) : "Triangle";
 }
 
-void kfe::IKFESceneObject::ImguiTransformView(float)
-{
-    if (!ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        return;
-    }
+// ~ Shader properties
 
-    DirectX::XMFLOAT3 pos = GetPosition();
-    if (ImGui::DragFloat3("Position", &pos.x, 0.1f))
-    {
-        SetPosition(pos);
-    }
-
-    DirectX::XMFLOAT4 ori = GetOrientation();
-    float q[4] = { ori.x, ori.y, ori.z, ori.w };
-
-    if (ImGui::DragFloat4("Rotation (quat)", q, 0.01f))
-    {
-        DirectX::XMVECTOR qv = DirectX::XMVectorSet(q[0], q[1], q[2], q[3]);
-        qv = DirectX::XMQuaternionNormalize(qv);
-        DirectX::XMStoreFloat4(&ori, qv);
-        SetOrientation(ori);
-    }
-
-    DirectX::XMFLOAT3 scl = GetScale();
-    if (ImGui::DragFloat3("Scale", &scl.x, 0.01f))
-    {
-        SetScale(scl);
-    }
-
-    ImGui::TextDisabled("Tip: Rotation is edited as a normalized quaternion.");
-}
-
-void kfe::KEFCubeSceneObject::SetVertexShader(const std::string& path)
+void kfe::KFEStaticSceneObject::SetVertexShader(const std::string& path)
 {
     if (!m_impl) return;
     m_impl->SetVertexShaderPath(path);
 }
 
-std::string kfe::KEFCubeSceneObject::VertexShader() const
+std::string kfe::KFEStaticSceneObject::VertexShader() const
 {
     return m_impl ? m_impl->GetVertexShaderPath() : std::string{};
 }
 
-void kfe::KEFCubeSceneObject::SetPixelShader(const std::string& path)
+void kfe::KFEStaticSceneObject::SetPixelShader(const std::string& path)
 {
     if (!m_impl) return;
     m_impl->SetPixelShaderPath(path);
 }
 
-std::string kfe::KEFCubeSceneObject::PixelShader() const
+std::string kfe::KFEStaticSceneObject::PixelShader() const
 {
     return m_impl ? m_impl->GetPixelShaderPath() : std::string{};
 }
 
-void kfe::KEFCubeSceneObject::SetGeometryShader(const std::string& path)
+void kfe::KFEStaticSceneObject::SetGeometryShader(const std::string& path)
 {
     if (!m_impl) return;
     m_impl->SetGeometryShaderPath(path);
 }
 
-std::string kfe::KEFCubeSceneObject::GeometryShader() const
+std::string kfe::KFEStaticSceneObject::GeometryShader() const
 {
     return m_impl ? m_impl->GetGeometryShaderPath() : std::string{};
 }
 
-void kfe::KEFCubeSceneObject::SetHullShader(const std::string& path)
+void kfe::KFEStaticSceneObject::SetHullShader(const std::string& path)
 {
     if (!m_impl) return;
     m_impl->SetHullShaderPath(path);
 }
 
-std::string kfe::KEFCubeSceneObject::HullShader() const
+std::string kfe::KFEStaticSceneObject::HullShader() const
 {
     return m_impl ? m_impl->GetHullShaderPath() : std::string{};
 }
 
-void kfe::KEFCubeSceneObject::SetDomainShader(const std::string& path)
+void kfe::KFEStaticSceneObject::SetDomainShader(const std::string& path)
 {
     if (!m_impl) return;
     m_impl->SetDomainShaderPath(path);
 }
 
-std::string kfe::KEFCubeSceneObject::DomainShader() const
+std::string kfe::KFEStaticSceneObject::DomainShader() const
 {
     return m_impl ? m_impl->GetDomainShaderPath() : std::string{};
 }
 
-void kfe::KEFCubeSceneObject::SetComputeShader(const std::string& path)
+void kfe::KFEStaticSceneObject::SetComputeShader(const std::string& path)
 {
     if (!m_impl) return;
     m_impl->SetComputeShaderPath(path);
 }
 
-std::string kfe::KEFCubeSceneObject::ComputeShader() const
+std::string kfe::KFEStaticSceneObject::ComputeShader() const
 {
     return m_impl ? m_impl->GetComputeShaderPath() : std::string{};
 }
 
-JsonLoader kfe::KEFCubeSceneObject::GetJsonData() const
+// ~ JSON
+
+JsonLoader kfe::KFEStaticSceneObject::GetJsonData() const
 {
     JsonLoader root{};
     root["Transformation"] = GetTransformJsonData();
@@ -422,7 +389,7 @@ JsonLoader kfe::KEFCubeSceneObject::GetJsonData() const
     return root;
 }
 
-void kfe::KEFCubeSceneObject::LoadFromJson(const JsonLoader& loader)
+void kfe::KFEStaticSceneObject::LoadFromJson(const JsonLoader& loader)
 {
     if (loader.Contains("Transformation"))
     {
@@ -436,48 +403,42 @@ void kfe::KEFCubeSceneObject::LoadFromJson(const JsonLoader& loader)
 
 #pragma endregion
 
-#pragma region Impl_body
+#pragma region Impl_Body
 
-void kfe::KEFCubeSceneObject::Impl::Update(const KFE_UPDATE_OBJECT_DESC& desc)
+void kfe::KFEStaticSceneObject::Impl::Update(const KFE_UPDATE_OBJECT_DESC& desc)
 {
     m_nTimeLived += desc.deltaTime;
     UpdateConstantBuffer(desc);
 }
 
-bool kfe::KEFCubeSceneObject::Impl::Build(_In_ const KFE_BUILD_OBJECT_DESC& desc)
+bool kfe::KFEStaticSceneObject::Impl::Build(_In_ const KFE_BUILD_OBJECT_DESC& desc)
 {
-    m_pDevice       = desc.Device;
-    m_pResourceHeap = desc.ResourceHeap;
-    m_pSamplerHeap  = desc.SamplerHeap;
+    m_pDevice = desc.Device;
 
-    BindTextureFromPath(desc.CommandList);
-    if (!BuildSampler(desc)) return false;
-    if (!BuildGeometry(desc)) return false;
-    if (!BuildRootSignature(desc)) return false;
-    if (!BuildPipeline(desc.Device)) return false;
-    if (!BuildConstantBuffer(desc)) return false;
+    if (!BuildGeometry(desc))         return false;
+    if (!BuildRootSignature(desc))    return false;
+    if (!BuildPipeline(desc.Device))  return false;
+    if (!BuildConstantBuffer(desc))   return false;
 
-    LOG_SUCCESS("Cube Built!");
+    LOG_SUCCESS("Static Model Built!");
     return true;
 }
 
-bool kfe::KEFCubeSceneObject::Impl::Destroy()
+bool kfe::KFEStaticSceneObject::Impl::Destroy()
 {
+    // Geometry
     if (m_pVertexView)  m_pVertexView->Destroy();
     if (m_pIndexView)   m_pIndexView->Destroy();
     if (m_pVBStaging)   m_pVBStaging->Destroy();
     if (m_pIBStaging)   m_pIBStaging->Destroy();
 
-    if (m_pCBV)      m_pCBV->Destroy();
-    if (m_pCBBuffer) m_pCBBuffer->Destroy();
+    // CB + view
+    if (m_pCBV)         m_pCBV->Destroy();
+    if (m_pCBBuffer)    m_pCBBuffer->Destroy();
 
+    // Pipeline + root sig
     if (m_pPipeline)      m_pPipeline->Destroy();
     if (m_pRootSignature) m_pRootSignature->Destroy();
-
-    if (m_pSampler)
-    {
-        m_pSampler->Destroy();
-    }
 
     m_pVertexView.reset();
     m_pIndexView.reset();
@@ -487,36 +448,29 @@ bool kfe::KEFCubeSceneObject::Impl::Destroy()
     m_pCBBuffer.reset();
     m_pPipeline.reset();
     m_pRootSignature.reset();
-    m_pSampler.reset();
-
-    m_pTextureSrv = nullptr;
-    m_pResourceHeap = nullptr;
-    m_pSamplerHeap = nullptr;
-    m_pDevice = nullptr;
-
-    m_srvIndex = KFE_INVALID_INDEX;
-    m_samplerIndex = KFE_INVALID_INDEX;
 
     return true;
 }
 
-void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& desc)
+void kfe::KFEStaticSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& desc)
 {
-    if (m_bTextureDirty)
+    if (!m_pVertexView || !m_pIndexView)
     {
-        BindTextureFromPath(desc.CommandList);
+        // No geometry – nothing to draw
+        return;
     }
+
     if (m_bPipelineDirty)
     {
         if (!m_pDevice)
         {
-            LOG_ERROR("KEFCubeSceneObject::Impl::Render: Cannot rebuild pipeline, device is null.");
+            LOG_ERROR("KFEStaticSceneObject::Impl::Render: Device is null, cannot rebuild pipeline.");
             return;
         }
 
         if (!BuildPipeline(m_pDevice))
         {
-            LOG_ERROR("KEFCubeSceneObject::Impl::Render: Failed to rebuild pipeline.");
+            LOG_ERROR("KFEStaticSceneObject::Impl::Render: Failed to rebuild pipeline.");
             return;
         }
     }
@@ -527,41 +481,6 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
 
     cmdList->SetPipelineState(m_pPipeline->GetNative());
     cmdList->SetGraphicsRootSignature(m_pPipeline->GetRootSignature());
-
-    if (m_pResourceHeap)
-    {
-        if (m_pSamplerHeap)
-        {
-            ID3D12DescriptorHeap* heaps[2] =
-            {
-                m_pResourceHeap->GetNative(),
-                m_pSamplerHeap->GetNative()
-            };
-            cmdList->SetDescriptorHeaps(2u, heaps);
-        }
-        else
-        {
-            ID3D12DescriptorHeap* heaps[1] =
-            {
-                m_pResourceHeap->GetNative()
-            };
-            cmdList->SetDescriptorHeaps(1u, heaps);
-        }
-
-        if (m_pTextureSrv) 
-        {
-            m_srvIndex = m_pTextureSrv->GetDescriptorIndex();
-        }
-        if (m_srvIndex != KFE_INVALID_INDEX && m_pResourceHeap->IsValidIndex(m_srvIndex))
-        {
-            D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = m_pResourceHeap->GetGPUHandle(m_srvIndex);
-            cmdList->SetGraphicsRootDescriptorTable(1u, srvHandle);
-        }
-        else
-        {
-            LOG_WARNING("KEFCubeSceneObject::Impl::Render: SRV index invalid, skipping bind.");
-        }
-    }
 
     auto addr = static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(m_pCBV->GetGPUVirtualAddress());
     cmdList->SetGraphicsRootConstantBufferView(0u, addr);
@@ -578,6 +497,7 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
     case EDrawMode::WireFrame:
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         break;
+
     case EDrawMode::Point:
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
         break;
@@ -589,29 +509,30 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
 }
 
 _Use_decl_annotations_
-bool kfe::KEFCubeSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& desc)
+bool kfe::KFEStaticSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& desc)
 {
-    std::vector<CubeVertex>    vertices = GetVertices();
-    std::vector<std::uint16_t> indices = GetIndices();
+    std::vector<StaticModelVertex> vertices = GetVertices();
+    std::vector<std::uint16_t>     indices = GetIndices();
 
-    const std::uint32_t vbSize = static_cast<std::uint32_t>(vertices.size() * sizeof(CubeVertex));
+    const std::uint32_t vbSize = static_cast<std::uint32_t>(vertices.size() * sizeof(StaticModelVertex));
     const std::uint32_t ibSize = static_cast<std::uint32_t>(indices.size() * sizeof(std::uint16_t));
 
+    // Vertex staging
     m_pVBStaging = std::make_unique<KFEStagingBuffer>();
 
-    KFE_STAGING_BUFFER_CREATE_DESC vertexBuffer{};
-    vertexBuffer.Device = desc.Device;
-    vertexBuffer.SizeInBytes = vbSize;
+    KFE_STAGING_BUFFER_CREATE_DESC vbDesc{};
+    vbDesc.Device = desc.Device;
+    vbDesc.SizeInBytes = vbSize;
 
-    if (!m_pVBStaging->Initialize(vertexBuffer))
+    if (!m_pVBStaging->Initialize(vbDesc))
     {
-        LOG_ERROR("Failed to initialize Vertex Stagging Buffer!");
+        LOG_ERROR("StaticModel: failed to init VB staging buffer");
         return false;
     }
 
     if (!m_pVBStaging->WriteBytes(vertices.data(), vbSize, 0u))
     {
-        LOG_ERROR("Failed to Write on Vertex Stagging Buffer!");
+        LOG_ERROR("StaticModel: failed to write VB staging");
         return false;
     }
 
@@ -619,25 +540,26 @@ bool kfe::KEFCubeSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
         desc.CommandList->GetNative(),
         vbSize, 0u, 0u))
     {
-        LOG_ERROR("Failed to Record: Vertex Stagging Buffer!");
+        LOG_ERROR("StaticModel: failed to record VB upload");
         return false;
     }
 
+    // Index staging
     m_pIBStaging = std::make_unique<KFEStagingBuffer>();
 
-    KFE_STAGING_BUFFER_CREATE_DESC indexBuffer{};
-    indexBuffer.Device = desc.Device;
-    indexBuffer.SizeInBytes = ibSize;
+    KFE_STAGING_BUFFER_CREATE_DESC ibDesc{};
+    ibDesc.Device = desc.Device;
+    ibDesc.SizeInBytes = ibSize;
 
-    if (!m_pIBStaging->Initialize(indexBuffer))
+    if (!m_pIBStaging->Initialize(ibDesc))
     {
-        LOG_ERROR("Failed to initialize: index Stagging Buffer!");
+        LOG_ERROR("StaticModel: failed to init IB staging buffer");
         return false;
     }
 
     if (!m_pIBStaging->WriteBytes(indices.data(), ibSize, 0u))
     {
-        LOG_ERROR("Failed to write: index Stagging Buffer!");
+        LOG_ERROR("StaticModel: failed to write IB staging");
         return false;
     }
 
@@ -645,22 +567,23 @@ bool kfe::KEFCubeSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
         desc.CommandList->GetNative(),
         ibSize, 0u, 0u))
     {
-        LOG_ERROR("Failed to Record: Index Stagging Buffer!");
+        LOG_ERROR("StaticModel: failed to record IB upload");
         return false;
     }
 
+    // Commit data
     KFEBuffer* vbDefault = m_pVBStaging->GetDefaultBuffer();
     KFEBuffer* ibDefault = m_pIBStaging->GetDefaultBuffer();
 
     if (!vbDefault || !vbDefault->GetNative())
     {
-        LOG_ERROR("InitializeTestTriangle: VB default buffer is null.");
+        LOG_ERROR("StaticModel: VB default buffer is null.");
         return false;
     }
 
     if (!ibDefault || !ibDefault->GetNative())
     {
-        LOG_ERROR("InitializeTestTriangle: IB default buffer is null.");
+        LOG_ERROR("StaticModel: IB default buffer is null.");
         return false;
     }
 
@@ -682,32 +605,34 @@ bool kfe::KEFCubeSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
     auto* cmdList = desc.CommandList->GetNative();
     cmdList->ResourceBarrier(2u, barriers);
 
+    // Vertex view
     m_pVertexView = std::make_unique<KFEVertexBuffer>();
 
-    KFE_VERTEX_BUFFER_CREATE_DESC vertexView{};
-    vertexView.DebugName = "Cube";
-    vertexView.Device = desc.Device;
-    vertexView.OffsetInBytes = 0u;
-    vertexView.ResourceBuffer = vbDefault;
-    vertexView.StrideInBytes = CubeVertex::GetStride();
+    KFE_VERTEX_BUFFER_CREATE_DESC vbView{};
+    vbView.DebugName = "StaticModel";
+    vbView.Device = desc.Device;
+    vbView.OffsetInBytes = 0u;
+    vbView.ResourceBuffer = vbDefault;
+    vbView.StrideInBytes = StaticModelVertex::GetStride();
 
-    if (!m_pVertexView->Initialize(vertexView))
+    if (!m_pVertexView->Initialize(vbView))
     {
-        LOG_ERROR("Failed to Build Vertex View!");
+        LOG_ERROR("StaticModel: failed to build vertex view");
         return false;
     }
 
+    // Index view
     m_pIndexView = std::make_unique<KFEIndexBuffer>();
 
-    KFE_INDEX_BUFFER_CREATE_DESC indexView{};
-    indexView.Device = desc.Device;
-    indexView.Format = DXGI_FORMAT_R16_UINT;
-    indexView.OffsetInBytes = 0u;
-    indexView.ResourceBuffer = ibDefault;
+    KFE_INDEX_BUFFER_CREATE_DESC ibView{};
+    ibView.Device = desc.Device;
+    ibView.Format = DXGI_FORMAT_R16_UINT;
+    ibView.OffsetInBytes = 0u;
+    ibView.ResourceBuffer = ibDefault;
 
-    if (!m_pIndexView->Initialize(indexView))
+    if (!m_pIndexView->Initialize(ibView))
     {
-        LOG_ERROR("Failed to Build Index View!");
+        LOG_ERROR("StaticModel: failed to build index view");
         return false;
     }
 
@@ -715,7 +640,7 @@ bool kfe::KEFCubeSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
 }
 
 _Use_decl_annotations_
-bool kfe::KEFCubeSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_DESC& desc)
+bool kfe::KFEStaticSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_DESC& desc)
 {
     m_pCBBuffer = std::make_unique<KFEBuffer>();
 
@@ -731,7 +656,7 @@ bool kfe::KEFCubeSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_D
 
     if (!m_pCBBuffer->Initialize(buffer))
     {
-        LOG_ERROR("Failed to build constant buffer!");
+        LOG_ERROR("StaticModel: failed to build constant buffer");
         return false;
     }
 
@@ -746,115 +671,85 @@ bool kfe::KEFCubeSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_D
 
     if (!m_pCBV->Initialize(view))
     {
-        LOG_ERROR("Failed to build constant buffer View!");
+        LOG_ERROR("StaticModel: failed to build CBV");
         return false;
     }
 
-    LOG_SUCCESS("Cube Constant Buffer Created!");
-
+    LOG_SUCCESS("StaticModel Constant Buffer Created!");
     return true;
 }
 
 _Use_decl_annotations_
-bool kfe::KEFCubeSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DESC& desc)
+bool kfe::KFEStaticSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DESC& desc)
 {
     m_pRootSignature = std::make_unique<KFERootSignature>();
 
-    D3D12_DESCRIPTOR_RANGE srvRange{};
-    srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    srvRange.NumDescriptors = 1u;
-    srvRange.BaseShaderRegister = 0u;
-    srvRange.RegisterSpace = 0u;
-    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    D3D12_ROOT_PARAMETER params[2]{};
-
-    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    params[0].Descriptor.ShaderRegister = 0u;
-    params[0].Descriptor.RegisterSpace = 0u;
-
-    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    params[1].DescriptorTable.NumDescriptorRanges = 1u;
-    params[1].DescriptorTable.pDescriptorRanges = &srvRange;
-
-    D3D12_STATIC_SAMPLER_DESC staticSampler{};
-    staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.MipLODBias = 0.0f;
-    staticSampler.MaxAnisotropy = 1;
-    staticSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    staticSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-    staticSampler.MinLOD = 0.0f;
-    staticSampler.MaxLOD = D3D12_FLOAT32_MAX;
-    staticSampler.ShaderRegister = 0;   // s0
-    staticSampler.RegisterSpace = 0;
-    staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    D3D12_ROOT_PARAMETER param[1]{};
+    param[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    param[0].Descriptor.ShaderRegister = 0u; // b0
+    param[0].Descriptor.RegisterSpace = 0u;
+    param[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
     KFE_RG_CREATE_DESC root{};
     root.Device = desc.Device;
     root.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-    root.NumRootParameters = 2u;
-    root.RootParameters = params;
-    root.NumStaticSamplers = 1u;
-    root.StaticSamplers = &staticSampler;
+    root.NumRootParameters = 1u;
+    root.NumStaticSamplers = 0u;
+    root.RootParameters = param;
+    root.StaticSamplers = nullptr;
 
     if (!m_pRootSignature->Initialize(root))
     {
-        LOG_ERROR("Failed to Create Root Signature!");
+        LOG_ERROR("StaticModel: failed to create root signature");
         return false;
     }
 
-    m_pRootSignature->SetDebugName(L"Cube Scene Signature");
-    LOG_SUCCESS("Cube Root Signature Created!");
+    m_pRootSignature->SetDebugName(L"Static Model Root Signature");
+    LOG_SUCCESS("StaticModel Root Signature Created!");
     return true;
 }
 
-bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
+_Use_decl_annotations_
+bool kfe::KFEStaticSceneObject::Impl::BuildPipeline(KFEDevice* device)
 {
     if (!device)
     {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildPipeline: Device is null.");
+        LOG_ERROR("StaticModel::BuildPipeline: Device is null.");
         return false;
     }
 
     if (!kfe_helpers::IsFile(m_vertexShaderPath))
     {
-        LOG_ERROR("Vertex Shader Path: '{}', Does not exist!", m_vertexShaderPath);
+        LOG_ERROR("StaticModel VS not found: {}", m_vertexShaderPath);
         return false;
     }
 
     if (!kfe_helpers::IsFile(m_pixelShaderPath))
     {
-        LOG_ERROR("Pixel Shader Path: '{}', Does Not Exist!", m_pixelShaderPath);
+        LOG_ERROR("StaticModel PS not found: {}", m_pixelShaderPath);
         return false;
     }
 
     if (!m_geometryShaderPath.empty() && !kfe_helpers::IsFile(m_geometryShaderPath))
     {
-        LOG_ERROR("Geometry Shader Path: '{}', Does Not Exist!", m_geometryShaderPath);
+        LOG_ERROR("StaticModel GS not found: {}", m_geometryShaderPath);
         m_geometryShaderPath.clear();
     }
 
     if (!m_hullShaderPath.empty() && !kfe_helpers::IsFile(m_hullShaderPath))
     {
-        LOG_ERROR("Hull Shader Path: '{}', Does Not Exist!", m_hullShaderPath);
+        LOG_ERROR("StaticModel HS not found: {}", m_hullShaderPath);
         m_hullShaderPath.clear();
     }
 
     if (!m_domainShaderPath.empty() && !kfe_helpers::IsFile(m_domainShaderPath))
     {
-        LOG_ERROR("Domain Shader Path: '{}', Does Not Exist!", m_domainShaderPath);
+        LOG_ERROR("StaticModel DS not found: {}", m_domainShaderPath);
         m_domainShaderPath.clear();
     }
 
-    ID3DBlob* vertexBlob = shaders::GetOrCompile(
-        m_vertexShaderPath, "main", "vs_5_0");
-    ID3DBlob* pixelBlob = shaders::GetOrCompile(
-        m_pixelShaderPath, "main", "ps_5_0");
+    ID3DBlob* vertexBlob = shaders::GetOrCompile(m_vertexShaderPath, "main", "vs_5_0");
+    ID3DBlob* pixelBlob = shaders::GetOrCompile(m_pixelShaderPath, "main", "ps_5_0");
 
     ID3DBlob* geometryBlob = nullptr;
     ID3DBlob* hullBlob = nullptr;
@@ -862,45 +757,42 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
 
     if (!vertexBlob)
     {
-        LOG_ERROR("Failed to load Vertex Shader: {}", m_vertexShaderPath);
+        LOG_ERROR("StaticModel: failed to load VS {}", m_vertexShaderPath);
         return false;
     }
 
     if (!pixelBlob)
     {
-        LOG_ERROR("Failed to load Pixel Shader: {}", m_pixelShaderPath);
+        LOG_ERROR("StaticModel: failed to load PS {}", m_pixelShaderPath);
         return false;
     }
 
     if (!m_geometryShaderPath.empty())
     {
-        geometryBlob = shaders::GetOrCompile(
-            m_geometryShaderPath, "main", "gs_5_0");
+        geometryBlob = shaders::GetOrCompile(m_geometryShaderPath, "main", "gs_5_0");
         if (!geometryBlob)
         {
-            LOG_ERROR("Failed to load Geometry Shader: {}", m_geometryShaderPath);
+            LOG_ERROR("StaticModel: failed to load GS {}", m_geometryShaderPath);
             m_geometryShaderPath.clear();
         }
     }
 
     if (!m_hullShaderPath.empty())
     {
-        hullBlob = shaders::GetOrCompile(
-            m_hullShaderPath, "main", "hs_5_0");
+        hullBlob = shaders::GetOrCompile(m_hullShaderPath, "main", "hs_5_0");
         if (!hullBlob)
         {
-            LOG_ERROR("Failed to load Hull Shader: {}", m_hullShaderPath);
+            LOG_ERROR("StaticModel: failed to load HS {}", m_hullShaderPath);
             m_hullShaderPath.clear();
         }
     }
 
     if (!m_domainShaderPath.empty())
     {
-        domainBlob = shaders::GetOrCompile(
-            m_domainShaderPath, "main", "ds_5_0");
+        domainBlob = shaders::GetOrCompile(m_domainShaderPath, "main", "ds_5_0");
         if (!domainBlob)
         {
-            LOG_ERROR("Failed to load Domain Shader: {}", m_domainShaderPath);
+            LOG_ERROR("StaticModel: failed to load DS {}", m_domainShaderPath);
             m_domainShaderPath.clear();
         }
     }
@@ -914,41 +806,41 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
         m_pPipeline = std::make_unique<KFEPipelineState>();
     }
 
-    auto layout = CubeVertex::GetInputLayout();
+    auto layout = StaticModelVertex::GetInputLayout();
     m_pPipeline->SetInputLayout(layout.data(), layout.size());
 
-    D3D12_SHADER_BYTECODE vertexCode{};
-    vertexCode.BytecodeLength = vertexBlob->GetBufferSize();
-    vertexCode.pShaderBytecode = vertexBlob->GetBufferPointer();
-    m_pPipeline->SetVS(vertexCode);
+    D3D12_SHADER_BYTECODE vs{};
+    vs.BytecodeLength = vertexBlob->GetBufferSize();
+    vs.pShaderBytecode = vertexBlob->GetBufferPointer();
+    m_pPipeline->SetVS(vs);
 
-    D3D12_SHADER_BYTECODE pixelCode{};
-    pixelCode.BytecodeLength = pixelBlob->GetBufferSize();
-    pixelCode.pShaderBytecode = pixelBlob->GetBufferPointer();
-    m_pPipeline->SetPS(pixelCode);
+    D3D12_SHADER_BYTECODE ps{};
+    ps.BytecodeLength = pixelBlob->GetBufferSize();
+    ps.pShaderBytecode = pixelBlob->GetBufferPointer();
+    m_pPipeline->SetPS(ps);
 
     if (geometryBlob)
     {
-        D3D12_SHADER_BYTECODE code{};
-        code.BytecodeLength = geometryBlob->GetBufferSize();
-        code.pShaderBytecode = geometryBlob->GetBufferPointer();
-        m_pPipeline->SetGS(code);
+        D3D12_SHADER_BYTECODE gs{};
+        gs.BytecodeLength = geometryBlob->GetBufferSize();
+        gs.pShaderBytecode = geometryBlob->GetBufferPointer();
+        m_pPipeline->SetGS(gs);
     }
 
     if (hullBlob)
     {
-        D3D12_SHADER_BYTECODE code{};
-        code.BytecodeLength = hullBlob->GetBufferSize();
-        code.pShaderBytecode = hullBlob->GetBufferPointer();
-        m_pPipeline->SetHS(code);
+        D3D12_SHADER_BYTECODE hs{};
+        hs.BytecodeLength = hullBlob->GetBufferSize();
+        hs.pShaderBytecode = hullBlob->GetBufferPointer();
+        m_pPipeline->SetHS(hs);
     }
 
     if (domainBlob)
     {
-        D3D12_SHADER_BYTECODE code{};
-        code.BytecodeLength = domainBlob->GetBufferSize();
-        code.pShaderBytecode = domainBlob->GetBufferPointer();
-        m_pPipeline->SetDS(code);
+        D3D12_SHADER_BYTECODE ds{};
+        ds.BytecodeLength = domainBlob->GetBufferSize();
+        ds.pShaderBytecode = domainBlob->GetBufferPointer();
+        m_pPipeline->SetDS(ds);
     }
 
     auto* rs = static_cast<ID3D12RootSignature*>(m_pRootSignature->GetNative());
@@ -992,104 +884,16 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
 
     if (!m_pPipeline->Build(device))
     {
-        LOG_ERROR("Failed to build Cube Scene Pipeline!");
+        LOG_ERROR("StaticModel: failed to build pipeline");
         return false;
     }
 
     m_bPipelineDirty = false;
-
-    LOG_SUCCESS("Cube Pipeline Created!");
+    LOG_SUCCESS("StaticModel Pipeline Created!");
     return true;
 }
 
-bool kfe::KEFCubeSceneObject::Impl::BuildSampler(const KFE_BUILD_OBJECT_DESC& desc)
-{
-    if (!desc.Device)
-    {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Device is null. Skipping sampler creation.");
-        return true;
-    }
-
-    if (!desc.SamplerHeap)
-    {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Sampler is null. Skipping sampler creation.");
-        return true;
-    }
-
-    m_pSampler = std::make_unique<KFESampler>();
-
-    KFE_SAMPLER_CREATE_DESC sdesc{};
-    sdesc.Device = desc.Device;
-    sdesc.Heap = m_pSamplerHeap;
-
-    sdesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    sdesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sdesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sdesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sdesc.MipLODBias = 0.0f;
-    sdesc.MaxAnisotropy = 1u;
-    sdesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    sdesc.BorderColor[0] = 0.0f;
-    sdesc.BorderColor[1] = 0.0f;
-    sdesc.BorderColor[2] = 0.0f;
-    sdesc.BorderColor[3] = 0.0f;
-    sdesc.MinLOD = 0.0f;
-    sdesc.MaxLOD = D3D12_FLOAT32_MAX;
-
-    sdesc.DescriptorIndex = KFE_INVALID_INDEX;
-
-    if (!m_pSampler->Initialize(sdesc))
-    {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Failed to initialize sampler.");
-        m_pSampler.reset();
-        m_samplerIndex = KFE_INVALID_INDEX;
-        return false;
-    }
-
-    m_samplerIndex = m_pSampler->GetDescriptorIndex();
-
-    if (m_samplerIndex == KFE_INVALID_INDEX) THROW_MSG("SAMPLERRR");
-
-    LOG_SUCCESS("Cube Sampler Created. Index = {}", m_samplerIndex);
-
-    return true;
-}
-
-bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* cmdList)
-{
-    if (m_texturePath.empty())
-    {
-        m_pTextureSrv = nullptr;
-        m_srvIndex = KFE_INVALID_INDEX;
-        LOG_ERROR("TEXTURE PATH IS EMPTY!");
-        return false;
-    }
-
-    if (!kfe_helpers::IsFile(m_texturePath))
-    {
-        LOG_ERROR("Texture Path: {}, Does not exits!");
-        return false;
-    }
-
-    auto& pool = KFEImagePool::Instance();
-
-    KFETextureSRV* srv = pool.GetImageSrv(m_texturePath, cmdList);
-    if (!srv)
-    {
-        LOG_ERROR("KFailed to get SRV for '{}'", m_texturePath);
-        m_pTextureSrv = nullptr;
-        m_srvIndex = KFE_INVALID_INDEX;
-        return false;
-    }
-
-    m_pTextureSrv = srv;
-    m_srvIndex = srv->GetDescriptorIndex();
-    m_bTextureDirty = false;
-    LOG_SUCCESS("Cube bound texture '{}' at SRV index {}", m_texturePath, m_srvIndex);
-    return true;
-}
-
-void kfe::KEFCubeSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc)
+void kfe::KFEStaticSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc)
 {
     auto* cv = static_cast<KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC*>(m_pCBV->GetMappedData());
     if (!cv) return;
@@ -1117,11 +921,11 @@ void kfe::KEFCubeSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT
     cv->_PaddingFinal[2] = 0.f;
 }
 
-std::vector<CubeVertex> kfe::KEFCubeSceneObject::Impl::GetVertices() const noexcept
+std::vector<StaticModelVertex> kfe::KFEStaticSceneObject::Impl::GetVertices() const noexcept
 {
     using namespace DirectX;
 
-    std::vector<CubeVertex> v;
+    std::vector<StaticModelVertex> v;
 
     const XMFLOAT3 normals[6] =
     {
@@ -1183,79 +987,73 @@ std::vector<CubeVertex> kfe::KEFCubeSceneObject::Impl::GetVertices() const noexc
             v.push_back({ p[d], normals[face], tangents[face], bitangents[face], uvBR, col });
         };
 
-    addFace(5, 4, 6, 7, 0); // Front
-    addFace(0, 1, 3, 2, 1); // Back
-    addFace(1, 5, 2, 6, 2); // Top
-    addFace(0, 4, 3, 7, 3); // Bottom
-    addFace(6, 5, 2, 1, 4); // Right
-    addFace(4, 5, 0, 1, 5); // Left
+    // Front (4,5,7,6)
+    addFace(5, 4, 6, 7, 0);
+    // Back (1,0,2,3)
+    addFace(0, 1, 3, 2, 1);
+    // Top (5,1,6,2)
+    addFace(1, 5, 2, 6, 2);
+    // Bottom (4,0,7,3)
+    addFace(0, 4, 3, 7, 3);
+    // Right (6,5,2,1)
+    addFace(6, 5, 2, 1, 4);
+    // Left (4,5,0,1)
+    addFace(4, 5, 0, 1, 5);
 
     return v;
 }
 
-std::vector<std::uint16_t> kfe::KEFCubeSceneObject::Impl::GetIndices() const noexcept
+std::vector<std::uint16_t> kfe::KFEStaticSceneObject::Impl::GetIndices() const noexcept
 {
-    std::vector<uint16_t> i(36);
-    for (uint16_t n = 0; n < 36; ++n)
+    std::vector<std::uint16_t> i(36);
+    for (std::uint16_t n = 0; n < 36; ++n)
         i[n] = n;
     return i;
 }
 
-void kfe::KEFCubeSceneObject::Impl::SetVertexShaderPath(const std::string& path) noexcept
+void kfe::KFEStaticSceneObject::Impl::SetVertexShaderPath(const std::string& path) noexcept
 {
-    if (m_vertexShaderPath == path)
-        return;
-
+    if (m_vertexShaderPath == path) return;
     m_vertexShaderPath = path;
     m_bPipelineDirty = true;
 }
 
-void kfe::KEFCubeSceneObject::Impl::SetPixelShaderPath(const std::string& path) noexcept
+void kfe::KFEStaticSceneObject::Impl::SetPixelShaderPath(const std::string& path) noexcept
 {
-    if (m_pixelShaderPath == path)
-        return;
-
+    if (m_pixelShaderPath == path) return;
     m_pixelShaderPath = path;
     m_bPipelineDirty = true;
 }
 
-void kfe::KEFCubeSceneObject::Impl::SetGeometryShaderPath(const std::string& path) noexcept
+void kfe::KFEStaticSceneObject::Impl::SetGeometryShaderPath(const std::string& path) noexcept
 {
-    if (m_geometryShaderPath == path)
-        return;
-
+    if (m_geometryShaderPath == path) return;
     m_geometryShaderPath = path;
     m_bPipelineDirty = true;
 }
 
-void kfe::KEFCubeSceneObject::Impl::SetHullShaderPath(const std::string& path) noexcept
+void kfe::KFEStaticSceneObject::Impl::SetHullShaderPath(const std::string& path) noexcept
 {
-    if (m_hullShaderPath == path)
-        return;
-
+    if (m_hullShaderPath == path) return;
     m_hullShaderPath = path;
     m_bPipelineDirty = true;
 }
 
-void kfe::KEFCubeSceneObject::Impl::SetDomainShaderPath(const std::string& path) noexcept
+void kfe::KFEStaticSceneObject::Impl::SetDomainShaderPath(const std::string& path) noexcept
 {
-    if (m_domainShaderPath == path)
-        return;
-
+    if (m_domainShaderPath == path) return;
     m_domainShaderPath = path;
     m_bPipelineDirty = true;
 }
 
-void kfe::KEFCubeSceneObject::Impl::SetComputeShaderPath(const std::string& path) noexcept
+void kfe::KFEStaticSceneObject::Impl::SetComputeShaderPath(const std::string& path) noexcept
 {
-    if (m_computeShaderPath == path)
-        return;
-
+    if (m_computeShaderPath == path) return;
     m_computeShaderPath = path;
     m_bPipelineDirty = true;
 }
 
-JsonLoader kfe::KEFCubeSceneObject::Impl::GetJsonData() const noexcept
+JsonLoader kfe::KFEStaticSceneObject::Impl::GetJsonData() const noexcept
 {
     JsonLoader root{};
 
@@ -1269,12 +1067,12 @@ JsonLoader kfe::KEFCubeSceneObject::Impl::GetJsonData() const noexcept
     root["DomainShader"] = m_domainShaderPath;
     root["ComputeShader"] = m_computeShaderPath;
 
-    root["TexturePath"] = m_texturePath;
+    root["ModelPath"] = m_modelPath;
 
     return root;
 }
 
-void kfe::KEFCubeSceneObject::Impl::LoadFromJson(const JsonLoader& loader) noexcept
+void kfe::KFEStaticSceneObject::Impl::LoadFromJson(const JsonLoader& loader) noexcept
 {
     if (loader.Contains("CullMode"))
     {
@@ -1324,16 +1122,20 @@ void kfe::KEFCubeSceneObject::Impl::LoadFromJson(const JsonLoader& loader) noexc
         m_bPipelineDirty = true;
     }
 
-    if (loader.Contains("TexturePath"))
+    if (loader.Contains("ModelPath"))
     {
-        SetTexture(loader["TexturePath"].GetValue());
+        m_modelPath = loader["ModelPath"].GetValue();
+        // geometry will be re-requested from the loader once you wire that in
     }
 }
 
-void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
+void kfe::KFEStaticSceneObject::Impl::ImguiView(float deltaTime)
 {
-    if (ImGui::CollapsingHeader("Cube Settings", ImGuiTreeNodeFlags_DefaultOpen))
+    (void)deltaTime;
+
+    if (ImGui::CollapsingHeader("Static Model Settings", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        // Draw mode
         {
             const char* drawModeItems[] = { "Triangle", "Point", "WireFrame" };
             int currentDrawIndex = 0;
@@ -1357,9 +1159,10 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
             }
         }
 
+        // Cull mode
         {
             const char* cullModeItems[] = { "Front", "Back", "None" };
-            int currentCullIndex = 2; // None default
+            int currentCullIndex = 2;
             switch (m_cullMode)
             {
             case ECullMode::Front: currentCullIndex = 0; break;
@@ -1382,105 +1185,65 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
 
         ImGui::Separator();
 
+        // Helper lambda for shader/model path editing with drag-drop
+        auto EditPath = [](const char* label, std::string& path, auto setter)
+            {
+                char buf[260];
+                std::memset(buf, 0, sizeof(buf));
+
+                const size_t maxCopy = sizeof(buf) - 1;
+                const size_t count = std::min(path.size(), maxCopy);
+
+                path.copy(buf, count);
+                buf[count] = '\0';
+
+                if (ImGui::InputText(label, buf, sizeof(buf)))
+                {
+                    setter(std::string{ buf });
+                }
+
+                if (ImGui::BeginDragDropTarget())
+                {
+                    if (const ImGuiPayload* payload =
+                        ImGui::AcceptDragDropPayload(kfe::KFEAssetPanel::kPayloadType))
+                    {
+                        kfe::KFEAssetPanel::PayloadHeader hdr{};
+                        std::string pathUtf8;
+
+                        if (kfe::KFEAssetPanel::ParsePayload(payload, hdr, pathUtf8))
+                        {
+                            setter(pathUtf8);
+                        }
+                    }
+                    ImGui::EndDragDropTarget();
+                }
+            };
+
         if (ImGui::TreeNode("Shaders"))
         {
-            auto EditPath = [](const char* label, std::string& path, auto setter)
-                {
-                    char buf[260];
-                    std::memset(buf, 0, sizeof(buf));
-
-                    const size_t maxCopy = sizeof(buf) - 1;
-                    const size_t count = std::min(path.size(), maxCopy);
-
-                    path.copy(buf, count);
-                    buf[count] = '\0';
-
-                    if (ImGui::InputText(label, buf, sizeof(buf)))
-                    {
-                        setter(std::string{ buf });
-                    }
-
-                    if (ImGui::BeginDragDropTarget())
-                    {
-                        if (const ImGuiPayload* payload =
-                            ImGui::AcceptDragDropPayload(kfe::KFEAssetPanel::kPayloadType))
-                        {
-                            kfe::KFEAssetPanel::PayloadHeader hdr{};
-                            std::string pathUtf8;
-
-                            if (kfe::KFEAssetPanel::ParsePayload(payload, hdr, pathUtf8))
-                            {
-                                setter(pathUtf8);
-                            }
-                        }
-                        ImGui::EndDragDropTarget();
-                    }
-                };
-
             EditPath("Vertex Shader", m_vertexShaderPath,
-                [this](const std::string& p) { SetVertexShaderPath(p); m_bPipelineDirty = true; });
-
+                [this](const std::string& p) { SetVertexShaderPath(p);   });
             EditPath("Pixel Shader", m_pixelShaderPath,
-                [this](const std::string& p) { SetPixelShaderPath(p); m_bPipelineDirty = true; });
-
+                [this](const std::string& p) { SetPixelShaderPath(p);    });
             EditPath("Geometry Shader", m_geometryShaderPath,
-                [this](const std::string& p) { SetGeometryShaderPath(p); m_bPipelineDirty = true; });
-
+                [this](const std::string& p) { SetGeometryShaderPath(p); });
             EditPath("Hull Shader", m_hullShaderPath,
-                [this](const std::string& p) { SetHullShaderPath(p); m_bPipelineDirty = true; });
-
+                [this](const std::string& p) { SetHullShaderPath(p);     });
             EditPath("Domain Shader", m_domainShaderPath,
-                [this](const std::string& p) { SetDomainShaderPath(p); m_bPipelineDirty = true; });
-
+                [this](const std::string& p) { SetDomainShaderPath(p);   });
             EditPath("Compute Shader", m_computeShaderPath,
-                [this](const std::string& p) { SetComputeShaderPath(p); m_bPipelineDirty = true; });
+                [this](const std::string& p) { SetComputeShaderPath(p);  });
 
             ImGui::TreePop();
         }
 
         ImGui::Separator();
 
-        if (ImGui::TreeNode("Texture Binding"))
+        if (ImGui::TreeNode("Model"))
         {
-            auto ApplyTexturePath = [this]()
-                {
-                    m_bTextureDirty = true;
-                };
+            EditPath("Model Path", m_modelPath,
+                [this](const std::string& p) { SetModelPath(p); /* TODO: geometry reload hook later */ });
 
-            char texBuf[260];
-            std::memset(texBuf, 0, sizeof(texBuf));
-            {
-                const size_t maxCopy = sizeof(texBuf) - 1;
-                const size_t count = std::min(m_texturePath.size(), maxCopy);
-                m_texturePath.copy(texBuf, count);
-                texBuf[count] = '\0';
-            }
-
-            if (ImGui::InputText("Texture Path", texBuf, sizeof(texBuf)))
-            {
-                m_texturePath = std::string{ texBuf };
-            }
-
-            if (ImGui::BeginDragDropTarget())
-            {
-                if (const ImGuiPayload* payload =
-                    ImGui::AcceptDragDropPayload(kfe::KFEAssetPanel::kPayloadType))
-                {
-                    kfe::KFEAssetPanel::PayloadHeader hdr{};
-                    std::string pathUtf8;
-
-                    if (kfe::KFEAssetPanel::ParsePayload(payload, hdr, pathUtf8))
-                    {
-                        m_texturePath = pathUtf8;
-                    }
-                }
-                ImGui::EndDragDropTarget();
-            }
-
-            if (ImGui::Button("Apply Texture"))
-            {
-                ApplyTexturePath();
-            }
             ImGui::TreePop();
         }
 

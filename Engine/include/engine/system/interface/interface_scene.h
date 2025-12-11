@@ -26,6 +26,7 @@ namespace kfe
 	class KFEGraphicsCommandList;
     class KFEGraphicsCmdQ;
     class KFEResourceHeap;
+    class KFESamplerHeap;
 
     typedef struct _KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC
     {
@@ -62,6 +63,7 @@ namespace kfe
         KFEGraphicsCmdQ*        ComandQueue;
         KFEGraphicsCommandList* CommandList;
         KFEResourceHeap*        ResourceHeap;
+        KFESamplerHeap*         SamplerHeap;
     } KFE_BUILD_OBJECT_DESC;
 
     typedef struct _KFE_RENDER_OBJECT_DESC
@@ -195,6 +197,9 @@ namespace kfe
         virtual EDrawMode   GetDrawMode() const = 0;
         virtual std::string GetDrawModeString() const = 0;
 
+        virtual void ImguiView(float deltaTime) = 0;
+        void ImguiTransformView(float deltaTime);
+
         // Transform
         NODISCARD virtual DirectX::XMFLOAT3 GetPosition() const;
 
@@ -239,14 +244,19 @@ namespace kfe
         void        SetTypeName(const std::string& typeName) { m_szTypeName = typeName; }
         std::string GetTypeName() const { return m_szTypeName; }
 
+        void        SetObjectName(const std::string& typeName) { m_szName = typeName; }
+        std::string GetObjectName() const { return m_szName; }
+
     protected:
-        DirectX::XMFLOAT3 m_position{ 0.0f, 0.0f, 0.0f };
-        DirectX::XMFLOAT4 m_orientation{ 0.0f, 0.0f, 0.0f, 1.0f };
-        DirectX::XMFLOAT3 m_scale{ 1.0f, 1.0f, 1.0f };
-        DirectX::XMMATRIX m_transform{ DirectX::XMMatrixIdentity() };
+        DirectX::XMFLOAT3 m_position    { 0.0f, 0.0f, 0.0f };
+        DirectX::XMFLOAT4 m_orientation { 0.0f, 0.0f, 0.0f, 1.0f };
+        DirectX::XMFLOAT3 m_scale       { 1.0f, 1.0f, 1.0f };
+        DirectX::XMMATRIX m_transform   { DirectX::XMMatrixIdentity() };
 
         bool m_bVisible{ true };
         bool m_bInitialized{ false };
+
+        std::string m_szName{ "No Name Given" };
 
     private:
         std::string  m_szTypeName{ "Unknown" };

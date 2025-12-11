@@ -12,6 +12,7 @@
 #include "engine/editor/editor.h"
 #include "engine/editor/widgets/assets_panel.h"
 #include "engine/editor/widgets/creational_panel.h"
+#include "engine/editor/widgets/inspector_panel.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
@@ -34,13 +35,14 @@ public:
 	NODISCARD bool Release();
 
 	void Update(float deltaTime);
-	void Render();
+	void Render(float deltaTime);
 private:
 	void SetupDockspace();
 
 private:
-	KFEAssetPanel    m_assetsPanel{};
-	KFECreationPanel m_creationPanel{};
+	KFEAssetPanel     m_assetsPanel	  {};
+	KFECreationPanel  m_creationPanel {};
+	KFEInspectorPanel m_inspectorPanel{};
 	KFEWorld* m_pWorld{ nullptr };
 
 	ImGuiID m_mainDockspaceId{ 0 };
@@ -98,14 +100,15 @@ void kfe::KFEEditor::OnFrameBegin(float deltaTime)
 	{
 		m_impl->Update(deltaTime);
 	}
+	if (m_impl)
+	{
+		m_impl->Render(deltaTime);
+	}
 }
 
 void kfe::KFEEditor::OnFrameEnd()
 {
-	if (m_impl)
-	{
-		m_impl->Render();
-	}
+
 }
 
 _Use_decl_annotations_
@@ -133,6 +136,10 @@ bool kfe::KFEEditor::Impl::Initialize()
 	m_creationPanel.SetVisible(true);
 	ok = m_creationPanel.Initialize(m_pWorld) && ok;
 
+	m_inspectorPanel.SetPanelName("Inspector");
+	m_inspectorPanel.SetVisible(true);
+	m_inspectorPanel.SetWorld(m_pWorld);
+
 	return ok;
 }
 
@@ -150,13 +157,13 @@ void kfe::KFEEditor::Impl::Update(float /*dt*/)
 	// Editor-level per-frame logic can go here later if needed
 }
 
-void kfe::KFEEditor::Impl::Render()
+void kfe::KFEEditor::Impl::Render(float deltaTime)
 {
 	SetupDockspace();
 
-	m_assetsPanel.Draw();
-	m_creationPanel.Draw();
-
+	m_assetsPanel	.Draw();
+	m_creationPanel .Draw();
+	m_inspectorPanel.Draw(deltaTime);
 	ImGui::End();
 }
 

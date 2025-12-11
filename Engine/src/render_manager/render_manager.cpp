@@ -75,8 +75,9 @@
 #include "imgui/imgui_impl_dx12.h"
 #endif
 
-//~ Render Queue
+//~ Render Components
 #include "engine/render_manager/components/render_queue.h"
+#include "engine/render_manager/assets_library/texture_library.h"
 
 #pragma region IMPL
 
@@ -125,6 +126,7 @@ private:
 	std::unique_ptr<KFERTVHeap>		 m_pRTVHeap		{ nullptr };
 	std::unique_ptr<KFEDSVHeap>		 m_pDSVHeap		{ nullptr };
 	std::unique_ptr<KFEResourceHeap> m_pResourceHeap{ nullptr };
+	std::unique_ptr<KFEResourceHeap> m_pImguiHeap{ nullptr };
 	std::unique_ptr<KFESamplerHeap>  m_pSamplerHeap { nullptr };
 
 	//~ Test textures
@@ -144,7 +146,10 @@ private:
 	std::unique_ptr<KEFCubeSceneObject> m_cube{ nullptr };
 	std::unique_ptr<KEFCubeSceneObject> m_cube2{ nullptr };
 
+	bool  m_inputPaused{ false };
+	float m_spaceToggleCooldown{ 0.0f };
 	KFECamera m_camera{};
+	bool m_bSkipFirst{ true };
 };
 
 #pragma endregion
@@ -213,6 +218,7 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pRTVHeap		= std::make_unique<KFERTVHeap>	   ();
 	m_pDSVHeap		= std::make_unique<KFEDSVHeap>	   ();
 	m_pResourceHeap = std::make_unique<KFEResourceHeap>();
+	m_pImguiHeap = std::make_unique<KFEResourceHeap>();
 	m_pSamplerHeap  = std::make_unique<KFESamplerHeap> ();
 
 	//~ DSV Textures and views
@@ -326,7 +332,7 @@ bool kfe::KFERenderManager::Impl::Initialize()
 #if defined(DEBUG) || defined(_DEBUG)
 	//~ Init Imgui
 
-	auto* srvHeap = m_pResourceHeap->GetNative();
+	auto* srvHeap = m_pImguiHeap->GetNative();
 	ImGui_ImplDX12_Init(
 		m_pDevice->GetNative(),
 		m_pSwapChain->GetBufferCount(),
@@ -342,6 +348,16 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	io.Fonts->GetTexDataAsRGBA32(&pixels, &texWidth, &texHeight);
 #endif
 
+	KFE_INIT_IMAGE_POOL img{};
+	img.Device		 = m_pDevice.get();
+	img.ResourceHeap = m_pResourceHeap.get();
+	img.SamplerHeap  = m_pSamplerHeap.get();
+	
+	if (!KFEImagePool::Instance().Initialize(img))
+	{
+		LOG_ERROR("Failed initialize Image Pool!");
+		return false;
+	}
 	return true;
 }
 
@@ -403,10 +419,10 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 
 	const float color[4]
 	{
-		std::sinf(m_totalTime),
-		std::cosf(m_totalTime),
-		std::sinf(std::sinf(m_totalTime) + std::cosf(m_totalTime)),
-		1.0f
+		0.f,
+		0.f,
+		0.f,
+		0.f
 	};
 
 	cmdList->ClearRenderTargetView(
@@ -423,21 +439,19 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		0u,
 		nullptr);
 
+
 	KFE_RENDER_QUEUE_RENDER_DESC render{};
-	render.FenceValue			= m_nFenceValue;
-	render.GraphicsCommandList	= m_pGfxList.get();
-	render.pFence				= m_pFence.Get();
+	render.FenceValue = m_nFenceValue;
+	render.GraphicsCommandList = m_pGfxList.get();
+	render.pFence = m_pFence.Get();
 	KFERenderQueue::Instance().RenderSceneObject(render);
 
 #ifdef _DEBUG
 	{
-		ID3D12DescriptorHeap* heaps[] = { m_pResourceHeap->GetNative() };
-		cmdList->SetDescriptorHeaps(1, heaps);
 
 		ImGui_ImplWin32_NewFrame();
 		ImGui_ImplDX12_NewFrame();
 		ImGui::NewFrame();
-
 	}
 #endif
 
@@ -637,6 +651,17 @@ bool kfe::KFERenderManager::Impl::InitializeHeaps()
 		return false;
 	}
 
+	KFE_DESCRIPTOR_HEAP_CREATE_DESC imgui{};
+	resource.Device = m_pDevice.get();
+	resource.DescriptorCounts = 32u;
+	resource.DebugName = "Imgui CBV/SRV/UAV Heap Descriptor";
+
+	if (!m_pImguiHeap || !m_pImguiHeap->Initialize(resource))
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeHeaps: Failed to initialize CBV/SRV/UAV heap.");
+		return false;
+	}
+
 	//~ Sampler Heap
 	KFE_DESCRIPTOR_HEAP_CREATE_DESC sampler{};
 	sampler.Device			 = m_pDevice.get();
@@ -718,7 +743,25 @@ void kfe::KFERenderManager::Impl::CreateViewport()
 void kfe::KFERenderManager::Impl::HandleInput(float dt)
 {
 	auto& keyboard = m_pWindows->Keyboard;
-	auto& mouse    = m_pWindows->Mouse;
+	auto& mouse = m_pWindows->Mouse;
+
+	if (m_spaceToggleCooldown > 0.0f)
+	{
+		m_spaceToggleCooldown -= dt;
+		if (m_spaceToggleCooldown < 0.0f)
+			m_spaceToggleCooldown = 0.0f;
+	}
+
+	if (keyboard.IsKeyPressed(VK_SPACE) && m_spaceToggleCooldown <= 0.0f)
+	{
+		m_inputPaused = !m_inputPaused;
+		m_spaceToggleCooldown = 0.25f;
+	}
+
+	if (m_inputPaused)
+	{
+		return;
+	}
 
 	float moveDt = dt;
 	const bool isRunning = keyboard.IsKeyPressed(VK_SHIFT);
@@ -746,16 +789,11 @@ void kfe::KFERenderManager::Impl::HandleInput(float dt)
 		m_camera.MoveRight(moveDt);
 	}
 
-	if (keyboard.IsKeyPressed(VK_SPACE))
-	{
-		m_camera.MoveUp(moveDt);
-	}
 	if (keyboard.IsKeyPressed(VK_CONTROL))
 	{
 		m_camera.MoveDown(moveDt);
 	}
 
-	// Mouse look
 	int dx = 0;
 	int dy = 0;
 	mouse.GetMouseDelta(dx, dy);
@@ -764,16 +802,15 @@ void kfe::KFERenderManager::Impl::HandleInput(float dt)
 	{
 		const float mouseSensitivity = 0.0025f;
 
-		// Current orientation
-		float yaw		 = m_camera.GetYaw();
-		float pitch		 = m_camera.GetPitch();
+		float yaw = m_camera.GetYaw();
+		float pitch = m_camera.GetPitch();
 		const float roll = m_camera.GetRoll();
 
-		yaw   += static_cast<float>(dx) * mouseSensitivity;
+		yaw += static_cast<float>(dx) * mouseSensitivity;
 		pitch += static_cast<float>(dy) * mouseSensitivity;
 
 		constexpr float pitchLimit = DirectX::XMConvertToRadians(89.0f);
-		if (pitch > pitchLimit) pitch  = pitchLimit;
+		if (pitch > pitchLimit) pitch = pitchLimit;
 		if (pitch < -pitchLimit) pitch = -pitchLimit;
 
 		m_camera.SetEulerAngles(pitch, yaw, roll);
