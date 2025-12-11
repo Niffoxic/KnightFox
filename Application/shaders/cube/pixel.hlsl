@@ -42,11 +42,9 @@ struct PSInput
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float4 texColor = gDiffuseTexture.Sample(gSampler, input.TexCoord);
+    float4 texColor    = gDiffuseTexture.Sample(gSampler, input.TexCoord);
     float3 tintedColor = texColor.rgb * input.Color;
-    float t      = gTime;
-    float pulse  = 0.5f + 0.5f * sin(t);
-    float3 final = lerp(tintedColor * 0.2f, tintedColor, pulse);
+    float3 final       = lerp(tintedColor * 0.2f, tintedColor, 1.f);
 
     return float4(final, texColor.a);
 }

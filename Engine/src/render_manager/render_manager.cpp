@@ -75,8 +75,9 @@
 #include "imgui/imgui_impl_dx12.h"
 #endif
 
-//~ Render Queue
+//~ Render Components
 #include "engine/render_manager/components/render_queue.h"
+#include "engine/render_manager/assets_library/texture_library.h"
 
 #pragma region IMPL
 
@@ -125,6 +126,7 @@ private:
 	std::unique_ptr<KFERTVHeap>		 m_pRTVHeap		{ nullptr };
 	std::unique_ptr<KFEDSVHeap>		 m_pDSVHeap		{ nullptr };
 	std::unique_ptr<KFEResourceHeap> m_pResourceHeap{ nullptr };
+	std::unique_ptr<KFEResourceHeap> m_pImguiHeap{ nullptr };
 	std::unique_ptr<KFESamplerHeap>  m_pSamplerHeap { nullptr };
 
 	//~ Test textures
@@ -147,6 +149,7 @@ private:
 	bool  m_inputPaused{ false };
 	float m_spaceToggleCooldown{ 0.0f };
 	KFECamera m_camera{};
+	bool m_bSkipFirst{ true };
 };
 
 #pragma endregion
@@ -215,6 +218,7 @@ kfe::KFERenderManager::Impl::Impl(KFEWindows* windows)
 	m_pRTVHeap		= std::make_unique<KFERTVHeap>	   ();
 	m_pDSVHeap		= std::make_unique<KFEDSVHeap>	   ();
 	m_pResourceHeap = std::make_unique<KFEResourceHeap>();
+	m_pImguiHeap = std::make_unique<KFEResourceHeap>();
 	m_pSamplerHeap  = std::make_unique<KFESamplerHeap> ();
 
 	//~ DSV Textures and views
@@ -328,7 +332,7 @@ bool kfe::KFERenderManager::Impl::Initialize()
 #if defined(DEBUG) || defined(_DEBUG)
 	//~ Init Imgui
 
-	auto* srvHeap = m_pResourceHeap->GetNative();
+	auto* srvHeap = m_pImguiHeap->GetNative();
 	ImGui_ImplDX12_Init(
 		m_pDevice->GetNative(),
 		m_pSwapChain->GetBufferCount(),
@@ -344,6 +348,16 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	io.Fonts->GetTexDataAsRGBA32(&pixels, &texWidth, &texHeight);
 #endif
 
+	KFE_INIT_IMAGE_POOL img{};
+	img.Device		 = m_pDevice.get();
+	img.ResourceHeap = m_pResourceHeap.get();
+	img.SamplerHeap  = m_pSamplerHeap.get();
+	
+	if (!KFEImagePool::Instance().Initialize(img))
+	{
+		LOG_ERROR("Failed initialize Image Pool!");
+		return false;
+	}
 	return true;
 }
 
@@ -425,21 +439,19 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		0u,
 		nullptr);
 
+
 	KFE_RENDER_QUEUE_RENDER_DESC render{};
-	render.FenceValue			= m_nFenceValue;
-	render.GraphicsCommandList	= m_pGfxList.get();
-	render.pFence				= m_pFence.Get();
+	render.FenceValue = m_nFenceValue;
+	render.GraphicsCommandList = m_pGfxList.get();
+	render.pFence = m_pFence.Get();
 	KFERenderQueue::Instance().RenderSceneObject(render);
 
 #ifdef _DEBUG
 	{
-		ID3D12DescriptorHeap* heaps[] = { m_pResourceHeap->GetNative() };
-		cmdList->SetDescriptorHeaps(1, heaps);
 
 		ImGui_ImplWin32_NewFrame();
 		ImGui_ImplDX12_NewFrame();
 		ImGui::NewFrame();
-
 	}
 #endif
 
@@ -634,6 +646,17 @@ bool kfe::KFERenderManager::Impl::InitializeHeaps()
 	resource.DebugName		  = "KnightFox CBV/SRV/UAV Heap Descriptor";
 
 	if (!m_pResourceHeap || !m_pResourceHeap->Initialize(resource))
+	{
+		LOG_ERROR("KFERenderManager::Impl::InitializeHeaps: Failed to initialize CBV/SRV/UAV heap.");
+		return false;
+	}
+
+	KFE_DESCRIPTOR_HEAP_CREATE_DESC imgui{};
+	resource.Device = m_pDevice.get();
+	resource.DescriptorCounts = 32u;
+	resource.DebugName = "Imgui CBV/SRV/UAV Heap Descriptor";
+
+	if (!m_pImguiHeap || !m_pImguiHeap->Initialize(resource))
 	{
 		LOG_ERROR("KFERenderManager::Impl::InitializeHeaps: Failed to initialize CBV/SRV/UAV heap.");
 		return false;

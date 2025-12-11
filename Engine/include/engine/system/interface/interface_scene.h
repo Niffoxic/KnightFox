@@ -26,6 +26,7 @@ namespace kfe
 	class KFEGraphicsCommandList;
     class KFEGraphicsCmdQ;
     class KFEResourceHeap;
+    class KFESamplerHeap;
 
     typedef struct _KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC
     {
@@ -62,6 +63,7 @@ namespace kfe
         KFEGraphicsCmdQ*        ComandQueue;
         KFEGraphicsCommandList* CommandList;
         KFEResourceHeap*        ResourceHeap;
+        KFESamplerHeap*         SamplerHeap;
     } KFE_BUILD_OBJECT_DESC;
 
     typedef struct _KFE_RENDER_OBJECT_DESC

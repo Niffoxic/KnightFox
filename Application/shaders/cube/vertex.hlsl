@@ -47,25 +47,11 @@ struct PSInput
     float3 Color     : COLOR0;
 };
 
-float3 RotateY(float3 p, float angle)
-{
-    float s = sin(angle);
-    float c = cos(angle);
-
-    float3 r;
-    r.x = p.x * c + p.z * s;
-    r.y = p.y;
-    r.z = -p.x * s + p.z * c;
-
-    return r;
-}
-
 PSInput main(VSInput input)
 {
     PSInput output;
 
-    float angle = gTime;
-    float3 localPos = RotateY(input.Position, angle);
+    float3 localPos = input.Position;
 
     float4 worldPos4 = mul(gWorldMatrix, float4(localPos, 1.0f));
     float3 worldPos  = worldPos4.xyz;
@@ -76,12 +62,9 @@ PSInput main(VSInput input)
     output.Position = clipPos;
     output.WorldPos = worldPos;
 
-    float3 worldNormal =
-        mul(gWorldMatrix, float4(input.Normal,    0.0f)).xyz;
-    float3 worldTangent =
-        mul(gWorldMatrix, float4(input.Tangent,   0.0f)).xyz;
-    float3 worldBitangent =
-        mul(gWorldMatrix, float4(input.Bitangent, 0.0f)).xyz;
+    float3 worldNormal    = mul(gWorldMatrix, float4(input.Normal,    0.0f)).xyz;
+    float3 worldTangent   = mul(gWorldMatrix, float4(input.Tangent,   0.0f)).xyz;
+    float3 worldBitangent = mul(gWorldMatrix, float4(input.Bitangent, 0.0f)).xyz;
 
     output.Normal    = normalize(worldNormal);
     output.Tangent   = normalize(worldTangent);

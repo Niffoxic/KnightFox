@@ -24,8 +24,8 @@ struct D3D12_CPU_DESCRIPTOR_HANDLE;
 namespace kfe
 {
     class KFEDevice;
-    class KFEResource;
     class KFETexture;
+    class KFEResourceHeap;
 
     typedef struct _KFE_SRV_CREATE_DESC
     {
