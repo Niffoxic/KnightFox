@@ -15,6 +15,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 
+#include "engine/map/world.h"
 #include <utility>
 
 #pragma region Impl_Definition
@@ -22,7 +23,10 @@
 class kfe::KFEEditor::Impl
 {
 public:
-	 Impl() = default;
+	Impl(KFEWorld* world) 
+	{
+
+	}
 	~Impl() = default;
 
 	NODISCARD bool Initialize();
@@ -35,6 +39,7 @@ private:
 
 private:
 	KFEAssetPanel m_assetsPanel{};
+	KFEWorld*	  m_pWorld{ nullptr };
 
 	ImGuiID m_mainDockspaceId{ 0 };
 	bool    m_dockLayoutInitialized{ false };
@@ -44,8 +49,8 @@ private:
 
 #pragma region Editor_Body
 
-kfe::KFEEditor::KFEEditor() noexcept
-	: m_impl(std::make_unique<Impl>())
+kfe::KFEEditor::KFEEditor(KFEWorld* world) noexcept
+	: m_impl(std::make_unique<Impl>(world))
 {
 }
 
@@ -68,11 +73,6 @@ kfe::KFEEditor& kfe::KFEEditor::operator=(KFEEditor&& other) noexcept
 _Use_decl_annotations_
 bool kfe::KFEEditor::Initialize()
 {
-	if (!m_impl)
-	{
-		m_impl = std::make_unique<Impl>();
-	}
-
 	return m_impl->Initialize();
 }
 

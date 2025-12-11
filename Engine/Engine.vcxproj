@@ -164,6 +164,7 @@
     <ClInclude Include="include\engine\editor\editor_context.h" />
     <ClInclude Include="include\engine\editor\editor_state.h" />
     <ClInclude Include="include\engine\editor\widgets\assets_panel.h" />
+    <ClInclude Include="include\engine\map\world.h" />
     <ClInclude Include="include\engine\render_manager\api\buffer\constant_buffer.h" />
     <ClInclude Include="include\engine\render_manager\api\buffer\index_buffer.h" />
     <ClInclude Include="include\engine\render_manager\api\buffer\raw_buffer.h" />
@@ -189,7 +190,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="include\engine\render_manager\scene\cube_scene.h" />
-    <ClInclude Include="include\engine\render_manager\scene\interface_scene.h" />
+    <ClInclude Include="include\engine\system\interface\interface_scene.h" />
     <ClInclude Include="include\engine\system\common_types.h" />
     <ClInclude Include="include\engine\core.h" />
     <ClInclude Include="include\engine\system\dependency_resolver.h" />
@@ -202,6 +203,7 @@
     <ClInclude Include="include\engine\system\interface\interface_manager.h" />
     <ClInclude Include="include\engine\system\interface\interface_singleton.h" />
     <ClInclude Include="include\engine\system\key_generator.h" />
+    <ClInclude Include="include\engine\system\registry\registry_scene.h" />
     <ClInclude Include="include\engine\system\timer.h" />
     <ClInclude Include="include\engine\render_manager\api\components\adapter.h" />
     <ClInclude Include="include\engine\render_manager\api\components\device.h" />
@@ -241,6 +243,7 @@
     <ClCompile Include="src\editor\editor.cpp" />
     <ClCompile Include="src\editor\commands\command_stack.cpp" />
     <ClCompile Include="src\editor\widgets\assets_panel.cpp" />
+    <ClCompile Include="src\map\world.cpp" />
     <ClCompile Include="src\render_manager\api\pso.cpp" />
     <ClCompile Include="src\render_manager\api\root_signature.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_dsv.cpp" />
@@ -270,6 +273,7 @@
     <ClCompile Include="src\system\exception\dx_exception.cpp" />
     <ClCompile Include="src\system\exception\win_exception.cpp" />
     <ClCompile Include="src\system\key_generator.cpp" />
+    <ClCompile Include="src\system\registry\registry_scene.cpp" />
     <ClCompile Include="src\system\timer.cpp" />
     <ClCompile Include="src\render_manager\api\components\adapter.cpp" />
     <ClCompile Include="src\render_manager\api\components\device.cpp" />

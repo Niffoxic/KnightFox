@@ -100,8 +100,6 @@ private:
 	bool InitializeTextures   ();
 	void CreateViewport		  ();
 
-	bool InitializeTestTriangle();
-
 	void HandleInput(float dt);
 
 private:
@@ -324,7 +322,6 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	initRenderQ.pWindows			 = m_pWindows;
 
 	if (!KFERenderQueue::Instance().Initialize(initRenderQ)) return false;
-	if (!InitializeTestTriangle()) return false;
 
 #if defined(DEBUG) || defined(_DEBUG)
 	//~ Init Imgui
@@ -716,17 +713,6 @@ void kfe::KFERenderManager::Impl::CreateViewport()
 	m_scissorRect = { 0, 0,
 		static_cast<long>(winSize.Width),
 		static_cast<long>(winSize.Height) };
-}
-
-bool kfe::KFERenderManager::Impl::InitializeTestTriangle()
-{
-	m_cube = std::make_unique<KEFCubeSceneObject> ();
-	m_cube2 = std::make_unique<KEFCubeSceneObject>();
-
-	KFERenderQueue::Instance().AddSceneObject(m_cube.get());
-	KFERenderQueue::Instance().AddSceneObject(m_cube2.get());
-
-	return true;
 }
 
 void kfe::KFERenderManager::Impl::HandleInput(float dt)

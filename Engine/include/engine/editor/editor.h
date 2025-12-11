@@ -19,10 +19,11 @@
 
 namespace kfe
 {
+	class KFEWorld;
 	class KFE_API KFEEditor final : public IManager
 	{
 	public:
-		 KFEEditor() noexcept;
+		 KFEEditor(KFEWorld* world) noexcept;
 		~KFEEditor() noexcept override;
 
 		KFEEditor			(const KFEEditor&) = delete;

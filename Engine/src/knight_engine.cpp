@@ -31,6 +31,9 @@
 #include "imgui/imgui_impl_win32.h"
 #endif
 
+#include "engine/map/world.h"
+#include "engine/render_manager/scene/cube_scene.h"
+
 #pragma region IMPL
 
 class kfe::IKFEngine::Impl
@@ -59,10 +62,12 @@ public:
 	void DisplayFPS(float dt) const;
 
 	KFETimer* GetTimer() const;
+	KFEWorld* GetWorld() const noexcept;
 
 private:
 	std::unique_ptr<KFEWindows>		  m_pWindowsManager{ nullptr };
 	std::unique_ptr<KFERenderManager> m_pRendeManager  { nullptr };
+	std::unique_ptr<KFEWorld>		  m_pWorld		   { nullptr };
 	
 #if defined(_DEBUG) || defined(DEBUG)
 	std::unique_ptr<KFEEditor> m_pEditor{ nullptr };
@@ -129,6 +134,7 @@ int kfe::IKFEngine::Execute()
 {
 	LOG_INFO("Starting Game Loop!");
 	BeginPlay();
+
 	while (true)
 	{
 		float dt = m_impl->GetTimer()->Tick();
@@ -158,6 +164,11 @@ int kfe::IKFEngine::Execute()
 	return 0;
 }
 
+kfe::KFEWorld* kfe::IKFEngine::GetWorld() const
+{
+	return m_impl->GetWorld();
+}
+
 //~ IMP Implementation
 
 _Use_decl_annotations_
@@ -165,10 +176,6 @@ bool kfe::IKFEngine::Impl::CreateManagers(const KFE_ENGINE_CREATE_DESC& desc)
 {
 	m_pWindowsManager = std::make_unique<KFEWindows>(desc.WindowsDesc);
 	m_pRendeManager   = std::make_unique<KFERenderManager>(m_pWindowsManager.get());
-
-#if defined(_DEBUG) || defined(DEBUG)
-	m_pEditor = std::make_unique<KFEEditor>();
-#endif
 	return true;
 }
 
@@ -199,6 +206,12 @@ void kfe::IKFEngine::Impl::CreateUtilities()
 		style.WindowRounding = 0.0f;
 		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 	}
+#endif
+
+	m_pWorld = std::make_unique<KFEWorld>();
+
+#if defined(_DEBUG) || defined(DEBUG)
+	m_pEditor = std::make_unique<KFEEditor>(m_pWorld.get());
 #endif
 
 	m_pTimer = std::make_unique<KFETimer>();
@@ -312,4 +325,9 @@ void kfe::IKFEngine::Impl::DisplayFPS(float dt) const
 kfe::KFETimer* kfe::IKFEngine::Impl::GetTimer() const
 {
 	return m_pTimer.get();
+}
+
+kfe::KFEWorld* kfe::IKFEngine::Impl::GetWorld() const noexcept
+{
+	return m_pWorld.get();
 }

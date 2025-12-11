@@ -72,14 +72,14 @@ void JsonLoader::Save(const std::string& filepath)
     m_fileSystem.Close();
 }
 
-JsonLoader& JsonLoader::operator=(const std::string& value) noexcept
+JsonLoader& JsonLoader::operator=(const std::string& value)
 {
     m_value = value;
     m_children.clear();
     return *this;
 }
 
-const JsonLoader& JsonLoader::operator[](const std::string& key) const noexcept
+const JsonLoader& JsonLoader::operator[](const std::string& key) const
 {
     auto it = m_children.find(key);
     if (it != m_children.end())
@@ -94,7 +94,7 @@ JsonLoader& JsonLoader::GetOrCreate(const std::string& key)
     return m_children[key];
 }
 
-bool JsonLoader::Contains(const std::string& key) const noexcept
+bool JsonLoader::Contains(const std::string& key) const
 {
     return m_children.find(key) != m_children.end();
 }
@@ -135,7 +135,7 @@ void JsonLoader::FromStream(std::istream& input)
     }
 }
 
-float JsonLoader::AsFloat(float defaultValue) const noexcept
+float JsonLoader::AsFloat(float defaultValue) const
 {
     if (!IsValid())
         return defaultValue;
@@ -150,7 +150,7 @@ float JsonLoader::AsFloat(float defaultValue) const noexcept
     }
 }
 
-int JsonLoader::AsInt(int defaultValue) const noexcept
+int JsonLoader::AsInt(int defaultValue) const
 {
     if (!IsValid())
         return defaultValue;
@@ -165,7 +165,7 @@ int JsonLoader::AsInt(int defaultValue) const noexcept
     }
 }
 
-bool JsonLoader::AsBool(bool defaultValue) const noexcept
+bool JsonLoader::AsBool(bool defaultValue) const
 {
     if (!IsValid())
         return defaultValue;
@@ -182,12 +182,12 @@ bool JsonLoader::AsBool(bool defaultValue) const noexcept
     return defaultValue;
 }
 
-bool JsonLoader::IsValid() const noexcept
+bool JsonLoader::IsValid() const
 {
     return !m_value.empty() || !m_children.empty();
 }
 
-void JsonLoader::Clear() noexcept
+void JsonLoader::Clear()
 {
     m_value.clear();
     m_children.clear();

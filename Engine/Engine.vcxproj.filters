@@ -192,7 +192,7 @@
     <ClInclude Include="include\engine\render_manager\api\root_signature.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\scene\interface_scene.h">
+    <ClInclude Include="include\engine\system\interface\interface_scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\engine\render_manager\scene\cube_scene.h">
@@ -244,6 +244,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\engine\editor\widgets\assets_panel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\system\registry\registry_scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\map\world.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -441,6 +447,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\editor\widgets\assets_panel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\system\registry\registry_scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\map\world.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
