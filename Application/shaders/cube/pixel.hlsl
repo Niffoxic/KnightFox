@@ -28,7 +28,7 @@ cbuffer CommonCB : register(b0)
 
 cbuffer TextureMetaCB : register(b1)
 {
-    float4 gMainTextureInfo;      // IsAttached, LerpToSecondary, UvTilingX, UvTilingY
+    float4 gMainTextureInfo;      // IsAttached(0 means no 1 means yes), LerpToSecondary, UvTilingX, UvTilingY
     float4 gSecondaryTextureInfo; // IsAttached, BlendFactor,   UvTilingX, UvTilingY
     float4 gNormalTextureInfo;    // IsAttached, NormalStrength, UvTilingX, UvTilingY
     float4 gSpecularTextureInfo;  // IsAttached, SpecInt, RoughMul, MetalMul
@@ -61,46 +61,90 @@ struct PSInput
     float3 Color     : COLOR0;
 };
 
-float4 main(PSInput input) : SV_TARGET
+float4 GetBaseColor(float2 uv)
 {
-    // Just a Flags
-    float mainAttached = gMainTextureInfo.x;
-    float secAttached  = gSecondaryTextureInfo.x;
+    float mainAttached = saturate(gMainTextureInfo.x);      // 0 or 1
+    float secAttached  = saturate(gSecondaryTextureInfo.x);
 
-    float2 mainUV = input.TexCoord * gMainTextureInfo.zw;
-    float2 secUV  = input.TexCoord * gSecondaryTextureInfo.zw;
+    float2 mainUV = uv * gMainTextureInfo.zw;
+    float2 secUV  = uv * gSecondaryTextureInfo.zw;
 
-    float4 mainColor      = gMainTexture.Sample(gSampler, mainUV);
-    float4 secondaryColor = gSecondaryTexture.Sample(gSampler, secUV);
+    float4 mainSample = gMainTexture.Sample(gSampler, mainUV);
+    float4 secSample  = gSecondaryTexture.Sample(gSampler, secUV);
 
-    float3 mainRgb = mainColor.rgb * mainAttached;
-    float3 secRgb  = secondaryColor.rgb * secAttached;
+    float3 mainRgb = mainSample.rgb;
+    float3 secRgb  = secSample.rgb;
 
-    float lerpToSecondary = gMainTextureInfo.y; 
-    float secBlendFactor  = gSecondaryTextureInfo.y;
-    float blendT          = saturate(lerpToSecondary * secBlendFactor);
-
+    // Presence masks from flags
     float hasMain = step(0.5f, mainAttached);
     float hasSec  = step(0.5f, secAttached);
 
-    float3 blendedRgb = 0.0f;
+    float wNone = (1.0f - hasMain) * (1.0f - hasSec); // no textures
+    float wMain = hasMain * (1.0f - hasSec);          // only main
+    float wSec  = (1.0f - hasMain) * hasSec;          // only sec
+    float wBoth = hasMain * hasSec;                   // both
 
-    if (hasMain + hasSec < 0.5f)
-    {
-        blendedRgb = float3(1.0f, 0.0f, 1.0f);
-    }
-    else if (hasMain > 0.5f && hasSec < 0.5f)
-    {
-        blendedRgb = mainRgb;
-    }
-    else if (hasMain < 0.5f && hasSec > 0.5f)
-    {
-        blendedRgb = secRgb;
-    }
-    else
-    {
-        blendedRgb = lerp(mainRgb, secRgb, blendT);
-    }
+    // Blend factor when both exist
+    float lerpToSecondary = saturate(gMainTextureInfo.y);
+    float secBlendFactor  = saturate(gSecondaryTextureInfo.y);
+    float blendT          = saturate(lerpToSecondary * secBlendFactor);
 
-    return float4(blendedRgb, mainColor.a);
+    float3 bothColor = lerp(mainRgb, secRgb, blendT);
+    float  bothAlpha = lerp(mainSample.a, secSample.a, blendT);
+
+    // Color when no textures attached
+    float3 noneColor  = float3(1.0f, 0.0f, 1.0f);
+    float  noneAlpha  = 1.0f;
+
+    float3 blendedRgb =
+        wNone * noneColor +
+        wMain * mainRgb +
+        wSec  * secRgb +
+        wBoth * bothColor;
+
+    float blendedAlpha =
+        wNone * noneAlpha +
+        wMain * mainSample.a +
+        wSec  * secSample.a +
+        wBoth * bothAlpha;
+
+    return float4(blendedRgb, blendedAlpha);
+}
+
+float3 GetNormalWS(PSInput input)
+{
+    float3 T = normalize(input.Tangent);
+    float3 B = normalize(input.Bitangent);
+    float3 N = normalize(input.Normal);
+
+    float3x3 TBN = float3x3(T, B, N);
+
+    float normalAttached = saturate(gNormalTextureInfo.x); // 0 or 1
+    float normalStrength = gNormalTextureInfo.y;           // can be > 1
+
+    float2 normalUV = input.TexCoord * gNormalTextureInfo.zw;
+    float3 nTS = gNormalMap.Sample(gSampler, normalUV).xyz;
+
+    // Unpack
+    nTS = nTS * 2.0f - 1.0f;
+
+    float3 defaultTS = float3(0.0f, 0.0f, 1.0f);
+
+    float strengthFactor = saturate(normalAttached * normalStrength);
+
+    // Blend between flat and sampled, then normalize
+    nTS = normalize(lerp(defaultTS, nTS, strengthFactor));
+    float3 nWS = normalize(mul(nTS, TBN));
+
+    return nWS;
+}
+
+float4 main(PSInput input) : SV_TARGET
+{
+    float4 baseColor = GetBaseColor(input.TexCoord);
+    float3 normalWS = GetNormalWS(input);
+    float lightFactor = 0.5f + 0.5f * normalWS.z; // test light
+    float3 finalRgb = baseColor.rgb * lightFactor;
+
+    return float4(finalRgb, baseColor.a);
 }

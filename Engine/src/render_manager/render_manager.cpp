@@ -763,11 +763,11 @@ void kfe::KFERenderManager::Impl::HandleInput(float dt)
 		return;
 	}
 
-	float moveDt = dt;
+	float moveDt = dt * 0.5f;
 	const bool isRunning = keyboard.IsKeyPressed(VK_SHIFT);
 	if (isRunning)
 	{
-		const float runMultiplier = 2.5f;
+		const float runMultiplier = 0.25f;
 		moveDt *= runMultiplier;
 	}
 

@@ -151,8 +151,8 @@ public:
         {
             entry.TexturePath = {};
             entry.TextureSrv = nullptr;
-            entry.ResourceHandle = KFE_INVALID_INDEX;
-            entry.ReservedSlot = KFE_INVALID_INDEX;
+            entry.ResourceHandle = 0u;
+            entry.ReservedSlot = 0u;
         }
     }
     ~Impl() = default;
@@ -206,7 +206,6 @@ private:
         data.TexturePath = path;
         data.TextureSrv = nullptr;
         data.ResourceHandle = KFE_INVALID_INDEX;
-        data.ReservedSlot = KFE_INVALID_INDEX;
         data.Dirty = true;
         m_bTextureDirty = true;
     }
@@ -1753,6 +1752,8 @@ void kfe::KEFCubeSceneObject::Impl::LoadFromJson(const JsonLoader& loader) noexc
             loadFloat(h, "ParallaxMaxLayers", m_metaInformation.Height.ParallaxMaxLayers);
         }
     }
+
+    m_bTextureDirty = true;
 }
 
 void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
@@ -1923,7 +1924,7 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
                 [](auto& meta)
                 {
                     bool enabled = meta.IsTextureAttached > 0.5f;
-                    if (ImGui::Checkbox("Disable", &enabled))
+                    if (ImGui::Checkbox("Enabled", &enabled))
                     {
                         meta.IsTextureAttached = enabled ? 1.0f : 0.0f;
                     }
@@ -1943,7 +1944,7 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
                 [](auto& meta)
                 {
                     bool enabled = meta.IsTextureAttached > 0.5f;
-                    if (ImGui::Checkbox("Disable", &enabled))
+                    if (ImGui::Checkbox("Enabled", &enabled))
                     {
                         meta.IsTextureAttached = enabled ? 1.0f : 0.0f;
                     }
@@ -1963,7 +1964,7 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
                 [](auto& meta)
                 {
                     bool enabled = meta.IsTextureAttached > 0.5f;
-                    if (ImGui::Checkbox("Disable", &enabled))
+                    if (ImGui::Checkbox("Enabled", &enabled))
                     {
                         meta.IsTextureAttached = enabled ? 1.0f : 0.0f;
                     }
@@ -1983,7 +1984,7 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
                 [](auto& meta)
                 {
                     bool enabled = meta.IsTextureAttached > 0.5f;
-                    if (ImGui::Checkbox("Disable", &enabled))
+                    if (ImGui::Checkbox("Enabled", &enabled))
                     {
                         meta.IsTextureAttached = enabled ? 1.0f : 0.0f;
                     }
@@ -2004,7 +2005,7 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
                 [](auto& meta)
                 {
                     bool Disable = meta.IsTextureAttached > 0.5f;
-                    if (ImGui::Checkbox("Disable", &Disable))
+                    if (ImGui::Checkbox("Enabled", &Disable))
                     {
                         meta.IsTextureAttached = Disable ? 1.0f : 0.0f;
                     }

@@ -84,6 +84,26 @@ namespace
         return false;
     }
 
+    static bool IsImageExt(const std::string& ext)
+    {
+        return ext == "png" || ext == "jpg" || ext == "jpeg" ||
+            ext == "tga" || ext == "bmp" || ext == "dds" ||
+            ext == "tiff" || ext == "gif" || ext == "hdr";
+    }
+
+    static bool IsMeshExt(const std::string& ext)
+    {
+        return ext == "fbx" || ext == "obj" || ext == "gltf" ||
+            ext == "glb" || ext == "dae" || ext == "3ds";
+    }
+
+    static bool IsShaderExt(const std::string& ext)
+    {
+        return ext == "hlsl" || ext == "fx" || ext == "cso" ||
+            ext == "ps" || ext == "vs" || ext == "gs" ||
+            ext == "hs" || ext == "ds" || ext == "cs";
+    }
+
     static std::string NormWithDot(std::string s)
     {
         std::transform(s.begin(), s.end(), s.begin(),
@@ -111,22 +131,13 @@ namespace kfe
 
     std::string KFEAssetPanel::ToUtf8(const fs::path& p)
     {
-#if defined(_WIN32)
         auto u8 = p.u8string();
         return std::string(reinterpret_cast<const char*>(u8.c_str()));
-#else
-        return p.string();
-#endif
     }
 
     bool KFEAssetPanel::IsHidden(const fs::directory_entry& de)
     {
-#if defined(_WIN32)
         return de.path().filename().native().starts_with(L".");
-#else
-        const std::string name = de.path().filename().string();
-        return !name.empty() && name[0] == '.';
-#endif
     }
 
     std::string KFEAssetPanel::MakeRelativeAssetPathUtf8(const fs::path& abs) const
@@ -163,10 +174,19 @@ namespace kfe
         if (it != m_extIcons.end() && it->second)
             return it->second;
 
+        if (IsImageExt(e.Ext) && m_iconImage)
+            return m_iconImage;
+
+        if (IsMeshExt(e.Ext) && m_iconMesh)
+            return m_iconMesh;
+
+        if (IsShaderExt(e.Ext) && m_iconShader)
+            return m_iconShader;
+
         if (m_iconFile)
             return m_iconFile;
 
-        return m_iconFolder;
+        return m_iconFolder ? m_iconFolder : static_cast<ImTextureID>(0ll);
     }
 
     KFEAssetPanel::KFEAssetPanel() noexcept
@@ -265,6 +285,7 @@ namespace kfe
         return *this;
     }
 
+    _Use_decl_annotations_
     bool KFEAssetPanel::Initialize()
     {
         if (m_rootPath.empty())
@@ -276,6 +297,7 @@ namespace kfe
         return true;
     }
 
+    _Use_decl_annotations_
     bool KFEAssetPanel::Release()
     {
         m_items.clear();
@@ -285,7 +307,56 @@ namespace kfe
         return true;
     }
 
-    _Use_decl_annotations_
+    void KFEAssetPanel::SetIcons(ImTextureID folder, ImTextureID file, ImTextureID image, ImTextureID mesh, ImTextureID shader) noexcept
+    {
+        m_iconFolder = folder;
+        m_iconFile = file;
+        m_iconImage = image;
+        m_iconMesh = mesh;
+        m_iconShader = shader;
+
+        auto setIfEmpty = [this](const std::string& extNoDotLower, ImTextureID icon)
+            {
+                if (!icon) return; // no texture, nothing to do
+
+                auto it = m_extIcons.find(extNoDotLower);
+                if (it == m_extIcons.end() || !it->second)
+                {
+                    m_extIcons[extNoDotLower] = icon;
+                }
+            };
+
+        // Images
+        setIfEmpty("png", m_iconImage);
+        setIfEmpty("jpg", m_iconImage);
+        setIfEmpty("jpeg", m_iconImage);
+        setIfEmpty("tga", m_iconImage);
+        setIfEmpty("bmp", m_iconImage);
+        setIfEmpty("dds", m_iconImage);
+        setIfEmpty("tiff", m_iconImage);
+        setIfEmpty("gif", m_iconImage);
+        setIfEmpty("hdr", m_iconImage);
+
+        // Meshes
+        setIfEmpty("fbx", m_iconMesh);
+        setIfEmpty("obj", m_iconMesh);
+        setIfEmpty("gltf", m_iconMesh);
+        setIfEmpty("glb", m_iconMesh);
+        setIfEmpty("dae", m_iconMesh);
+        setIfEmpty("3ds", m_iconMesh);
+
+        // Shaders
+        setIfEmpty("hlsl", m_iconShader);
+        setIfEmpty("fx", m_iconShader);
+        setIfEmpty("cso", m_iconShader);
+        setIfEmpty("ps", m_iconShader);
+        setIfEmpty("vs", m_iconShader);
+        setIfEmpty("gs", m_iconShader);
+        setIfEmpty("hs", m_iconShader);
+        setIfEmpty("ds", m_iconShader);
+        setIfEmpty("cs", m_iconShader);
+    }
+
     bool KFEAssetPanel::ParsePayload(const ImGuiPayload* payload, PayloadHeader& outHeader, std::string& outPathUtf8)
     {
         if (!payload || !payload->Data ||
@@ -314,6 +385,7 @@ namespace kfe
         m_dockspaceId = dockspaceId;
     }
 
+    _Use_decl_annotations_
     std::uint32_t KFEAssetPanel::GetDockspaceId() const noexcept
     {
         return m_dockspaceId;
@@ -324,6 +396,7 @@ namespace kfe
         m_isVisible = visible;
     }
 
+    _Use_decl_annotations_
     bool KFEAssetPanel::IsVisible() const noexcept
     {
         return m_isVisible;
@@ -348,6 +421,7 @@ namespace kfe
         Rescan();
     }
 
+    _Use_decl_annotations_
     const std::string& KFEAssetPanel::GetRootPath() const noexcept
     {
         return m_rootPath;
@@ -358,6 +432,7 @@ namespace kfe
         m_onAssetSelected = std::move(callback);
     }
 
+    _Use_decl_annotations_
     const std::string& KFEAssetPanel::GetPanelName() const noexcept
     {
         return m_panelName;
@@ -511,11 +586,7 @@ namespace kfe
 
             if (!m_showHidden)
             {
-#if defined(_WIN32)
                 if (p.filename().native().starts_with(L".")) continue;
-#else
-                if (!p.filename().empty() && p.filename().c_str()[0] == '.') continue;
-#endif
             }
 
             bool isDir = it->is_directory(ec);

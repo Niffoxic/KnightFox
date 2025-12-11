@@ -60,6 +60,12 @@ namespace kfe
         NODISCARD bool Initialize();
         NODISCARD bool Release();
 
+        void SetIcons(ImTextureID folder,
+            ImTextureID file,
+            ImTextureID image,
+            ImTextureID mesh,
+            ImTextureID shader) noexcept;
+
         static bool ParsePayload(
             _In_ const ImGuiPayload* payload,
             _Out_ PayloadHeader&     outHeader,
