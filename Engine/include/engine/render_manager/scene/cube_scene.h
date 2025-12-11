@@ -66,6 +66,8 @@ namespace kfe
         EDrawMode   GetDrawMode() const override;
         std::string GetDrawModeString() const override;
 
+        void ImguiView(float deltaTime) override;
+
         // ~ Lifecycle
         void Update(const KFE_UPDATE_OBJECT_DESC& desc) override;
         bool Build(_In_ const KFE_BUILD_OBJECT_DESC& desc) override;
@@ -75,5 +77,6 @@ namespace kfe
     private:
         class Impl;
         std::unique_ptr<Impl> m_impl;
+
     };
 } // namespace kfe

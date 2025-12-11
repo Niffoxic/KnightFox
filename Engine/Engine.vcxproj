@@ -163,6 +163,7 @@
     <ClInclude Include="include\engine\editor\editor.h" />
     <ClInclude Include="include\engine\editor\widgets\assets_panel.h" />
     <ClInclude Include="include\engine\editor\widgets\creational_panel.h" />
+    <ClInclude Include="include\engine\editor\widgets\inspector_panel.h" />
     <ClInclude Include="include\engine\map\world.h" />
     <ClInclude Include="include\engine\render_manager\api\buffer\constant_buffer.h" />
     <ClInclude Include="include\engine\render_manager\api\buffer\index_buffer.h" />
@@ -243,6 +244,7 @@
     <ClCompile Include="src\editor\commands\command_stack.cpp" />
     <ClCompile Include="src\editor\widgets\assets_panel.cpp" />
     <ClCompile Include="src\editor\widgets\creational_panel.cpp" />
+    <ClCompile Include="src\editor\widgets\inspector_panel.cpp" />
     <ClCompile Include="src\map\world.cpp" />
     <ClCompile Include="src\render_manager\api\pso.cpp" />
     <ClCompile Include="src\render_manager\api\root_signature.cpp" />

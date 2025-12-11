@@ -124,12 +124,14 @@ namespace kfe
                 continue;
 
             const std::string& typeName = node["Type"].GetValue();
+            const std::string& name = node["Name"].GetValue();
             const JsonLoader& dataNode = node["Data"];
 
             auto scene = RegistrySceneObject::Create(typeName);
             if (!scene)
                 continue;
 
+            scene->SetOjbjectName(name);
             scene->LoadFromJson(dataNode);
             AddSceneObject(std::move(scene));
 
@@ -152,6 +154,7 @@ namespace kfe
             objNode["ID"] = idStr;
             objNode["Type"] = scene->GetTypeName();
             objNode["Data"] = scene->GetJsonData();
+            objNode["Name"] = scene->GetName    ();
         }
 
         return root;

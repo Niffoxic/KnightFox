@@ -30,6 +30,9 @@
 #include "engine/render_manager/assets_library/shader_library.h"
 #include "engine/utils/helpers.h"
 
+#include "imgui/imgui.h"
+#include "engine/editor/widgets/assets_panel.h"
+
 #pragma region Impl_Definition
 
 struct CubeVertex
@@ -108,6 +111,8 @@ public:
 	JsonLoader GetJsonData() const					  noexcept;
 	void	   LoadFromJson(const JsonLoader& loader) noexcept;
 
+	void ImguiView(float deltaTime);
+
 private:
 	bool BuildGeometry		(_In_ const KFE_BUILD_OBJECT_DESC& desc);
 	bool BuildConstantBuffer(_In_ const KFE_BUILD_OBJECT_DESC& desc);
@@ -165,6 +170,7 @@ private:
 kfe::KEFCubeSceneObject::KEFCubeSceneObject()
 	: m_impl(std::make_unique<kfe::KEFCubeSceneObject::Impl>(this))
 {
+	SetTypeName("KEFCubeSceneObject");
 }
 
 kfe::KEFCubeSceneObject::KEFCubeSceneObject(const std::uint32_t multiple)
@@ -214,6 +220,36 @@ void kfe::KEFCubeSceneObject::Render(const KFE_RENDER_OBJECT_DESC& desc)
 	m_impl->Render(desc);
 }
 
+void kfe::KEFCubeSceneObject::ImguiView(float deltaTime)
+{
+	// --- Object header: Name + Type ---
+	if (ImGui::CollapsingHeader("Object", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		// Type (read-only)
+		const std::string typeName = GetTypeName();
+		ImGui::Text("Type: %s", typeName.c_str());
+
+		// Name (editable)
+		std::string objName = GetObjectName();
+
+		char nameBuf[128];
+		// Copy current name into buffer (safe truncation)
+		std::snprintf(nameBuf, sizeof(nameBuf), "%s", objName.c_str());
+
+		if (ImGui::InputText("Name", nameBuf, sizeof(nameBuf)))
+		{
+			// Update object name if changed
+			SetOjbjectName(std::string{ nameBuf });
+		}
+	}
+
+	// Cube-specific settings (modes, shaders, etc.)
+	m_impl->ImguiView(deltaTime);
+
+	// Generic transform at the bottom
+	ImguiTransformView(deltaTime);
+}
+
 void kfe::KEFCubeSceneObject::SetCullMode(const ECullMode mode)
 {
 	if (!m_impl) return;
@@ -260,6 +296,39 @@ kfe::EDrawMode kfe::KEFCubeSceneObject::GetDrawMode() const
 std::string kfe::KEFCubeSceneObject::GetDrawModeString() const
 {
 	return m_impl ? ToString(m_impl->m_drawMode) : "Triangle";
+}
+
+void kfe::IKFESceneObject::ImguiTransformView(float deltaTime)
+{
+	if (!ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		return;
+	}
+
+	DirectX::XMFLOAT3 pos = GetPosition();
+	if (ImGui::DragFloat3("Position", &pos.x, 0.1f))
+	{
+		SetPosition(pos);
+	}
+
+	DirectX::XMFLOAT4 ori = GetOrientation();
+	float q[4] = { ori.x, ori.y, ori.z, ori.w };
+
+	if (ImGui::DragFloat4("Rotation (quat)", q, 0.01f))
+	{
+		DirectX::XMVECTOR qv = DirectX::XMVectorSet(q[0], q[1], q[2], q[3]);
+		qv = DirectX::XMQuaternionNormalize(qv);
+		DirectX::XMStoreFloat4(&ori, qv);
+		SetOrientation(ori);
+	}
+
+	DirectX::XMFLOAT3 scl = GetScale();
+	if (ImGui::DragFloat3("Scale", &scl.x, 0.01f))
+	{
+		SetScale(scl);
+	}
+
+	ImGui::TextDisabled("Tip: Rotation is edited as a normalized quaternion.");
 }
 
 void kfe::KEFCubeSceneObject::SetVertexShader(const std::string& path)
@@ -677,13 +746,32 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
 		return false;
 	}
 
-	// Get Shaders
-	ID3DBlob* vertexBlob = shaders::GetOrCompile(m_vertexShaderPath);
+	if (!m_geometryShaderPath.empty() && !kfe_helpers::IsFile(m_geometryShaderPath))
+	{
+		LOG_ERROR("Geometry Shader Path: {}, Does Not Exist!", m_geometryShaderPath);
+		m_geometryShaderPath.clear();
+	}
+
+	if (!m_hullShaderPath.empty() && !kfe_helpers::IsFile(m_hullShaderPath))
+	{
+		LOG_ERROR("Hull Shader Path: {}, Does Not Exist!", m_hullShaderPath);
+		m_hullShaderPath.clear();
+	}
+
+	if (!m_domainShaderPath.empty() && !kfe_helpers::IsFile(m_domainShaderPath))
+	{
+		LOG_ERROR("Domain Shader Path: {}, Does Not Exist!", m_domainShaderPath);
+		m_domainShaderPath.clear();
+	}
+
+	ID3DBlob* vertexBlob = shaders::GetOrCompile(
+		m_vertexShaderPath, "main", "vs_5_0");
 	ID3DBlob* pixelBlob = shaders::GetOrCompile(
-		m_pixelShaderPath,
-		"main",
-		"ps_5_0"
-	);
+		m_pixelShaderPath, "main", "ps_5_0");
+
+	ID3DBlob* geometryBlob = nullptr;
+	ID3DBlob* hullBlob = nullptr;
+	ID3DBlob* domainBlob = nullptr;
 
 	if (!vertexBlob)
 	{
@@ -697,6 +785,39 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
 		return false;
 	}
 
+	if (!m_geometryShaderPath.empty())
+	{
+		geometryBlob = shaders::GetOrCompile(
+			m_geometryShaderPath, "main", "gs_5_0");
+		if (!geometryBlob)
+		{
+			LOG_ERROR("Failed to load Geometry Shader: {}", m_geometryShaderPath);
+			m_geometryShaderPath.clear();
+		}
+	}
+
+	if (!m_hullShaderPath.empty())
+	{
+		hullBlob = shaders::GetOrCompile(
+			m_hullShaderPath, "main", "hs_5_0");
+		if (!hullBlob)
+		{
+			LOG_ERROR("Failed to load Hull Shader: {}", m_hullShaderPath);
+			m_hullShaderPath.clear();
+		}
+	}
+
+	if (!m_domainShaderPath.empty())
+	{
+		domainBlob = shaders::GetOrCompile(
+			m_domainShaderPath, "main", "ds_5_0");
+		if (!domainBlob)
+		{
+			LOG_ERROR("Failed to load Domain Shader: {}", m_domainShaderPath);
+			m_domainShaderPath.clear();
+		}
+	}
+
 	if (m_pPipeline)
 	{
 		m_pPipeline->Destroy();
@@ -706,27 +827,46 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
 		m_pPipeline = std::make_unique<KFEPipelineState>();
 	}
 
-	// Input layout
 	auto layout = CubeVertex::GetInputLayout();
 	m_pPipeline->SetInputLayout(layout.data(), layout.size());
 
-	// VS
 	D3D12_SHADER_BYTECODE vertexCode{};
-	vertexCode.BytecodeLength  = vertexBlob->GetBufferSize();
+	vertexCode.BytecodeLength = vertexBlob->GetBufferSize();
 	vertexCode.pShaderBytecode = vertexBlob->GetBufferPointer();
 	m_pPipeline->SetVS(vertexCode);
 
-	// PS
 	D3D12_SHADER_BYTECODE pixelCode{};
-	pixelCode.BytecodeLength  = pixelBlob->GetBufferSize();
+	pixelCode.BytecodeLength = pixelBlob->GetBufferSize();
 	pixelCode.pShaderBytecode = pixelBlob->GetBufferPointer();
 	m_pPipeline->SetPS(pixelCode);
 
-	// Root Signature
+	if (geometryBlob)
+	{
+		D3D12_SHADER_BYTECODE code{};
+		code.BytecodeLength = geometryBlob->GetBufferSize();
+		code.pShaderBytecode = geometryBlob->GetBufferPointer();
+		m_pPipeline->SetGS(code);
+	}
+
+	if (hullBlob)
+	{
+		D3D12_SHADER_BYTECODE code{};
+		code.BytecodeLength = hullBlob->GetBufferSize();
+		code.pShaderBytecode = hullBlob->GetBufferPointer();
+		m_pPipeline->SetHS(code);
+	}
+
+	if (domainBlob)
+	{
+		D3D12_SHADER_BYTECODE code{};
+		code.BytecodeLength = domainBlob->GetBufferSize();
+		code.pShaderBytecode = domainBlob->GetBufferPointer();
+		m_pPipeline->SetDS(code);
+	}
+
 	auto* rs = static_cast<ID3D12RootSignature*>(m_pRootSignature->GetNative());
 	m_pPipeline->SetRootSignature(rs);
 
-	// Rasterizer
 	D3D12_RASTERIZER_DESC raster{};
 	raster.FillMode =
 		(m_drawMode == EDrawMode::WireFrame) ? D3D12_FILL_MODE_WIREFRAME
@@ -740,14 +880,14 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
 	}
 
 	raster.FrontCounterClockwise = FALSE;
-	raster.DepthBias			 = D3D12_DEFAULT_DEPTH_BIAS;
-	raster.DepthBiasClamp		 = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-	raster.SlopeScaledDepthBias  = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-	raster.DepthClipEnable		 = TRUE;
-	raster.MultisampleEnable	 = FALSE;
+	raster.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+	raster.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	raster.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	raster.DepthClipEnable = TRUE;
+	raster.MultisampleEnable = FALSE;
 	raster.AntialiasedLineEnable = FALSE;
-	raster.ForcedSampleCount	 = 0u;
-	raster.ConservativeRaster	 = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+	raster.ForcedSampleCount = 0u;
+	raster.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
 	m_pPipeline->SetRasterizer(raster);
 
@@ -1021,4 +1161,128 @@ void kfe::KEFCubeSceneObject::Impl::LoadFromJson(const JsonLoader& loader) noexc
 		m_bPipelineDirty = true;
 	}
 }
+
+void kfe::KEFCubeSceneObject::Impl::ImguiView(float deltaTime)
+{
+	(void)deltaTime;
+
+	if (ImGui::CollapsingHeader("Cube Settings", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		{
+			const char* drawModeItems[] = { "Triangle", "Point", "WireFrame" };
+			int currentDrawIndex = 0;
+			switch (m_drawMode)
+			{
+			case EDrawMode::Triangle:  currentDrawIndex = 0; break;
+			case EDrawMode::Point:     currentDrawIndex = 1; break;
+			case EDrawMode::WireFrame: currentDrawIndex = 2; break;
+			}
+
+			if (ImGui::Combo("Draw Mode", &currentDrawIndex, drawModeItems, IM_ARRAYSIZE(drawModeItems)))
+			{
+				switch (currentDrawIndex)
+				{
+				case 0: m_drawMode = EDrawMode::Triangle;  break;
+				case 1: m_drawMode = EDrawMode::Point;     break;
+				case 2: m_drawMode = EDrawMode::WireFrame; break;
+				default: m_drawMode = EDrawMode::Triangle; break;
+				}
+				m_bPipelineDirty = true;
+			}
+		}
+
+		{
+			const char* cullModeItems[] = { "Front", "Back", "None" };
+			int currentCullIndex = 2; // None default
+			switch (m_cullMode)
+			{
+			case ECullMode::Front: currentCullIndex = 0; break;
+			case ECullMode::Back:  currentCullIndex = 1; break;
+			case ECullMode::None:  currentCullIndex = 2; break;
+			}
+
+			if (ImGui::Combo("Cull Mode", &currentCullIndex, cullModeItems, IM_ARRAYSIZE(cullModeItems)))
+			{
+				switch (currentCullIndex)
+				{
+				case 0: m_cullMode = ECullMode::Front; break;
+				case 1: m_cullMode = ECullMode::Back;  break;
+				case 2: m_cullMode = ECullMode::None;  break;
+				default: m_cullMode = ECullMode::None; break;
+				}
+				m_bPipelineDirty = true;
+			}
+		}
+
+		ImGui::Separator();
+
+		if (ImGui::TreeNode("Shaders"))
+		{
+			auto EditPath = [](const char* label, std::string& path, auto setter)
+				{
+					// Text input
+					char buf[260];
+					std::memset(buf, 0, sizeof(buf));
+
+					const size_t maxCopy = sizeof(buf) - 1;
+					const size_t count = std::min(path.size(), maxCopy);
+
+					path.copy(buf, count);
+					buf[count] = '\0';
+
+					if (ImGui::InputText(label, buf, sizeof(buf)))
+					{
+						setter(std::string{ buf });
+					}
+
+					// Drag & drop from asset panel
+					if (ImGui::BeginDragDropTarget())
+					{
+						if (const ImGuiPayload* payload =
+							ImGui::AcceptDragDropPayload(kfe::KFEAssetPanel::kPayloadType))
+						{
+							kfe::KFEAssetPanel::PayloadHeader hdr{};
+							std::string pathUtf8;
+
+							if (kfe::KFEAssetPanel::ParsePayload(payload, hdr, pathUtf8))
+							{
+								setter(pathUtf8);
+							}
+						}
+						ImGui::EndDragDropTarget();
+					}
+				};
+
+			// VS
+			EditPath("Vertex Shader", m_vertexShaderPath,
+				[this](const std::string& p) { SetVertexShaderPath(p); m_bPipelineDirty = true; });
+
+			// PS
+			EditPath("Pixel Shader", m_pixelShaderPath,
+				[this](const std::string& p) { SetPixelShaderPath(p); m_bPipelineDirty = true; });
+
+			// GS
+			EditPath("Geometry Shader", m_geometryShaderPath,
+				[this](const std::string& p) { SetGeometryShaderPath(p); m_bPipelineDirty = true; });
+
+			// HS
+			EditPath("Hull Shader", m_hullShaderPath,
+				[this](const std::string& p) { SetHullShaderPath(p); m_bPipelineDirty = true; });
+
+			// DS
+			EditPath("Domain Shader", m_domainShaderPath,
+				[this](const std::string& p) { SetDomainShaderPath(p); m_bPipelineDirty = true; });
+
+			// CS
+			EditPath("Compute Shader", m_computeShaderPath,
+				[this](const std::string& p) { SetComputeShaderPath(p); m_bPipelineDirty = true; });
+
+			ImGui::TreePop();
+		}
+
+		ImGui::Separator();
+		ImGui::TextDisabled("Pipeline dirty: %s", m_bPipelineDirty ? "Yes" : "No");
+	}
+}
+
 #pragma endregion
