@@ -207,7 +207,7 @@
 
 namespace kfe
 {
-    class __declspec(novtable) KFE_API IKFEObject
+    class KFE_API IKFEObject
     {
     public:
         IKFEObject() noexcept

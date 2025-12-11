@@ -45,7 +45,7 @@ private:
 	bool											  m_bInitialized{ false };
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_pList{ nullptr };
 	std::unique_ptr<KFECommandAllocatorPool>		  m_pPool{ nullptr };
-	KFECommandAllocator* m_pCurrentAllocator{ nullptr };
+	KFECommandAllocator*							  m_pCurrentAllocator{ nullptr };
 };
 
 #pragma endregion

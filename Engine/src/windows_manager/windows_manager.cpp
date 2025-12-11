@@ -19,6 +19,12 @@
 #include "engine/utils/helpers.h"
 #include "engine/utils/logger.h"
 
+#if defined(DEBUG) || defined(_DEBUG)
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_win32.h"
+#include "imgui/imgui_impl_dx12.h"
+#endif
+
 #pragma region IMPL
 
 class kfe::KFEWindows::Impl
@@ -115,6 +121,12 @@ bool kfe::KFEWindows::Initialize()
     if (auto handle = GetWindowsHandle())
         Mouse.AttachWindowHandle(handle);
     LOG_SUCCESS("Initialized Window!");
+
+#if defined(DEBUG) || defined(_DEBUG)
+    ImGui_ImplWin32_Init(GetWindowsHandle());
+    LOG_SUCCESS("Initialzied Imgui For windows");
+#endif
+
 	return true;
 }
 
@@ -307,9 +319,17 @@ bool kfe::KFEWindows::Impl::InitWindowScreen()
     return true;
 }
 
+#if defined(DEBUG) || defined(_DEBUG)
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#endif
+
 _Use_decl_annotations_
 LRESULT kfe::KFEWindows::Impl::MessageHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+#if defined(DEBUG) || defined(_DEBUG)
+    if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
+        return S_OK;
+#endif
     if (m_pWindows->Keyboard.ProcessMessage(msg, wParam, lParam)) return S_OK;
     if (m_pWindows->Mouse.ProcessMessage(msg, wParam, lParam))    return S_OK;
 

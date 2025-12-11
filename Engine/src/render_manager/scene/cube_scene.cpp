@@ -89,11 +89,30 @@ public:
 
 	void Render(_In_ const KFE_RENDER_OBJECT_DESC& desc);
 
+	// Shader path setters
+	void SetVertexShaderPath	(const std::string& path) noexcept;
+	void SetPixelShaderPath		(const std::string& path) noexcept;
+	void SetGeometryShaderPath	(const std::string& path) noexcept;
+	void SetHullShaderPath		(const std::string& path) noexcept;
+	void SetDomainShaderPath	(const std::string& path) noexcept;
+	void SetComputeShaderPath	(const std::string& path) noexcept;
+
+	// Shader path getters
+	const std::string& GetVertexShaderPath	() const noexcept { return m_vertexShaderPath; }
+	const std::string& GetPixelShaderPath	() const noexcept { return m_pixelShaderPath; }
+	const std::string& GetGeometryShaderPath() const noexcept { return m_geometryShaderPath; }
+	const std::string& GetHullShaderPath	() const noexcept { return m_hullShaderPath; }
+	const std::string& GetDomainShaderPath	() const noexcept { return m_domainShaderPath; }
+	const std::string& GetComputeShaderPath	() const noexcept { return m_computeShaderPath; }
+
+	JsonLoader GetJsonData() const					  noexcept;
+	void	   LoadFromJson(const JsonLoader& loader) noexcept;
+
 private:
 	bool BuildGeometry		(_In_ const KFE_BUILD_OBJECT_DESC& desc);
 	bool BuildConstantBuffer(_In_ const KFE_BUILD_OBJECT_DESC& desc);
 	bool BuildRootSignature	(_In_ const KFE_BUILD_OBJECT_DESC& desc);
-	bool BuildPipeline		(_In_ const KFE_BUILD_OBJECT_DESC& desc);
+	bool BuildPipeline		(KFEDevice* device);
 
 	void UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc);
 
@@ -101,14 +120,25 @@ private:
 	std::vector<CubeVertex>    GetVertices() const noexcept;
 	std::vector<std::uint16_t> GetIndices () const noexcept;
 
+public:
+	//~ public Configurations
+	ECullMode m_cullMode	  { ECullMode::None };
+	EDrawMode m_drawMode	  { EDrawMode::Triangle };
+	bool      m_bPipelineDirty{ false };
+
 private:
 	//~ Configurations
 	KEFCubeSceneObject* m_pObject{ nullptr };
 	float m_nTimeLived{ 0.0f };
 
-	//~ Shaders
-	const std::string m_szVertexPath{ "shaders/cube/vertex.hlsl" };
-	const std::string m_szPixelPath { "shaders/cube/pixel.hlsl" };
+	//~ Shaders (paths)
+	std::string m_vertexShaderPath	{ "shaders/cube/vertex.hlsl" };
+	std::string m_pixelShaderPath	{ "shaders/cube/pixel.hlsl" };
+	std::string m_geometryShaderPath{};
+	std::string m_hullShaderPath	{};
+	std::string m_domainShaderPath	{};
+	std::string m_computeShaderPath	{};
+
 	std::unique_ptr<KFERootSignature>  m_pRootSignature{ nullptr };
 
 	//~ Geometry
@@ -124,7 +154,8 @@ private:
 	std::unique_ptr<KFEConstantBuffer> m_pCBV		{ nullptr };
 
 	//~ Pipeline
-	std::unique_ptr<KFEPipelineState>  m_pPipeline	{ nullptr };
+	std::unique_ptr<KFEPipelineState>  m_pPipeline{ nullptr };
+	KFEDevice*						   m_pDevice{ nullptr };
 };
 
 #pragma endregion
@@ -133,13 +164,18 @@ private:
 
 kfe::KEFCubeSceneObject::KEFCubeSceneObject()
 	: m_impl(std::make_unique<kfe::KEFCubeSceneObject::Impl>(this))
-{}
+{
+}
 
 kfe::KEFCubeSceneObject::KEFCubeSceneObject(const std::uint32_t multiple)
 	: m_impl(std::make_unique<kfe::KEFCubeSceneObject::Impl>(this, multiple))
-{}
+{
+}
 
 kfe::KEFCubeSceneObject::~KEFCubeSceneObject() = default;
+
+kfe::KEFCubeSceneObject::KEFCubeSceneObject(KEFCubeSceneObject&&) = default;
+kfe::KEFCubeSceneObject& kfe::KEFCubeSceneObject::operator=(KEFCubeSceneObject&&) = default;
 
 std::string kfe::KEFCubeSceneObject::GetName() const noexcept
 {
@@ -159,7 +195,7 @@ void kfe::KEFCubeSceneObject::Update(const KFE_UPDATE_OBJECT_DESC& desc)
 _Use_decl_annotations_
 bool kfe::KEFCubeSceneObject::Build(const KFE_BUILD_OBJECT_DESC& desc)
 {
-	if (m_impl->Build(desc)) 
+	if (m_impl->Build(desc))
 	{
 		m_bInitialized = true;
 		return true;
@@ -178,6 +214,140 @@ void kfe::KEFCubeSceneObject::Render(const KFE_RENDER_OBJECT_DESC& desc)
 	m_impl->Render(desc);
 }
 
+void kfe::KEFCubeSceneObject::SetCullMode(const ECullMode mode)
+{
+	if (!m_impl) return;
+	m_impl->m_cullMode = mode;
+	m_impl->m_bPipelineDirty = true;
+}
+
+void kfe::KEFCubeSceneObject::SetCullMode(const std::string& mode)
+{
+	if (!m_impl) return;
+	m_impl->m_cullMode = FromStringToCull(mode);
+	m_impl->m_bPipelineDirty = true;
+}
+
+void kfe::KEFCubeSceneObject::SetDrawMode(const EDrawMode mode)
+{
+	if (!m_impl) return;
+	m_impl->m_drawMode = mode;
+	m_impl->m_bPipelineDirty = true;
+}
+
+void kfe::KEFCubeSceneObject::SetDrawMode(const std::string& mode)
+{
+	if (!m_impl) return;
+	m_impl->m_drawMode = FromStringToDraw(mode);
+	m_impl->m_bPipelineDirty = true;
+}
+
+kfe::ECullMode kfe::KEFCubeSceneObject::GetCullMode() const
+{
+	return m_impl ? m_impl->m_cullMode : ECullMode::Back;
+}
+
+std::string kfe::KEFCubeSceneObject::GetCullModeString() const
+{
+	return m_impl ? ToString(m_impl->m_cullMode) : "Back";
+}
+
+kfe::EDrawMode kfe::KEFCubeSceneObject::GetDrawMode() const
+{
+	return m_impl ? m_impl->m_drawMode : EDrawMode::Triangle;
+}
+
+std::string kfe::KEFCubeSceneObject::GetDrawModeString() const
+{
+	return m_impl ? ToString(m_impl->m_drawMode) : "Triangle";
+}
+
+void kfe::KEFCubeSceneObject::SetVertexShader(const std::string& path)
+{
+	if (!m_impl) return;
+	m_impl->SetVertexShaderPath(path);
+}
+
+std::string kfe::KEFCubeSceneObject::VertexShader() const
+{
+	return m_impl ? m_impl->GetVertexShaderPath() : std::string{};
+}
+
+void kfe::KEFCubeSceneObject::SetPixelShader(const std::string& path)
+{
+	if (!m_impl) return;
+	m_impl->SetPixelShaderPath(path);
+}
+
+std::string kfe::KEFCubeSceneObject::PixelShader() const
+{
+	return m_impl ? m_impl->GetPixelShaderPath() : std::string{};
+}
+
+void kfe::KEFCubeSceneObject::SetGeometryShader(const std::string& path)
+{
+	if (!m_impl) return;
+	m_impl->SetGeometryShaderPath(path);
+}
+
+std::string kfe::KEFCubeSceneObject::GeometryShader() const
+{
+	return m_impl ? m_impl->GetGeometryShaderPath() : std::string{};
+}
+
+void kfe::KEFCubeSceneObject::SetHullShader(const std::string& path)
+{
+	if (!m_impl) return;
+	m_impl->SetHullShaderPath(path);
+}
+
+std::string kfe::KEFCubeSceneObject::HullShader() const
+{
+	return m_impl ? m_impl->GetHullShaderPath() : std::string{};
+}
+
+void kfe::KEFCubeSceneObject::SetDomainShader(const std::string& path)
+{
+	if (!m_impl) return;
+	m_impl->SetDomainShaderPath(path);
+}
+
+std::string kfe::KEFCubeSceneObject::DomainShader() const
+{
+	return m_impl ? m_impl->GetDomainShaderPath() : std::string{};
+}
+
+void kfe::KEFCubeSceneObject::SetComputeShader(const std::string& path)
+{
+	if (!m_impl) return;
+	m_impl->SetComputeShaderPath(path);
+}
+
+std::string kfe::KEFCubeSceneObject::ComputeShader() const
+{
+	return m_impl ? m_impl->GetComputeShaderPath() : std::string{};
+}
+
+JsonLoader kfe::KEFCubeSceneObject::GetJsonData() const
+{
+	JsonLoader root{};
+	root["Transformation"] = GetTransformJsonData();
+	root["Properties"] = m_impl->GetJsonData();
+	return root;
+}
+
+void kfe::KEFCubeSceneObject::LoadFromJson(const JsonLoader& loader)
+{
+	if (loader.Contains("Transformation"))
+	{
+		LoadTransformFromJson(loader["Transformation"]);
+	}
+	if (loader.Contains("Properties"))
+	{
+		m_impl->LoadFromJson(loader["Properties"]);
+	}
+}
+
 #pragma endregion
 
 #pragma region Impl_body
@@ -190,14 +360,16 @@ void kfe::KEFCubeSceneObject::Impl::Update(const KFE_UPDATE_OBJECT_DESC& desc)
 
 bool kfe::KEFCubeSceneObject::Impl::Build(_In_ const KFE_BUILD_OBJECT_DESC& desc)
 {
-	if (!BuildGeometry		(desc)) return false;
-	if (!BuildRootSignature (desc)) return false;
-	if (!BuildPipeline		(desc)) return false;
-	if (!BuildConstantBuffer(desc)) return false;
+    m_pDevice = desc.Device;
 
-	LOG_SUCCESS("Cube Built!");
+    if (!BuildGeometry		(desc)) return false;
+    if (!BuildRootSignature (desc)) return false;
+    if (!BuildPipeline		(desc.Device)) return false;
+    if (!BuildConstantBuffer(desc)) return false;
 
-	return true;
+    LOG_SUCCESS("Cube Built!");
+
+    return true;
 }
 
 bool kfe::KEFCubeSceneObject::Impl::Destroy()
@@ -230,6 +402,22 @@ bool kfe::KEFCubeSceneObject::Impl::Destroy()
 
 void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& desc)
 {
+	// Rebuild pipeline if shaders changed
+	if (m_bPipelineDirty)
+	{
+		if (!m_pDevice)
+		{
+			LOG_ERROR("KEFCubeSceneObject::Impl::Render: Cannot rebuild pipeline, device is null.");
+			return;
+		}
+
+		if (!BuildPipeline(m_pDevice))
+		{
+			LOG_ERROR("KEFCubeSceneObject::Impl::Render: Failed to rebuild pipeline.");
+			return;
+		}
+	}
+
 	auto* cmdListObj = desc.CommandList;
 	if (!cmdListObj || !cmdListObj->GetNative()) return;
 	auto* cmdList = cmdListObj->GetNative();
@@ -239,13 +427,24 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
 	auto addr = static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(m_pCBV->GetGPUVirtualAddress());
 	cmdList->SetGraphicsRootConstantBufferView(0u, addr);
 
-	//~ render geometry
+	// render geometry
 	auto vertexView = m_pVertexView->GetView();
-	auto indexView  = m_pIndexView->GetView ();
+	auto indexView = m_pIndexView->GetView();
 
 	cmdList->IASetVertexBuffers(0u, 1u, &vertexView);
 	cmdList->IASetIndexBuffer(&indexView);
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	switch (m_drawMode)
+	{
+	case EDrawMode::Triangle:
+	case EDrawMode::WireFrame:
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		break;
+
+	case EDrawMode::Point:
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+		break;
+	}
 
 	cmdList->DrawIndexedInstanced(
 		m_pIndexView->GetIndexCount(),
@@ -435,11 +634,11 @@ bool kfe::KEFCubeSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
 	param[0].Descriptor.ShaderRegister = D3D12_SHADER_VISIBILITY_ALL;
 	param[0].ParameterType			   = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	param[0].Descriptor.RegisterSpace  = 0u;
-	param[0].Descriptor.ShaderRegister = 0u;
+	param[0].Descriptor.ShaderRegister = 0u; // b0
 
 	KFE_RG_CREATE_DESC root{};
-	root.Device = desc.Device;
-	root.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	root.Device			   = desc.Device;
+	root.Flags			   = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	root.NumRootParameters = 1u;
 	root.NumStaticSamplers = 0u;
 	root.RootParameters = param;
@@ -458,62 +657,88 @@ bool kfe::KEFCubeSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
 }
 
 _Use_decl_annotations_
-bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(const KFE_BUILD_OBJECT_DESC& desc)
+bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
 {
-	if (!kfe_helpers::IsFile(m_szVertexPath))
+	if (!device)
 	{
-		LOG_ERROR("Vertex Shader Path: {}, Does Not Exits!", m_szVertexPath);
+		LOG_ERROR("KEFCubeSceneObject::Impl::BuildPipeline: Device is null.");
 		return false;
 	}
 
-	if (!kfe_helpers::IsFile(m_szPixelPath))
+	if (!kfe_helpers::IsFile(m_vertexShaderPath))
 	{
-		LOG_ERROR("Pixel Shader Path: {}, Does Not Exits!", m_szVertexPath);
+		LOG_ERROR("Vertex Shader Path: {}, Does Not Exist!", m_vertexShaderPath);
 		return false;
 	}
 
-	//~ Get Shaders
-	ID3DBlob* vertexBlob = shaders::GetOrCompile(m_szVertexPath);
-	ID3DBlob* pixelBlob  = shaders::GetOrCompile(m_szPixelPath,
-												 "main",
-												 "ps_5_0");
-	if (!vertexBlob) 
+	if (!kfe_helpers::IsFile(m_pixelShaderPath))
 	{
-		LOG_ERROR("Failed to load Vertex Shader Path: {}, Does Not Exits!", m_szVertexPath);
+		LOG_ERROR("Pixel Shader Path: {}, Does Not Exist!", m_pixelShaderPath);
+		return false;
+	}
+
+	// Get Shaders
+	ID3DBlob* vertexBlob = shaders::GetOrCompile(m_vertexShaderPath);
+	ID3DBlob* pixelBlob = shaders::GetOrCompile(
+		m_pixelShaderPath,
+		"main",
+		"ps_5_0"
+	);
+
+	if (!vertexBlob)
+	{
+		LOG_ERROR("Failed to load Vertex Shader: {}", m_vertexShaderPath);
 		return false;
 	}
 
 	if (!pixelBlob)
 	{
-		LOG_ERROR("Failed to load pixel Shader Path: {}, Does Not Exits!", m_szPixelPath);
+		LOG_ERROR("Failed to load Pixel Shader: {}", m_pixelShaderPath);
 		return false;
 	}
 
-	//~ Set input layout
-	m_pPipeline = std::make_unique<KFEPipelineState>();
+	if (m_pPipeline)
+	{
+		m_pPipeline->Destroy();
+	}
+	else
+	{
+		m_pPipeline = std::make_unique<KFEPipelineState>();
+	}
+
+	// Input layout
 	auto layout = CubeVertex::GetInputLayout();
 	m_pPipeline->SetInputLayout(layout.data(), layout.size());
 
-	//~ Set Vertex Shader
+	// VS
 	D3D12_SHADER_BYTECODE vertexCode{};
 	vertexCode.BytecodeLength  = vertexBlob->GetBufferSize();
 	vertexCode.pShaderBytecode = vertexBlob->GetBufferPointer();
 	m_pPipeline->SetVS(vertexCode);
 
-	//~ Set Pixel Shader
+	// PS
 	D3D12_SHADER_BYTECODE pixelCode{};
 	pixelCode.BytecodeLength  = pixelBlob->GetBufferSize();
 	pixelCode.pShaderBytecode = pixelBlob->GetBufferPointer();
 	m_pPipeline->SetPS(pixelCode);
 
-	//~ Set Root Signature
+	// Root Signature
 	auto* rs = static_cast<ID3D12RootSignature*>(m_pRootSignature->GetNative());
 	m_pPipeline->SetRootSignature(rs);
 
-	//~ Set Rasterizer properties
+	// Rasterizer
 	D3D12_RASTERIZER_DESC raster{};
-	raster.FillMode				 = D3D12_FILL_MODE_SOLID;
-	raster.CullMode				 = D3D12_CULL_MODE_NONE;
+	raster.FillMode =
+		(m_drawMode == EDrawMode::WireFrame) ? D3D12_FILL_MODE_WIREFRAME
+		: D3D12_FILL_MODE_SOLID;
+
+	switch (m_cullMode)
+	{
+	case ECullMode::Front: raster.CullMode = D3D12_CULL_MODE_FRONT; break;
+	case ECullMode::Back:  raster.CullMode = D3D12_CULL_MODE_BACK;  break;
+	case ECullMode::None:  raster.CullMode = D3D12_CULL_MODE_NONE;  break;
+	}
+
 	raster.FrontCounterClockwise = FALSE;
 	raster.DepthBias			 = D3D12_DEFAULT_DEPTH_BIAS;
 	raster.DepthBiasClamp		 = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
@@ -523,14 +748,28 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(const KFE_BUILD_OBJECT_DESC& d
 	raster.AntialiasedLineEnable = FALSE;
 	raster.ForcedSampleCount	 = 0u;
 	raster.ConservativeRaster	 = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-	m_pPipeline->SetRasterizer(raster);
-	m_pPipeline->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 
-	if (!m_pPipeline->Build(desc.Device)) 
+	m_pPipeline->SetRasterizer(raster);
+
+	switch (m_drawMode)
+	{
+	case EDrawMode::Triangle:
+	case EDrawMode::WireFrame:
+		m_pPipeline->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		break;
+
+	case EDrawMode::Point:
+		m_pPipeline->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
+		break;
+	}
+
+	if (!m_pPipeline->Build(device))
 	{
 		LOG_ERROR("Failed to build Cube Scene Pipeline!");
 		return false;
 	}
+
+	m_bPipelineDirty = false;
 
 	LOG_SUCCESS("Cube Pipeline Created!");
 	return true;
@@ -661,4 +900,125 @@ std::vector<std::uint16_t> kfe::KEFCubeSceneObject::Impl::GetIndices() const noe
 	return i;
 }
 
+void kfe::KEFCubeSceneObject::Impl::SetVertexShaderPath(const std::string& path) noexcept
+{
+	if (m_vertexShaderPath == path)
+		return;
+
+	m_vertexShaderPath = path;
+	m_bPipelineDirty = true;
+}
+
+void kfe::KEFCubeSceneObject::Impl::SetPixelShaderPath(const std::string& path) noexcept
+{
+	if (m_pixelShaderPath == path)
+		return;
+
+	m_pixelShaderPath = path;
+	m_bPipelineDirty = true;
+}
+
+void kfe::KEFCubeSceneObject::Impl::SetGeometryShaderPath(const std::string& path) noexcept
+{
+	if (m_geometryShaderPath == path)
+		return;
+
+	m_geometryShaderPath = path;
+	m_bPipelineDirty = true;
+}
+
+void kfe::KEFCubeSceneObject::Impl::SetHullShaderPath(const std::string& path) noexcept
+{
+	if (m_hullShaderPath == path)
+		return;
+
+	m_hullShaderPath = path;
+	m_bPipelineDirty = true;
+}
+
+void kfe::KEFCubeSceneObject::Impl::SetDomainShaderPath(const std::string& path) noexcept
+{
+	if (m_domainShaderPath == path)
+		return;
+
+	m_domainShaderPath = path;
+	m_bPipelineDirty = true;
+}
+
+void kfe::KEFCubeSceneObject::Impl::SetComputeShaderPath(const std::string& path) noexcept
+{
+	if (m_computeShaderPath == path)
+		return;
+
+	m_computeShaderPath = path;
+	m_bPipelineDirty = true;
+}
+
+JsonLoader kfe::KEFCubeSceneObject::Impl::GetJsonData() const noexcept
+{
+	JsonLoader root{};
+
+	root["CullMode"] = ToString(m_cullMode);
+	root["DrawMode"] = ToString(m_drawMode);
+
+	root["VertexShader"] = m_vertexShaderPath;
+	root["PixelShader"] = m_pixelShaderPath;
+	root["GeometryShader"] = m_geometryShaderPath;
+	root["HullShader"] = m_hullShaderPath;
+	root["DomainShader"] = m_domainShaderPath;
+	root["ComputeShader"] = m_computeShaderPath;
+
+	return root;
+}
+
+void kfe::KEFCubeSceneObject::Impl::LoadFromJson(const JsonLoader& loader) noexcept
+{
+	if (loader.Contains("CullMode"))
+	{
+		m_cullMode = FromStringToCull(loader["CullMode"].GetValue());
+		m_bPipelineDirty = true;
+	}
+
+	if (loader.Contains("DrawMode"))
+	{
+		m_drawMode = FromStringToDraw(loader["DrawMode"].GetValue());
+		m_bPipelineDirty = true;
+	}
+
+	if (loader.Contains("VertexShader"))
+	{
+		m_vertexShaderPath = loader["VertexShader"].GetValue();
+		m_bPipelineDirty = true;
+	}
+
+	if (loader.Contains("PixelShader"))
+	{
+		m_pixelShaderPath = loader["PixelShader"].GetValue();
+		m_bPipelineDirty = true;
+	}
+
+	if (loader.Contains("GeometryShader"))
+	{
+		m_geometryShaderPath = loader["GeometryShader"].GetValue();
+		m_bPipelineDirty = true;
+	}
+
+	if (loader.Contains("HullShader"))
+	{
+		m_hullShaderPath = loader["HullShader"].GetValue();
+		m_bPipelineDirty = true;
+	}
+
+	if (loader.Contains("DomainShader"))
+	{
+		m_domainShaderPath = loader["DomainShader"].GetValue();
+		m_bPipelineDirty = true;
+	}
+
+	if (loader.Contains("ComputeShader"))
+	{
+		m_computeShaderPath = loader["ComputeShader"].GetValue();
+		m_bPipelineDirty = true;
+	}
+}
 #pragma endregion

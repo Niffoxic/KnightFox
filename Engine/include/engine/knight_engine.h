@@ -15,10 +15,10 @@
 #include <memory>
 
 #include "system/common_types.h"
+#include "engine/map/world.h"
 
 namespace kfe
-{
-	typedef struct _KFE_ENGINE_CREATE_DESC
+{	typedef struct _KFE_ENGINE_CREATE_DESC
 	{
 		_In_ KFE_WINDOW_CREATE_DESC WindowsDesc;
 	} KFE_ENGINE_CREATE_DESC;
@@ -41,6 +41,8 @@ namespace kfe
 		_Success_(return == S_OK)
 		int Execute();
 
+		KFEWorld* GetWorld() const;
+
 	protected:
 		//~ Application Must Implement them
 		_NODISCARD _Check_return_
@@ -54,7 +56,6 @@ namespace kfe
 		class Impl;
 		std::shared_ptr<Impl>		GetImpl		()		 { return m_impl; }
 		std::shared_ptr<const Impl> GetConstImpl() const { return m_impl; }
-
 		std::shared_ptr<Impl>		m_impl{ nullptr };
 	};
 } // namespace kfe

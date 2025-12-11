@@ -1,8 +1,20 @@
+﻿// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
+/*
+ *  -----------------------------------------------------------------------------
+ *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
+ *  Author    : Niffoxic (a.k.a Harsh Dubey)
+ *  License   : MIT
+ *  -----------------------------------------------------------------------------
+ */
+
 #include "pch.h"
 #include "engine/knight_engine.h"
 
 #include "engine/windows_manager/windows_manager.h"
 #include "engine/render_manager/render_manager.h"
+#include "engine/editor/editor.h"
 #include "engine/utils/logger.h"
 
 #include "engine/system/dependency_resolver.h"
@@ -10,6 +22,17 @@
 #include "engine/system/event_system/event_queue.h"
 #include "engine/system/event_system/windows_events.h"
 #include "engine/system/timer.h"
+
+#if defined(DEBUG) || defined(_DEBUG)
+
+#include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
+#include "imgui/imgui_impl_dx12.h"
+#include "imgui/imgui_impl_win32.h"
+#endif
+
+#include "engine/map/world.h"
+#include "engine/render_manager/scene/cube_scene.h"
 
 #pragma region IMPL
 
@@ -39,11 +62,16 @@ public:
 	void DisplayFPS(float dt) const;
 
 	KFETimer* GetTimer() const;
+	KFEWorld* GetWorld() const noexcept;
 
 private:
 	std::unique_ptr<KFEWindows>		  m_pWindowsManager{ nullptr };
 	std::unique_ptr<KFERenderManager> m_pRendeManager  { nullptr };
-
+	std::unique_ptr<KFEWorld>		  m_pWorld		   { nullptr };
+	
+#if defined(_DEBUG) || defined(DEBUG)
+	std::unique_ptr<KFEEditor> m_pEditor{ nullptr };
+#endif
 	//~ Tools and Utilities
 	std::unique_ptr<KFETimer>	m_pTimer		 { nullptr };
 
@@ -75,7 +103,9 @@ kfe::IKFEngine::~IKFEngine()
 		LOG_ERROR("Failed to shutdown smoothly!");
 	}
 #if defined(DEBUG) || defined(_DEBUG)
-	gLogger->Close();
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 #endif
 }
 
@@ -104,6 +134,7 @@ int kfe::IKFEngine::Execute()
 {
 	LOG_INFO("Starting Game Loop!");
 	BeginPlay();
+
 	while (true)
 	{
 		float dt = m_impl->GetTimer()->Tick();
@@ -133,6 +164,11 @@ int kfe::IKFEngine::Execute()
 	return 0;
 }
 
+kfe::KFEWorld* kfe::IKFEngine::GetWorld() const
+{
+	return m_impl->GetWorld();
+}
+
 //~ IMP Implementation
 
 _Use_decl_annotations_
@@ -153,17 +189,54 @@ void kfe::IKFEngine::Impl::CreateUtilities()
 	INIT_GLOBAL_LOGGER(&logDesc);
 #endif
 
+#ifdef _DEBUG
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+	ImGui::StyleColorsDark();
+
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		ImGuiStyle& style = ImGui::GetStyle();
+		style.WindowRounding = 0.0f;
+		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+	}
+#endif
+
+	m_pWorld = std::make_unique<KFEWorld>();
+
+#if defined(_DEBUG) || defined(DEBUG)
+	m_pEditor = std::make_unique<KFEEditor>(m_pWorld.get());
+#endif
+
 	m_pTimer = std::make_unique<KFETimer>();
 }
 
 void kfe::IKFEngine::Impl::SetManagerDependency()
 {
+	//~ Core Managers
 	m_dependecyResolver.Register(m_pWindowsManager.get());
 	m_dependecyResolver.Register(m_pRendeManager.get());
 
+	//~ Render Dependecy
 	m_dependecyResolver.AddDependency(
 		m_pRendeManager.get(),
 		m_pWindowsManager.get());
+
+#if defined(_DEBUG) || defined(DEBUG)
+	//~ Editor Dependecies
+	m_dependecyResolver.Register(m_pEditor.get());
+	m_dependecyResolver.AddDependency(m_pEditor.get(),
+		m_pRendeManager.get());
+	m_dependecyResolver.AddDependency(m_pEditor.get(),
+		m_pWindowsManager.get());
+#endif
+
 }
 
 void kfe::IKFEngine::Impl::SubscribeToEvents()
@@ -252,4 +325,9 @@ void kfe::IKFEngine::Impl::DisplayFPS(float dt) const
 kfe::KFETimer* kfe::IKFEngine::Impl::GetTimer() const
 {
 	return m_pTimer.get();
+}
+
+kfe::KFEWorld* kfe::IKFEngine::Impl::GetWorld() const noexcept
+{
+	return m_pWorld.get();
 }

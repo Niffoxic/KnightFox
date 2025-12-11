@@ -19,11 +19,11 @@ public:
     void Load(const std::string& filePath);
     void Save(const std::string& filePath);
 
-    JsonLoader& operator=(const std::string& value) noexcept;
+    JsonLoader& operator=(const std::string& value);
 
-    const JsonLoader& operator[](const std::string& key) const noexcept;
+    const JsonLoader& operator[](const std::string& key) const;
 
-    JsonLoader& operator[](const std::string& key) noexcept
+    JsonLoader& operator[](const std::string& key)
     {
         return GetOrCreate(key);
     }
@@ -36,30 +36,30 @@ public:
 
     JsonLoader& GetOrCreate(const std::string& key);
 
-    auto begin()        noexcept { return m_children.begin(); }
-    auto end()          noexcept { return m_children.end(); }
-    auto begin()  const noexcept { return m_children.begin(); }
-    auto end()    const noexcept { return m_children.end(); }
+    auto begin()         { return m_children.begin(); }
+    auto end()           { return m_children.end(); }
+    auto begin()  const  { return m_children.begin(); }
+    auto end()    const  { return m_children.end(); }
 
-    const std::string& GetValue() const noexcept { return m_value; }
+    const std::string& GetValue() const  { return m_value; }
     void               SetValue(const std::string& val) { m_value = val; }
 
-    [[nodiscard]] bool Contains(const std::string& key) const noexcept;
+    [[nodiscard]] bool Contains(const std::string& key) const ;
 
     std::string ToFormattedString(int indent = 0) const;
     void        FromStream(std::istream& input);
 
     // Typed access with optional defaults
-    [[nodiscard]] float AsFloat(float defaultValue = 0.0f) const noexcept;
-    [[nodiscard]] int   AsInt(int   defaultValue = 0)     const noexcept;
-    [[nodiscard]] bool  AsBool(bool  defaultValue = false) const noexcept;
+    [[nodiscard]] float AsFloat(float defaultValue = 0.0f) const ;
+    [[nodiscard]] int   AsInt(int   defaultValue = 0)     const ;
+    [[nodiscard]] bool  AsBool(bool  defaultValue = false) const ;
 
-    [[nodiscard]] bool IsValid() const noexcept;
-    void Clear() noexcept;
+    [[nodiscard]] bool IsValid() const ;
+    void Clear() ;
 
     // Object vs leaf convenience
-    [[nodiscard]] bool IsObject() const noexcept { return !m_children.empty(); }
-    [[nodiscard]] bool IsLeaf()   const noexcept { return m_children.empty(); }
+    [[nodiscard]] bool IsObject() const  { return !m_children.empty(); }
+    [[nodiscard]] bool IsLeaf()   const  { return m_children.empty(); }
 
 private:
     void        Serialize(std::ostream& output, int indent) const;

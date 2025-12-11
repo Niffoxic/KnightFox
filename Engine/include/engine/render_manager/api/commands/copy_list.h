@@ -67,6 +67,7 @@ namespace kfe
 
         // Updates allocator states; should be called every frame.
         void Update() noexcept;
+        void Wait  () noexcept;
 
     private:
         class Impl;

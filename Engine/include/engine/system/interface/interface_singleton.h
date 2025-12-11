@@ -54,7 +54,7 @@ namespace kfe
 
         //~ also creates it but if needed agrs then call init before instance
         _Ret_notnull_ _Success_(return != nullptr)
-            static T& Instance()
+        static T& Instance()
         {
             if (auto* p = s_ptr.load(std::memory_order_acquire))
                 return *p;
