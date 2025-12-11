@@ -80,47 +80,6 @@
 
 #pragma region IMPL
 
-namespace
-{
-	static void KFE_ImGuiDockspace()
-	{
-		ImGuiIO& io = ImGui::GetIO();
-
-		ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-		ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
-
-		ImGuiViewport* viewport = ImGui::GetMainViewport();
-		ImGui::SetNextWindowPos(viewport->Pos);
-		ImGui::SetNextWindowSize(viewport->Size);
-		ImGui::SetNextWindowViewport(viewport->ID);
-
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-
-		window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-			ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-		window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-		window_flags |= ImGuiWindowFlags_NoBackground;
-
-		bool open = true;
-		ImGui::Begin("KFE_DockSpaceHost", &open, window_flags);
-		ImGui::PopStyleVar(3);
-
-		ImGuiID dockspace_id = ImGui::GetID("KFE_Dockspace");
-		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-
-		ImGui::End();
-	}
-}
-
-struct TestCB
-{
-	float iTime;   
-	float padding0; 
-	float iResolution[2];
-};
 
 class kfe::KFERenderManager::Impl
 {
@@ -482,34 +441,40 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		ImGui_ImplDX12_NewFrame();
 		ImGui::NewFrame();
 
-		KFE_ImGuiDockspace();
-
-		ImGui::Begin("Scene");
-		ImGui::Text("KnightFox Scene View");
-		ImGui::End();
-
-		ImGui::Begin("Inspector");
-		ImGui::Text("Inspector / Properties");
-		ImGui::End();
-
-		ImGui::Begin("Console");
-		ImGui::Text("Logs go brrrr...");
-		ImGui::End();
-
-		ImGui::Render();
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList);
-
-		ImGuiIO& io = ImGui::GetIO();
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		{
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-		}
 	}
 #endif
 
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+}
+
+void kfe::KFERenderManager::Impl::FrameEnd()
+{
+	ID3D12GraphicsCommandList* cmdList = m_pGfxList->GetNative();
+	if (!cmdList)
+	{
+		THROW_MSG("Graphics command list is null.");
+	}
+#if defined(DEBUG) || defined(_DEBUG)
+	ImGui::Render();
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList);
+
+	ImGuiIO& io = ImGui::GetIO();
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+	}
+#endif
+
+	auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
+					m_pFence.Get(), m_nFenceValue);
+
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type					= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags					= D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource	= swapData.BufferResource;
+	barrier.Transition.Subresource	= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore	= D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter	= D3D12_RESOURCE_STATE_PRESENT;
 	cmdList->ResourceBarrier(1u, &barrier);
 
 	HRESULT hr = cmdList->Close();
@@ -521,12 +486,6 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 
 	m_pSwapChain->Present();
 	queue->Signal(m_pFence.Get(), m_nFenceValue);
-}
-
-
-void kfe::KFERenderManager::Impl::FrameEnd()
-{
-
 }
 
 bool kfe::KFERenderManager::Impl::InitializeComponents()

@@ -1,0 +1,202 @@
+﻿// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
+/*
+ *  -----------------------------------------------------------------------------
+ *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
+ *  Author    : Niffoxic (a.k.a Harsh Dubey)
+ *  License   : MIT
+ *  -----------------------------------------------------------------------------
+ */
+#include "pch.h"
+#include "engine/editor/editor.h"
+#include "engine/editor/widgets/assets_panel.h"
+
+#include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
+
+#include <utility>
+
+#pragma region Impl_Definition
+
+class kfe::KFEEditor::Impl
+{
+public:
+	 Impl() = default;
+	~Impl() = default;
+
+	NODISCARD bool Initialize();
+	NODISCARD bool Release   ();
+
+	void Update(float deltaTime);
+	void Render();
+private:
+	void SetupDockspace();
+
+private:
+	KFEAssetPanel m_assetsPanel{};
+
+	ImGuiID m_mainDockspaceId{ 0 };
+	bool    m_dockLayoutInitialized{ false };
+};
+
+#pragma endregion
+
+#pragma region Editor_Body
+
+kfe::KFEEditor::KFEEditor() noexcept
+	: m_impl(std::make_unique<Impl>())
+{
+}
+
+kfe::KFEEditor::~KFEEditor() noexcept = default;
+
+kfe::KFEEditor::KFEEditor(KFEEditor&& other) noexcept
+	: m_impl(std::move(other.m_impl))
+{
+}
+
+kfe::KFEEditor& kfe::KFEEditor::operator=(KFEEditor&& other) noexcept
+{
+	if (this != &other)
+	{
+		m_impl = std::move(other.m_impl);
+	}
+	return *this;
+}
+
+_Use_decl_annotations_
+bool kfe::KFEEditor::Initialize()
+{
+	if (!m_impl)
+	{
+		m_impl = std::make_unique<Impl>();
+	}
+
+	return m_impl->Initialize();
+}
+
+_Use_decl_annotations_
+bool kfe::KFEEditor::Release()
+{
+	if (!m_impl)
+	{
+		return true;
+	}
+
+	const bool result = m_impl->Release();
+	m_impl.reset();
+	return result;
+}
+
+_Use_decl_annotations_
+void kfe::KFEEditor::OnFrameBegin(float deltaTime)
+{
+	if (m_impl)
+	{
+		m_impl->Update(deltaTime);
+	}
+}
+
+void kfe::KFEEditor::OnFrameEnd()
+{
+	if (m_impl)
+	{
+		m_impl->Render();
+	}
+}
+
+_Use_decl_annotations_
+std::string kfe::KFEEditor::GetName() const noexcept
+{
+	return "KFEEditor";
+}
+
+#pragma endregion
+
+#pragma region Impl_Body
+
+_Use_decl_annotations_
+bool kfe::KFEEditor::Impl::Initialize()
+{
+	m_assetsPanel.SetPanelName("Assets");
+	m_assetsPanel.SetRootPath("assets");
+	m_assetsPanel.SetVisible(true);
+
+	return m_assetsPanel.Initialize();
+}
+
+_Use_decl_annotations_
+bool kfe::KFEEditor::Impl::Release()
+{
+	return m_assetsPanel.Release();
+}
+
+void kfe::KFEEditor::Impl::Update(float dt)
+{
+}
+
+void kfe::KFEEditor::Impl::Render()
+{
+	SetupDockspace();
+    m_assetsPanel.SetDockspaceId(m_mainDockspaceId);
+    m_assetsPanel.Draw();
+    ImGui::End();
+}
+
+void kfe::KFEEditor::Impl::SetupDockspace()
+{
+	ImGuiWindowFlags windowFlags =
+		ImGuiWindowFlags_MenuBar |
+		ImGuiWindowFlags_NoDocking;
+
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	ImGui::SetNextWindowPos(viewport->WorkPos);
+	ImGui::SetNextWindowSize(viewport->WorkSize);
+	ImGui::SetNextWindowViewport(viewport->ID);
+
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+	windowFlags |= ImGuiWindowFlags_NoTitleBar
+		| ImGuiWindowFlags_NoCollapse
+		| ImGuiWindowFlags_NoResize
+		| ImGuiWindowFlags_NoMove
+		| ImGuiWindowFlags_NoBringToFrontOnFocus
+		| ImGuiWindowFlags_NoNavFocus
+		| ImGuiWindowFlags_NoBackground;
+
+	ImGui::Begin("KFE_EditorDockHost", nullptr, windowFlags);
+	ImGui::PopStyleVar(2);
+
+	m_mainDockspaceId = ImGui::GetID("KFE_EditorDockspace");
+	ImGui::DockSpace(
+		m_mainDockspaceId,
+		ImVec2(0.0f, 0.0f),
+		ImGuiDockNodeFlags_PassthruCentralNode
+	);
+
+	if (!m_dockLayoutInitialized)
+	{
+		m_dockLayoutInitialized = true;
+
+		ImGui::DockBuilderRemoveNode(m_mainDockspaceId);
+		ImGui::DockBuilderAddNode(m_mainDockspaceId, ImGuiDockNodeFlags_DockSpace);
+
+		ImGuiID dockMainId = m_mainDockspaceId;
+		ImGuiID dockBottomId = 0;
+
+		dockBottomId = ImGui::DockBuilderSplitNode(
+			dockMainId,
+			ImGuiDir_Down,
+			0.25f,
+			nullptr,
+			&dockMainId
+		);
+
+		ImGui::DockBuilderDockWindow("Assets", dockBottomId);
+		ImGui::DockBuilderFinish(m_mainDockspaceId);
+	}
+}
+
+#pragma endregion

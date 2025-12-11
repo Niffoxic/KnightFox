@@ -1,8 +1,20 @@
-﻿#include "pch.h"
+﻿// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
+/*
+ *  -----------------------------------------------------------------------------
+ *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
+ *  Author    : Niffoxic (a.k.a Harsh Dubey)
+ *  License   : MIT
+ *  -----------------------------------------------------------------------------
+ */
+
+#include "pch.h"
 #include "engine/knight_engine.h"
 
 #include "engine/windows_manager/windows_manager.h"
 #include "engine/render_manager/render_manager.h"
+#include "engine/editor/editor.h"
 #include "engine/utils/logger.h"
 
 #include "engine/system/dependency_resolver.h"
@@ -51,7 +63,10 @@ public:
 private:
 	std::unique_ptr<KFEWindows>		  m_pWindowsManager{ nullptr };
 	std::unique_ptr<KFERenderManager> m_pRendeManager  { nullptr };
-
+	
+#if defined(_DEBUG) || defined(DEBUG)
+	std::unique_ptr<KFEEditor> m_pEditor{ nullptr };
+#endif
 	//~ Tools and Utilities
 	std::unique_ptr<KFETimer>	m_pTimer		 { nullptr };
 
@@ -150,6 +165,10 @@ bool kfe::IKFEngine::Impl::CreateManagers(const KFE_ENGINE_CREATE_DESC& desc)
 {
 	m_pWindowsManager = std::make_unique<KFEWindows>(desc.WindowsDesc);
 	m_pRendeManager   = std::make_unique<KFERenderManager>(m_pWindowsManager.get());
+
+#if defined(_DEBUG) || defined(DEBUG)
+	m_pEditor = std::make_unique<KFEEditor>();
+#endif
 	return true;
 }
 
@@ -187,12 +206,24 @@ void kfe::IKFEngine::Impl::CreateUtilities()
 
 void kfe::IKFEngine::Impl::SetManagerDependency()
 {
+	//~ Core Managers
 	m_dependecyResolver.Register(m_pWindowsManager.get());
 	m_dependecyResolver.Register(m_pRendeManager.get());
 
+	//~ Render Dependecy
 	m_dependecyResolver.AddDependency(
 		m_pRendeManager.get(),
 		m_pWindowsManager.get());
+
+#if defined(_DEBUG) || defined(DEBUG)
+	//~ Editor Dependecies
+	m_dependecyResolver.Register(m_pEditor.get());
+	m_dependecyResolver.AddDependency(m_pEditor.get(),
+		m_pRendeManager.get());
+	m_dependecyResolver.AddDependency(m_pEditor.get(),
+		m_pWindowsManager.get());
+#endif
+
 }
 
 void kfe::IKFEngine::Impl::SubscribeToEvents()
