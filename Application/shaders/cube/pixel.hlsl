@@ -26,8 +26,29 @@ cbuffer CommonCB : register(b0)
     float3   _PaddingFinal;
 };
 
-Texture2D    gDiffuseTexture : register(t0);
-SamplerState gSampler        : register(s0);
+cbuffer TextureMetaCB : register(b1)
+{
+    float4 gMainTextureInfo;      // IsAttached, LerpToSecondary, UvTilingX, UvTilingY
+    float4 gSecondaryTextureInfo; // IsAttached, BlendFactor,   UvTilingX, UvTilingY
+    float4 gNormalTextureInfo;    // IsAttached, NormalStrength, UvTilingX, UvTilingY
+    float4 gSpecularTextureInfo;  // IsAttached, SpecInt, RoughMul, MetalMul
+    float4 gHeightTextureInfo;    // IsAttached, HeightScale, MinLayers, MaxLayers
+};
+
+//~ Texture layout must match ECubeTextures + root signature:
+//~ MainTexture      -> t0
+//~ SecondaryTexture -> t1
+//~ Normal           -> t2
+//~ Specular         -> t3
+//~ Height           -> t4
+
+Texture2D gMainTexture      : register(t0);
+Texture2D gSecondaryTexture : register(t1);
+Texture2D gNormalMap        : register(t2);
+Texture2D gSpecularMap      : register(t3);
+Texture2D gHeightMap        : register(t4);
+
+SamplerState gSampler       : register(s0);
 
 struct PSInput
 {
@@ -42,9 +63,44 @@ struct PSInput
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float4 texColor    = gDiffuseTexture.Sample(gSampler, input.TexCoord);
-    float3 tintedColor = texColor.rgb * input.Color;
-    float3 final       = lerp(tintedColor * 0.2f, tintedColor, 1.f);
+    // Just a Flags
+    float mainAttached = gMainTextureInfo.x;
+    float secAttached  = gSecondaryTextureInfo.x;
 
-    return float4(final, texColor.a);
+    float2 mainUV = input.TexCoord * gMainTextureInfo.zw;
+    float2 secUV  = input.TexCoord * gSecondaryTextureInfo.zw;
+
+    float4 mainColor      = gMainTexture.Sample(gSampler, mainUV);
+    float4 secondaryColor = gSecondaryTexture.Sample(gSampler, secUV);
+
+    float3 mainRgb = mainColor.rgb * mainAttached;
+    float3 secRgb  = secondaryColor.rgb * secAttached;
+
+    float lerpToSecondary = gMainTextureInfo.y; 
+    float secBlendFactor  = gSecondaryTextureInfo.y;
+    float blendT          = saturate(lerpToSecondary * secBlendFactor);
+
+    float hasMain = step(0.5f, mainAttached);
+    float hasSec  = step(0.5f, secAttached);
+
+    float3 blendedRgb = 0.0f;
+
+    if (hasMain + hasSec < 0.5f)
+    {
+        blendedRgb = float3(1.0f, 0.0f, 1.0f);
+    }
+    else if (hasMain > 0.5f && hasSec < 0.5f)
+    {
+        blendedRgb = mainRgb;
+    }
+    else if (hasMain < 0.5f && hasSec > 0.5f)
+    {
+        blendedRgb = secRgb;
+    }
+    else
+    {
+        blendedRgb = lerp(mainRgb, secRgb, blendT);
+    }
+
+    return float4(blendedRgb, mainColor.a);
 }

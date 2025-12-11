@@ -1,3 +1,14 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
+/*
+ *  -----------------------------------------------------------------------------
+ *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
+ *  Author    : Niffoxic (a.k.a Harsh Dubey)
+ *  License   : MIT
+ *  -----------------------------------------------------------------------------
+ */
+
 #include "pch.h"
 #include "engine/utils/json_loader.h"
 
@@ -128,6 +139,7 @@ void JsonLoader::FromStream(std::istream& input)
             char c = static_cast<char>(input.peek());
             if (std::isspace(static_cast<unsigned char>(c)) || c == ',' || c == '}' || c == EOF)
                 break;
+
             input.get(c);
             token.push_back(c);
         }
@@ -171,8 +183,10 @@ bool JsonLoader::AsBool(bool defaultValue) const
         return defaultValue;
 
     std::string val = m_value;
-    std::transform(val.begin(), val.end(), val.begin(),
-        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(
+        val.begin(), val.end(), val.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); }
+    );
 
     if (val == "true" || val == "1")
         return true;
@@ -208,7 +222,8 @@ void JsonLoader::Serialize(std::ostream& output, int indent) const
                 output << ",\n";
             first = false;
 
-            output << indentStr << '\t' << "\"" << EscapeString(key) << "\": ";
+            output << indentStr << '\t'
+                << "\"" << EscapeString(key) << "\": ";
             child.Serialize(output, indent + 1);
         }
 
@@ -236,7 +251,11 @@ bool JsonLoader::ConsumeChar(std::istream& input, char expected)
     const int c = input.get();
     if (c != expected)
     {
-        LOG_ERROR("JsonLoader::ConsumeChar - Expected '{}' but got '{}'", expected, static_cast<char>(c));
+        LOG_ERROR(
+            "JsonLoader::ConsumeChar - Expected '{}' but got '{}'",
+            expected,
+            static_cast<char>(c)
+        );
         return false;
     }
     return true;
@@ -308,7 +327,6 @@ std::string JsonLoader::EscapeString(const std::string& s)
         case '\r': escaped += "\\r";  break;
         case '\t': escaped += "\\t";  break;
         default:
-            // Control chars could be turned into \u00XX if you want to be fancy
             escaped.push_back(c);
             break;
         }
@@ -366,8 +384,10 @@ void JsonLoader::ParseObject(std::istream& input)
             while (input.good())
             {
                 char c = static_cast<char>(input.peek());
-                if (std::isspace(static_cast<unsigned char>(c)) || c == ',' || c == '}' || c == EOF)
+                if (std::isspace(static_cast<unsigned char>(c)) ||
+                    c == ',' || c == '}' || c == EOF)
                     break;
+
                 input.get(c);
                 token.push_back(c);
             }
@@ -391,8 +411,10 @@ void JsonLoader::ParseObject(std::istream& input)
         {
             if (input.good())
             {
-                LOG_WARNING("JsonLoader::ParseObject - Unexpected character '{}' while parsing object",
-                    static_cast<char>(next));
+                LOG_WARNING(
+                    "JsonLoader::ParseObject - Unexpected character '{}' while parsing object",
+                    static_cast<char>(next)
+                );
             }
             break;
         }

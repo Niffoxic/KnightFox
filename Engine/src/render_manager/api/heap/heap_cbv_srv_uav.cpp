@@ -38,6 +38,7 @@ public:
     NODISCARD std::uint32_t GetRemaining     () const noexcept;
     NODISCARD std::uint32_t GetHandleSize    () const noexcept;
     NODISCARD std::uint32_t Allocate         ()       noexcept;
+	NODISCARD std::uint32_t Allocate(_In_ std::uint32_t count) noexcept;
     NODISCARD bool          Reset            ()       noexcept;
 
     NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetStartHandle   () const noexcept;
@@ -184,6 +185,11 @@ _Use_decl_annotations_
 std::uint32_t kfe::KFEResourceHeap::Allocate() noexcept
 {
 	return m_impl->Allocate();
+}
+
+std::uint32_t kfe::KFEResourceHeap::Allocate(std::uint32_t count) noexcept
+{
+	return m_impl->Allocate(count);
 }
 
 _Use_decl_annotations_
@@ -490,6 +496,107 @@ std::uint32_t kfe::KFEResourceHeap::Impl::Allocate() noexcept
 		"Capacity = {}, Allocated = {}.",
 		m_nCapacity,
 		m_nAllocated
+	);
+
+	return InvalidIndex;
+}
+
+_Use_decl_annotations_
+std::uint32_t kfe::KFEResourceHeap::Impl::Allocate(std::uint32_t count) noexcept
+{
+	if (!IsInitialized())
+	{
+		LOG_ERROR("KFEResourceHeap::Impl::Allocate(count): Heap is not initialized.");
+		return InvalidIndex;
+	}
+
+	if (count == 0u)
+	{
+		LOG_WARNING("KFEResourceHeap::Impl::Allocate(count): Requested 0 descriptors.");
+		return InvalidIndex;
+	}
+
+	if (count > m_nCapacity)
+	{
+		LOG_ERROR(
+			"KFEResourceHeap::Impl::Allocate(count): Requested {} descriptors, "
+			"but capacity is only {}.",
+			count,
+			m_nCapacity
+		);
+		return InvalidIndex;
+	}
+
+	if (m_nAllocated + count > m_nCapacity)
+	{
+		LOG_WARNING(
+			"KFEResourceHeap::Impl::Allocate(count): Not enough free descriptors. "
+			"Requested = {}, Capacity = {}, Allocated = {}, Remaining = {}.",
+			count,
+			m_nCapacity,
+			m_nAllocated,
+			GetRemaining()
+		);
+		return InvalidIndex;
+	}
+
+	const std::uint32_t startSearch = m_nNextSearchIndex;
+	std::uint32_t index				= startSearch;
+	std::uint32_t runLength			= 0u;
+	std::uint32_t candidateStart	= InvalidIndex;
+
+	// Circular search through the heap
+	do
+	{
+		if (m_workStates[index] == EWorkState::Free)
+		{
+			if (runLength == 0u)
+			{
+				candidateStart = index;
+			}
+
+			++runLength;
+
+			if (runLength == count)
+			{
+				for (std::uint32_t i = 0u; i < count; ++i)
+				{
+					m_workStates[candidateStart + i] = EWorkState::Working;
+				}
+
+				m_nAllocated += count;
+
+				const std::uint32_t nextIndex = candidateStart + count;
+				m_nNextSearchIndex = (nextIndex < m_nCapacity) ? nextIndex : 0u;
+
+				LOG_INFO(
+					"KFEResourceHeap::Impl::Allocate(count): Allocated {} descriptors "
+					"starting at index {}. Allocated = {}, Remaining = {}.",
+					count,
+					candidateStart,
+					m_nAllocated,
+					GetRemaining()
+				);
+
+				return candidateStart;
+			}
+		}
+		else
+		{
+			runLength = 0u;
+			candidateStart = InvalidIndex;
+		}
+
+		index = (index + 1u) < m_nCapacity ? (index + 1u) : 0u;
+	} while (index != startSearch);
+
+	LOG_ERROR(
+		"KFEResourceHeap::Impl::Allocate(count): Failed to find contiguous block of {} "
+		"descriptors. Capacity = {}, Allocated = {}, Remaining = {}.",
+		count,
+		m_nCapacity,
+		m_nAllocated,
+		GetRemaining()
 	);
 
 	return InvalidIndex;
