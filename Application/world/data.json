@@ -45,14 +45,14 @@
 					"Main": {
 						"UvTilingY": "1.000000",
 						"IsTextureAttached": "1.000000",
-						"LerpToSecondary": "0.000000",
+						"LerpToSecondary": "0.559000",
 						"UvTilingX": "1.000000"
 					},
 					"Secondary": {
 						"UvTilingY": "1.000000",
 						"IsTextureAttached": "1.000000",
 						"UvTilingX": "1.000000",
-						"BlendFactor": "1.042000"
+						"BlendFactor": "0.833000"
 					},
 					"Height": {
 						"ParallaxMinLayers": "8.000000",
@@ -68,7 +68,7 @@
 					},
 					"MipDebug": {
 						"ForcedMipLevel": "0.000000",
-						"UseForcedMip": "0.000000"
+						"UseForcedMip": "1.000000"
 					}
 				}
 			}
