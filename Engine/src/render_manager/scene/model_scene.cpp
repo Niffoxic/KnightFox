@@ -38,7 +38,7 @@
 
 #include "engine/render_manager/assets_library/model/geometry.h"
 #include "engine/render_manager/assets_library/model/gpu_mesh.h"
-#include "engine/render_manager/assets_library/model/assimp_importer.h"
+#include "engine/render_manager/assets_library/model/mesh_cache.h"
 
 #include <d3d12.h>
 #include <vector>
@@ -129,8 +129,7 @@ private:
     std::uint32_t               m_samplerIndex  { KFE_INVALID_INDEX };
 
     //~ Test
-    KFEMeshGeometry m_mesh{};
-    KFEGpuMesh      m_gpuMesh{};
+    KFEGpuMesh* m_pGpuMesh{ nullptr };
 };
 
 #pragma endregion
@@ -475,8 +474,8 @@ void kfe::KFEMeshSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
         cmdList->SetGraphicsRootConstantBufferView(0u, addr);
     }
 
-    const KFEVertexBuffer* vbView = m_gpuMesh.GetVertexBufferView();
-    const KFEIndexBuffer* ibView = m_gpuMesh.GetIndexBufferView();
+    const KFEVertexBuffer* vbView = m_pGpuMesh->GetVertexBufferView();
+    const KFEIndexBuffer* ibView = m_pGpuMesh->GetIndexBufferView();
     D3D12_VERTEX_BUFFER_VIEW vb_view = vbView->GetView();
     D3D12_INDEX_BUFFER_VIEW ib_view = ibView->GetView();
 
@@ -508,37 +507,14 @@ void kfe::KFEMeshSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
 _Use_decl_annotations_
 bool kfe::KFEMeshSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& desc)
 {
-    import::AssimpImporter importer{};
-    import::ImportedScene imported{};
-    std::string err;
+    const std::string meshPath = "assets/3d/dark_knight_obj/Male/SKM_DKM_Full.obj";
 
-    if (!importer.LoadFromFile("assets/3d/dark_knight_obj/Male/SKM_DKM_Full.obj", imported, err))
+    if (!KFEMeshCache::Instance().GetOrCreate(
+        meshPath,
+        desc.Device,
+        desc.CommandList, m_pGpuMesh))
     {
-        LOG_ERROR("Failed to import knight: {}", err);
-        return false;
-    }
-
-    if (imported.Meshes.empty())
-    {
-        LOG_ERROR("Imported knight has no meshes");
-        return false;
-    }
-
-    if (!m_mesh.BuildFromImportedMesh(imported.Meshes[0]))
-    {
-        LOG_ERROR("Failed to build KFEMeshGeometry from knight mesh 0");
-        return false;
-    }
-
-    KFE_GPU_MESH_BUILD_DESC build{};
-    build.Device      = desc.Device;
-    build.CommandList = desc.CommandList;
-    build.Geometry    = &m_mesh;
-    build.DebugName   = "Knight_Mesh0";
-
-    if (!m_gpuMesh.Build(build))
-    {
-        LOG_ERROR("Failed to build GPU mesh for knight");
+        LOG_ERROR("Failed to get GPU mesh for '{}'", meshPath);
         return false;
     }
     LOG_SUCCESS("Mesh Loaded!");

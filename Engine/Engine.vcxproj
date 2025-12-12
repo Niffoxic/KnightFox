@@ -199,6 +199,8 @@
     <ClInclude Include="include\engine\render_manager\assets_library\model\geometry.h" />
     <ClInclude Include="include\engine\render_manager\assets_library\model\assimp_importer.h" />
     <ClInclude Include="include\engine\render_manager\assets_library\model\gpu_mesh.h" />
+    <ClInclude Include="include\engine\render_manager\assets_library\model\mesh_cache.h" />
+    <ClInclude Include="include\engine\render_manager\assets_library\model\model.h" />
     <ClInclude Include="include\engine\render_manager\assets_library\shader_library.h" />
     <ClInclude Include="include\engine\render_manager\assets_library\texture_library.h" />
     <ClInclude Include="include\engine\render_manager\components\camera.h" />
@@ -259,6 +261,7 @@
     <ClCompile Include="externals\imgui\imgui_tables.cpp" />
     <ClCompile Include="externals\imgui\imgui_widgets.cpp" />
     <ClCompile Include="externals\stb_image.cpp" />
+    <ClCompile Include="src\render_manager\assets_library\model\mesh_cache.cpp" />
     <ClCompile Include="src\editor\editor.cpp" />
     <ClCompile Include="src\editor\commands\command_stack.cpp" />
     <ClCompile Include="src\editor\widgets\assets_panel.cpp" />
