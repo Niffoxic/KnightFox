@@ -64,6 +64,7 @@ namespace kfe
         const DirectX::XMFLOAT3& GetAABBMax() const noexcept;
 
         bool IsValid() const noexcept;
+        static std::vector<D3D12_INPUT_ELEMENT_DESC> GetInputLayout() noexcept;
 
     private:
         std::string                m_name;

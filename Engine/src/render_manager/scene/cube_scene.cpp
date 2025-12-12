@@ -410,39 +410,6 @@ std::string kfe::KEFCubeSceneObject::GetDrawModeString() const
     return m_impl ? ToString(m_impl->m_drawMode) : "Triangle";
 }
 
-void kfe::IKFESceneObject::ImguiTransformView(float)
-{
-    if (!ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        return;
-    }
-
-    DirectX::XMFLOAT3 pos = GetPosition();
-    if (ImGui::DragFloat3("Position", &pos.x, 0.1f))
-    {
-        SetPosition(pos);
-    }
-
-    DirectX::XMFLOAT4 ori = GetOrientation();
-    float q[4] = { ori.x, ori.y, ori.z, ori.w };
-
-    if (ImGui::DragFloat4("Rotation (quat)", q, 0.01f))
-    {
-        DirectX::XMVECTOR qv = DirectX::XMVectorSet(q[0], q[1], q[2], q[3]);
-        qv = DirectX::XMQuaternionNormalize(qv);
-        DirectX::XMStoreFloat4(&ori, qv);
-        SetOrientation(ori);
-    }
-
-    DirectX::XMFLOAT3 scl = GetScale();
-    if (ImGui::DragFloat3("Scale", &scl.x, 0.01f))
-    {
-        SetScale(scl);
-    }
-
-    ImGui::TextDisabled("Tip: Rotation is edited as a normalized quaternion.");
-}
-
 void kfe::KEFCubeSceneObject::SetVertexShader(const std::string& path)
 {
     if (!m_impl) return;
@@ -1949,9 +1916,6 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
 
         ImGui::Separator();
 
-        // ---------------------------------------------------------
-        // 🔍 Mip Debug Controls (shown before Texture Binding)
-        // ---------------------------------------------------------
         {
             ImGui::TextUnformatted("Texture Mip Debug");
             ImGui::Separator();
@@ -1962,7 +1926,6 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
                 m_metaInformation.UseForcedMip = forceMip ? 1.0f : 0.0f;
             }
 
-            // Optional: you can clamp this later to actual mip count if you want.
             ImGui::SliderFloat(
                 "Forced Mip",
                 &m_metaInformation.ForcedMipLevel,
@@ -1973,7 +1936,6 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
 
             ImGui::Separator();
         }
-        // ---------------------------------------------------------
 
         if (ImGui::TreeNode("Texture Binding"))
         {

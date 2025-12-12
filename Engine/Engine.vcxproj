@@ -196,7 +196,9 @@
     <ClInclude Include="include\engine\render_manager\api\texture\texture_rtv.h" />
     <ClInclude Include="include\engine\render_manager\api\texture\texture_srv.h" />
     <ClInclude Include="include\engine\render_manager\api\texture\texture_uav.h" />
-    <ClInclude Include="include\engine\render_manager\assets_library\assets_library.h" />
+    <ClInclude Include="include\engine\render_manager\assets_library\model\geometry.h" />
+    <ClInclude Include="include\engine\render_manager\assets_library\model\assimp_importer.h" />
+    <ClInclude Include="include\engine\render_manager\assets_library\model\gpu_mesh.h" />
     <ClInclude Include="include\engine\render_manager\assets_library\shader_library.h" />
     <ClInclude Include="include\engine\render_manager\assets_library\texture_library.h" />
     <ClInclude Include="include\engine\render_manager\components\camera.h" />
@@ -285,6 +287,9 @@
     <ClCompile Include="src\render_manager\api\buffer\buffer.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_srv.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_uav.cpp" />
+    <ClCompile Include="src\render_manager\assets_library\model\geometry.cpp" />
+    <ClCompile Include="src\render_manager\assets_library\model\assimp_importer.cpp" />
+    <ClCompile Include="src\render_manager\assets_library\model\gpu_mesh.cpp" />
     <ClCompile Include="src\render_manager\assets_library\texture_library.cpp" />
     <ClCompile Include="src\render_manager\components\camera.cpp" />
     <ClCompile Include="src\render_manager\components\render_queue.cpp" />

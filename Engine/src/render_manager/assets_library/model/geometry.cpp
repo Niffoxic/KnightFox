@@ -186,4 +186,50 @@ namespace kfe
     {
         return !m_vertices.empty() && !m_indices.empty();
     }
+
+    std::vector<D3D12_INPUT_ELEMENT_DESC> KFEMeshGeometry::GetInputLayout() noexcept
+    {
+        const UINT offsetPosition = 0;
+        const UINT offsetNormal = offsetPosition + sizeof(DirectX::XMFLOAT3);
+        const UINT offsetTangent = offsetNormal + sizeof(DirectX::XMFLOAT3);
+        const UINT offsetBitangent = offsetTangent + sizeof(DirectX::XMFLOAT3);
+        const UINT offsetUV0 = offsetBitangent + sizeof(DirectX::XMFLOAT3);
+        const UINT offsetUV1 = offsetUV0 + sizeof(DirectX::XMFLOAT2);
+
+        std::vector<D3D12_INPUT_ELEMENT_DESC> layout =
+        {
+            {
+                "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+                0, offsetPosition,
+                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+            },
+            {
+                "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+                0, offsetNormal,
+                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+            },
+            {
+                "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+                0, offsetTangent,
+                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+            },
+            {
+                "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+                0, offsetBitangent,
+                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+            },
+            {
+                "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,
+                0, offsetUV0,
+                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+            },
+            {
+                "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT,
+                0, offsetUV1,
+                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+            }
+        };
+
+        return layout;
+    }
 }

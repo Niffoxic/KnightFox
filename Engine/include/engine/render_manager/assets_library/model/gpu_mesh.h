@@ -47,7 +47,6 @@ namespace kfe
         KFEGpuMesh(KFEGpuMesh&&) noexcept;
         KFEGpuMesh& operator=(KFEGpuMesh&&) noexcept;
 
-
         NODISCARD bool Build(const KFE_GPU_MESH_BUILD_DESC& desc) noexcept;
         void Destroy() noexcept;
 

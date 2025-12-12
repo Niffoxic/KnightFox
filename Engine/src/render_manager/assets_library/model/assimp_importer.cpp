@@ -20,6 +20,53 @@ namespace kfe::import
         return dst;
     }
 
+    static void NormalizeMeshToUnitBox(ImportedMesh& mesh)
+    {
+        // Compute extents
+        const Float3 min = mesh.AABBMin;
+        const Float3 max = mesh.AABBMax;
+
+        Float3 center{};
+        center.x = 0.5f * (min.x + max.x);
+        center.y = 0.5f * (min.y + max.y);
+        center.z = 0.5f * (min.z + max.z);
+
+        Float3 extent{};
+        extent.x = max.x - min.x;
+        extent.y = max.y - min.y;
+        extent.z = max.z - min.z;
+
+        float maxExtent = std::max(extent.x, std::max(extent.y, extent.z));
+        if (maxExtent <= 1e-6f)
+        {
+            return;
+        }
+
+        const float invScale = 1.0f / maxExtent;
+
+        mesh.AABBMin = { 1e30f,  1e30f,  1e30f };
+        mesh.AABBMax = { -1e30f, -1e30f, -1e30f };
+
+        for (auto& v : mesh.Vertices)
+        {
+            Float3 p = v.Position;
+
+            p.x = (p.x - center.x) * invScale;
+            p.y = (p.y - center.y) * invScale;
+            p.z = (p.z - center.z) * invScale;
+
+            v.Position = p;
+
+            mesh.AABBMin.x = std::min(mesh.AABBMin.x, p.x);
+            mesh.AABBMin.y = std::min(mesh.AABBMin.y, p.y);
+            mesh.AABBMin.z = std::min(mesh.AABBMin.z, p.z);
+
+            mesh.AABBMax.x = std::max(mesh.AABBMax.x, p.x);
+            mesh.AABBMax.y = std::max(mesh.AABBMax.y, p.y);
+            mesh.AABBMax.z = std::max(mesh.AABBMax.z, p.z);
+        }
+    }
+
     static void ConvertNodeRecursive(const aiScene* scene,
         const aiNode* src,
         ImportedNode& dst)
@@ -160,7 +207,7 @@ namespace kfe::import
                 mesh.Indices.push_back(face.mIndices[1]);
                 mesh.Indices.push_back(face.mIndices[2]);
             }
-
+            NormalizeMeshToUnitBox(mesh);
             outScene.Meshes.emplace_back(std::move(mesh));
         }
 
