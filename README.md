@@ -58,7 +58,18 @@ There's **no PBR**, no large asset pipeline, and no big engine features planned 
 - Windows 10 SDK  
 - DirectX 12 compatible GPU  
 
+
+## Build Instructions
+```
+git clone https://github.com/microsoft/vcpkg.git C:\dev\vcpkg
+cd C:\dev\vcpkg
+.\bootstrap-vcpkg.bat
+.\vcpkg integrate install
+
+.\vcpkg install assimp:x64-windows
+
 Open the solution → set configuration to **x64** → build and run.
+```
 
 ---
 

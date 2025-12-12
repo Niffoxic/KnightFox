@@ -127,6 +127,10 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>d3d12.lib;dxgi.lib;Shcore.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(SolutionDir)External\AssimpRuntime\x64\assimp*.dll" "$(TargetDir)"
+</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -147,6 +151,10 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>d3d12.lib;dxgi.lib;Shcore.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(SolutionDir)External\AssimpRuntime\x64\assimp*.dll" "$(TargetDir)"
+</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="EngineAPI.h" />
@@ -159,6 +167,7 @@
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="externals\stb_image.h" />
+    <ClInclude Include="include\engine\config.h" />
     <ClInclude Include="include\engine\editor\commands\command_stack.h" />
     <ClInclude Include="include\engine\editor\commands\interface_command.h" />
     <ClInclude Include="include\engine\editor\editor.h" />

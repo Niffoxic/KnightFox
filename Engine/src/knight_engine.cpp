@@ -34,6 +34,14 @@
 #include "engine/map/world.h"
 #include "engine/render_manager/scene/cube_scene.h"
 
+//~ test
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
+#include <filesystem>
+#include <string>
+
 #pragma region IMPL
 
 class kfe::IKFEngine::Impl
