@@ -4,7 +4,8 @@
 /*
  *  -----------------------------------------------------------------------------
  *  File      : assimp_import_types.h
- *  Purpose   : CPU-side data structures + importer API for KnightFox.
+ *  Purpose   : CPU-side mesh + node hierarchy import types for KnightFox.
+ *              (NO materials, NO textures)
  *  -----------------------------------------------------------------------------
  */
 #pragma once
@@ -21,8 +22,8 @@ namespace kfe::import
 {
     inline constexpr std::uint32_t KFE_MAX_UV_CHANNELS = 2u;
 
-    using Float2   = DirectX::XMFLOAT2;   //~ UVs
-    using Float3   = DirectX::XMFLOAT3;   //~ Positions, normals, tangents
+    using Float2 = DirectX::XMFLOAT2;   //~ UVs
+    using Float3 = DirectX::XMFLOAT3;   //~ Positions, normals, tangents
     using Float4x4 = DirectX::XMFLOAT4X4; //~ Node transforms
 
     struct ImportedVertex
@@ -45,16 +46,8 @@ namespace kfe::import
         std::vector<ImportedVertex> Vertices;
         std::vector<std::uint32_t>  Indices;
 
-        std::uint32_t MaterialIndex = 0u;
-
         Float3 AABBMin{ 1e30f,  1e30f,  1e30f };
         Float3 AABBMax{ -1e30f, -1e30f, -1e30f };
-    };
-
-    struct ImportedMaterialStub
-    {
-        std::string   Name;
-        std::uint32_t OriginalIndex = 0u;
     };
 
     struct ImportedNode
@@ -70,9 +63,8 @@ namespace kfe::import
 
     struct ImportedScene
     {
-        std::vector<ImportedMesh>         Meshes;
-        std::vector<ImportedMaterialStub> Materials;
-        ImportedNode                      RootNode;
+        std::vector<ImportedMesh> Meshes;
+        ImportedNode              RootNode;
 
         bool IsValid() const noexcept
         {
@@ -82,7 +74,6 @@ namespace kfe::import
         void Clear() noexcept
         {
             Meshes.clear();
-            Materials.clear();
             RootNode = ImportedNode{};
         }
     };
@@ -102,11 +93,4 @@ namespace kfe::import
             ImportedScene& outScene,
             std::string& outErrorMessage) noexcept;
     };
-
-    // Debug helpers
-    void DebugPrintSceneTree(const ImportedScene& scene) noexcept;
-    void DebugPrintNodeRecursive(const ImportedNode& node,
-        const ImportedScene& scene,
-        std::uint32_t depth = 0u) noexcept;
-
 } // namespace kfe::import

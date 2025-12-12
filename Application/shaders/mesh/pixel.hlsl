@@ -28,22 +28,19 @@ cbuffer CommonCB : register(b0)
 
 struct PSInput
 {
-    float4 Position   : SV_POSITION;
-    float3 WorldPos   : TEXCOORD0;
-    float3 Normal     : TEXCOORD1;
-    float2 TexCoord0  : TEXCOORD2;
-    float2 TexCoord1  : TEXCOORD3;
+    float4 Position     : SV_POSITION;
+    float3 WorldPos     : TEXCOORD0;
+
+    float3 WorldNormal  : TEXCOORD1;
+    float3 WorldTangent : TEXCOORD2;
+    float3 WorldBitan   : TEXCOORD3;
+
+    float2 TexCoord0    : TEXCOORD4;
+    float2 TexCoord1    : TEXCOORD5;
 };
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float3 N = normalize(input.Normal);
-
-    float3 lightDir = normalize(float3(0.5f, -1.0f, 0.25f));
-    float  NdotL    = saturate(dot(N, -lightDir));
-
-    float3 baseColor = float3(0.8f, 0.75f, 0.7f);
-    float3 color     = baseColor * (0.2f + 0.8f * NdotL);
-
-    return float4(color, 1.0f);
+    float2 uv = input.TexCoord0;
+    return float4(uv, 1.f, 1.f);
 }

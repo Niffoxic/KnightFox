@@ -4,10 +4,10 @@
 /*
  *  -----------------------------------------------------------------------------
  *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
- *  File      : mesh_geometry.h
- *  Purpose   : Engine-owned CPU mesh representation built from ImportedMesh.
+ *  File      : mesh_geometry.cpp
  *  -----------------------------------------------------------------------------
  */
+
 #include "pch.h"
 
 #include "engine/render_manager/assets_library/model/geometry.h"
@@ -18,8 +18,7 @@ namespace kfe
     using namespace DirectX;
 
     KFEMeshGeometry::KFEMeshGeometry()
-        : m_materialIndex(0u)
-        , m_aabbMin(1e30f, 1e30f, 1e30f)
+        : m_aabbMin(1e30f, 1e30f, 1e30f)
         , m_aabbMax(-1e30f, -1e30f, -1e30f)
     {
     }
@@ -31,13 +30,11 @@ namespace kfe
 
     KFEMeshGeometry::KFEMeshGeometry(KFEMeshGeometry&& other) noexcept
         : m_name(std::move(other.m_name))
-        , m_materialIndex(other.m_materialIndex)
         , m_vertices(std::move(other.m_vertices))
         , m_indices(std::move(other.m_indices))
         , m_aabbMin(other.m_aabbMin)
         , m_aabbMax(other.m_aabbMax)
     {
-        other.m_materialIndex = 0u;
         other.m_aabbMin = XMFLOAT3(1e30f, 1e30f, 1e30f);
         other.m_aabbMax = XMFLOAT3(-1e30f, -1e30f, -1e30f);
     }
@@ -47,13 +44,11 @@ namespace kfe
         if (this != &other)
         {
             m_name = std::move(other.m_name);
-            m_materialIndex = other.m_materialIndex;
             m_vertices = std::move(other.m_vertices);
             m_indices = std::move(other.m_indices);
             m_aabbMin = other.m_aabbMin;
             m_aabbMax = other.m_aabbMax;
 
-            other.m_materialIndex = 0u;
             other.m_aabbMin = XMFLOAT3(1e30f, 1e30f, 1e30f);
             other.m_aabbMax = XMFLOAT3(-1e30f, -1e30f, -1e30f);
         }
@@ -63,7 +58,6 @@ namespace kfe
     void KFEMeshGeometry::Clear() noexcept
     {
         m_name.clear();
-        m_materialIndex = 0u;
         m_vertices.clear();
         m_indices.clear();
 
@@ -83,7 +77,6 @@ namespace kfe
         }
 
         m_name = src.Name;
-        m_materialIndex = src.MaterialIndex;
 
         m_aabbMin = XMFLOAT3(src.AABBMin.x, src.AABBMin.y, src.AABBMin.z);
         m_aabbMax = XMFLOAT3(src.AABBMax.x, src.AABBMax.y, src.AABBMax.z);
@@ -96,21 +89,16 @@ namespace kfe
             const kfe::import::ImportedVertex& inV = src.Vertices[i];
             KFEMeshVertex& outV = m_vertices[i];
 
-            // Position
+            //~ Position
             outV.Position = XMFLOAT3(inV.Position.x, inV.Position.y, inV.Position.z);
 
-            // Normal
+            //~ Normal
             outV.HasNormal = inV.HasNormal;
-            if (inV.HasNormal)
-            {
-                outV.Normal = XMFLOAT3(inV.Normal.x, inV.Normal.y, inV.Normal.z);
-            }
-            else
-            {
-                outV.Normal = XMFLOAT3(0.0f, 1.0f, 0.0f);
-            }
+            outV.Normal = inV.HasNormal
+                ? XMFLOAT3(inV.Normal.x, inV.Normal.y, inV.Normal.z)
+                : XMFLOAT3(0.0f, 1.0f, 0.0f);
 
-            // Tangent and Bitangent
+            //~ Tangent / Bitangent
             outV.HasTangent = inV.HasTangent;
             if (inV.HasTangent)
             {
@@ -123,27 +111,16 @@ namespace kfe
                 outV.Bitangent = XMFLOAT3(0.0f, 0.0f, 1.0f);
             }
 
-            // UV0
+            //~ UVs (geometry only, no texture meaning)
             outV.HasUV0 = inV.HasUV[0];
-            if (inV.HasUV[0])
-            {
-                outV.UV0 = XMFLOAT2(inV.UV[0].x, inV.UV[0].y);
-            }
-            else
-            {
-                outV.UV0 = XMFLOAT2(0.0f, 0.0f);
-            }
+            outV.UV0 = inV.HasUV[0]
+                ? XMFLOAT2(inV.UV[0].x, inV.UV[0].y)
+                : XMFLOAT2(0.0f, 0.0f);
 
-            // UV1
             outV.HasUV1 = inV.HasUV[1];
-            if (inV.HasUV[1])
-            {
-                outV.UV1 = XMFLOAT2(inV.UV[1].x, inV.UV[1].y);
-            }
-            else
-            {
-                outV.UV1 = XMFLOAT2(0.0f, 0.0f);
-            }
+            outV.UV1 = inV.HasUV[1]
+                ? XMFLOAT2(inV.UV[1].x, inV.UV[1].y)
+                : XMFLOAT2(0.0f, 0.0f);
         }
 
         LOG_INFO("KFEMeshGeometry::BuildFromImportedMesh: Built mesh '{}' (verts={}, indices={})",
@@ -157,11 +134,6 @@ namespace kfe
         return m_name;
     }
 
-    std::uint32_t KFEMeshGeometry::GetMaterialIndex() const noexcept
-    {
-        return m_materialIndex;
-    }
-
     const std::vector<KFEMeshVertex>& KFEMeshGeometry::GetVertices() const noexcept
     {
         return m_vertices;
@@ -172,12 +144,12 @@ namespace kfe
         return m_indices;
     }
 
-    const DirectX::XMFLOAT3& KFEMeshGeometry::GetAABBMin() const noexcept
+    const XMFLOAT3& KFEMeshGeometry::GetAABBMin() const noexcept
     {
         return m_aabbMin;
     }
 
-    const DirectX::XMFLOAT3& KFEMeshGeometry::GetAABBMax() const noexcept
+    const XMFLOAT3& KFEMeshGeometry::GetAABBMax() const noexcept
     {
         return m_aabbMax;
     }
@@ -190,46 +162,20 @@ namespace kfe
     std::vector<D3D12_INPUT_ELEMENT_DESC> KFEMeshGeometry::GetInputLayout() noexcept
     {
         const UINT offsetPosition = 0;
-        const UINT offsetNormal = offsetPosition + sizeof(DirectX::XMFLOAT3);
-        const UINT offsetTangent = offsetNormal + sizeof(DirectX::XMFLOAT3);
-        const UINT offsetBitangent = offsetTangent + sizeof(DirectX::XMFLOAT3);
-        const UINT offsetUV0 = offsetBitangent + sizeof(DirectX::XMFLOAT3);
-        const UINT offsetUV1 = offsetUV0 + sizeof(DirectX::XMFLOAT2);
+        const UINT offsetNormal = offsetPosition + sizeof(XMFLOAT3);
+        const UINT offsetTangent = offsetNormal + sizeof(XMFLOAT3);
+        const UINT offsetBitangent = offsetTangent + sizeof(XMFLOAT3);
+        const UINT offsetUV0 = offsetBitangent + sizeof(XMFLOAT3);
+        const UINT offsetUV1 = offsetUV0 + sizeof(XMFLOAT2);
 
-        std::vector<D3D12_INPUT_ELEMENT_DESC> layout =
+        return
         {
-            {
-                "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-                0, offsetPosition,
-                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-            },
-            {
-                "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-                0, offsetNormal,
-                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-            },
-            {
-                "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-                0, offsetTangent,
-                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-            },
-            {
-                "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-                0, offsetBitangent,
-                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-            },
-            {
-                "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,
-                0, offsetUV0,
-                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-            },
-            {
-                "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT,
-                0, offsetUV1,
-                D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-            }
+            { "POSITION",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetPosition,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetNormal,    D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TANGENT",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetTangent,   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetBitangent, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD",  0, DXGI_FORMAT_R32G32_FLOAT,    0, offsetUV0,       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD",  1, DXGI_FORMAT_R32G32_FLOAT,    0, offsetUV1,       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
         };
-
-        return layout;
     }
 }

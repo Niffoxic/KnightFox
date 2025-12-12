@@ -38,47 +38,6 @@ namespace kfe
         SRGB = 1
     };
 
-    // Semantic material texture slots
-    enum class MaterialTextureSlot : std::uint8_t
-    {
-        BaseColor = 0,  //~ for Albedo or diffuse and sRGB
-        Normal,         //~ Tangent space normal and linear
-
-        //~ Packed Occlusion and Roughness and Metallic texture
-        ORM,
-
-        Emissive,       //~ Emissive color, sRGB
-        Opacity,        //~ Opacity or mask, linear
-        Height,         //~ Height or parallax or displacement, linear
-
-        Count
-    };
-
-    inline constexpr bool IsColorTextureSlot(MaterialTextureSlot slot) noexcept
-    {
-        switch (slot)
-        {
-        case MaterialTextureSlot::BaseColor:
-        case MaterialTextureSlot::Emissive:
-            return true;
-
-        default:
-            return false;
-        }
-    }
-
-    inline constexpr TextureColorSpace GetColorSpaceForSlot(MaterialTextureSlot slot) noexcept
-    {
-        return IsColorTextureSlot(slot)
-            ? TextureColorSpace::SRGB
-            : TextureColorSpace::Linear;
-    }
-
-    inline constexpr bool IsPackedORM(MaterialTextureSlot slot) noexcept
-    {
-        return slot == MaterialTextureSlot::ORM;
-    }
-
     struct ImportSpaceDescription
     {
         bool  LeftHanded;

@@ -1,12 +1,23 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
+/*
+ *  -----------------------------------------------------------------------------
+ *  File      : assimp_importer.cpp
+ *  -----------------------------------------------------------------------------
+ */
+
 #include "pch.h"
 
 #include "engine/render_manager/assets_library/model/assimp_importer.h"
 #include "engine/utils/logger.h"
 
+#include <algorithm>
 #include <filesystem>
+
 #include <assimp/Importer.hpp>
-#include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <assimp/scene.h>
 
 namespace kfe::import
 {
@@ -20,50 +31,63 @@ namespace kfe::import
         return dst;
     }
 
-    static void NormalizeMeshToUnitBox(ImportedMesh& mesh)
+    static void NormalizeSceneToUnitBox(kfe::import::ImportedScene& scene)
     {
-        // Compute extents
-        const Float3 min = mesh.AABBMin;
-        const Float3 max = mesh.AABBMax;
+        using kfe::import::Float3;
 
-        Float3 center{};
-        center.x = 0.5f * (min.x + max.x);
-        center.y = 0.5f * (min.y + max.y);
-        center.z = 0.5f * (min.z + max.z);
+        Float3 globalMin{ 1e30f,  1e30f,  1e30f };
+        Float3 globalMax{ -1e30f, -1e30f, -1e30f };
 
-        Float3 extent{};
-        extent.x = max.x - min.x;
-        extent.y = max.y - min.y;
-        extent.z = max.z - min.z;
-
-        float maxExtent = std::max(extent.x, std::max(extent.y, extent.z));
-        if (maxExtent <= 1e-6f)
+        for (auto& mesh : scene.Meshes)
         {
-            return;
+            globalMin.x = std::min(globalMin.x, mesh.AABBMin.x);
+            globalMin.y = std::min(globalMin.y, mesh.AABBMin.y);
+            globalMin.z = std::min(globalMin.z, mesh.AABBMin.z);
+
+            globalMax.x = std::max(globalMax.x, mesh.AABBMax.x);
+            globalMax.y = std::max(globalMax.y, mesh.AABBMax.y);
+            globalMax.z = std::max(globalMax.z, mesh.AABBMax.z);
         }
+
+        Float3 center{
+            0.5f * (globalMin.x + globalMax.x),
+            0.5f * (globalMin.y + globalMax.y),
+            0.5f * (globalMin.z + globalMax.z)
+        };
+
+        Float3 extent{
+            globalMax.x - globalMin.x,
+            globalMax.y - globalMin.y,
+            globalMax.z - globalMin.z
+        };
+
+        const float maxExtent = std::max(extent.x, std::max(extent.y, extent.z));
+        if (maxExtent <= 1e-6f)
+            return;
 
         const float invScale = 1.0f / maxExtent;
 
-        mesh.AABBMin = { 1e30f,  1e30f,  1e30f };
-        mesh.AABBMax = { -1e30f, -1e30f, -1e30f };
-
-        for (auto& v : mesh.Vertices)
+        for (auto& mesh : scene.Meshes)
         {
-            Float3 p = v.Position;
+            mesh.AABBMin = { 1e30f,  1e30f,  1e30f };
+            mesh.AABBMax = { -1e30f, -1e30f, -1e30f };
 
-            p.x = (p.x - center.x) * invScale;
-            p.y = (p.y - center.y) * invScale;
-            p.z = (p.z - center.z) * invScale;
+            for (auto& v : mesh.Vertices)
+            {
+                auto p = v.Position;
+                p.x = (p.x - center.x) * invScale;
+                p.y = (p.y - center.y) * invScale;
+                p.z = (p.z - center.z) * invScale;
+                v.Position = p;
 
-            v.Position = p;
+                mesh.AABBMin.x = std::min(mesh.AABBMin.x, p.x);
+                mesh.AABBMin.y = std::min(mesh.AABBMin.y, p.y);
+                mesh.AABBMin.z = std::min(mesh.AABBMin.z, p.z);
 
-            mesh.AABBMin.x = std::min(mesh.AABBMin.x, p.x);
-            mesh.AABBMin.y = std::min(mesh.AABBMin.y, p.y);
-            mesh.AABBMin.z = std::min(mesh.AABBMin.z, p.z);
-
-            mesh.AABBMax.x = std::max(mesh.AABBMax.x, p.x);
-            mesh.AABBMax.y = std::max(mesh.AABBMax.y, p.y);
-            mesh.AABBMax.z = std::max(mesh.AABBMax.z, p.z);
+                mesh.AABBMax.x = std::max(mesh.AABBMax.x, p.x);
+                mesh.AABBMax.y = std::max(mesh.AABBMax.y, p.y);
+                mesh.AABBMax.z = std::max(mesh.AABBMax.z, p.z);
+            }
         }
     }
 
@@ -71,14 +95,19 @@ namespace kfe::import
         const aiNode* src,
         ImportedNode& dst)
     {
+        (void)scene;
+
         dst.Name = src->mName.C_Str();
         dst.LocalTransform = ConvertMatrix(src->mTransformation);
 
         dst.MeshIndices.clear();
+        dst.MeshIndices.reserve(src->mNumMeshes);
+
         for (unsigned int i = 0; i < src->mNumMeshes; ++i)
             dst.MeshIndices.push_back(static_cast<std::uint32_t>(src->mMeshes[i]));
 
         dst.Children.resize(src->mNumChildren);
+
         for (unsigned int c = 0; c < src->mNumChildren; ++c)
             ConvertNodeRecursive(scene, src->mChildren[c], dst.Children[c]);
     }
@@ -107,9 +136,11 @@ namespace kfe::import
         const unsigned int flags =
             aiProcess_Triangulate |
             aiProcess_JoinIdenticalVertices |
-            aiProcess_SortByPType |
             aiProcess_GenSmoothNormals |
-            aiProcess_CalcTangentSpace;
+            aiProcess_CalcTangentSpace |
+            aiProcess_ConvertToLeftHanded |
+            aiProcess_FlipUVs |
+            aiProcess_FlipWindingOrder;
 
         const aiScene* scene = importer.ReadFile(filePath, flags);
 
@@ -127,6 +158,7 @@ namespace kfe::import
             return false;
         }
 
+        //~ Meshes
         outScene.Meshes.reserve(scene->mNumMeshes);
 
         for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex)
@@ -137,7 +169,6 @@ namespace kfe::import
 
             ImportedMesh mesh{};
             mesh.Name = srcMesh->mName.C_Str();
-            mesh.MaterialIndex = static_cast<std::uint32_t>(srcMesh->mMaterialIndex);
 
             const bool hasNormals = srcMesh->HasNormals();
             const bool hasTangents = srcMesh->HasTangentsAndBitangents();
@@ -169,6 +200,10 @@ namespace kfe::import
                     outV.Normal = { n.x, n.y, n.z };
                     outV.HasNormal = true;
                 }
+                else
+                {
+                    outV.HasNormal = false;
+                }
 
                 if (hasTangents)
                 {
@@ -180,6 +215,10 @@ namespace kfe::import
                     outV.Tangent = { t.x,  t.y,  t.z };
                     outV.Bitangent = { bt.x, bt.y, bt.z };
                 }
+                else
+                {
+                    outV.HasTangent = false;
+                }
 
                 for (std::uint32_t ch = 0; ch < KFE_MAX_UV_CHANNELS; ++ch)
                 {
@@ -188,6 +227,10 @@ namespace kfe::import
                         const aiVector3D& uv = srcMesh->mTextureCoords[ch][v];
                         outV.UV[ch] = { uv.x, uv.y };
                         outV.HasUV[ch] = true;
+                    }
+                    else
+                    {
+                        outV.HasUV[ch] = false;
                     }
                 }
             }
@@ -199,7 +242,7 @@ namespace kfe::import
                 const aiFace& face = srcMesh->mFaces[f];
                 if (face.mNumIndices != 3u)
                 {
-                    LOG_WARNING("AssimpImporter: Non-triangle face in mesh '{}'", mesh.Name);
+                    LOG_WARNING("AssimpImporter: Non triangle face in mesh '{}'", mesh.Name);
                     continue;
                 }
 
@@ -207,80 +250,19 @@ namespace kfe::import
                 mesh.Indices.push_back(face.mIndices[1]);
                 mesh.Indices.push_back(face.mIndices[2]);
             }
-            NormalizeMeshToUnitBox(mesh);
+
             outScene.Meshes.emplace_back(std::move(mesh));
         }
 
-        outScene.Materials.reserve(scene->mNumMaterials);
+        NormalizeSceneToUnitBox(outScene);
 
-        for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
-        {
-            ImportedMaterialStub stub{};
-            stub.OriginalIndex = i;
-
-            aiString name;
-            if (scene->mMaterials[i]->Get(AI_MATKEY_NAME, name) == AI_SUCCESS)
-                stub.Name = name.C_Str();
-            else
-                stub.Name = "Material_" + std::to_string(i);
-
-            outScene.Materials.emplace_back(std::move(stub));
-        }
-
+        //~ Node hierarchy
         ConvertNodeRecursive(scene, scene->mRootNode, outScene.RootNode);
 
-        LOG_INFO("AssimpImporter: Imported successfully (Meshes={}, Materials={})",
-            outScene.Meshes.size(),
-            outScene.Materials.size());
+        LOG_INFO("AssimpImporter: Imported successfully (Meshes={})",
+            outScene.Meshes.size());
 
         return true;
-    }
-
-    void DebugPrintNodeRecursive(const ImportedNode& node,
-        const ImportedScene& scene,
-        std::uint32_t depth) noexcept
-    {
-        std::string indent(depth * 2, ' ');
-
-        LOG_INFO("{}Node '{}' (meshes={})",
-            indent, node.Name, node.MeshIndices.size());
-
-        for (std::size_t i = 0; i < node.MeshIndices.size(); ++i)
-        {
-            const std::uint32_t meshIndex = node.MeshIndices[i];
-
-            if (meshIndex >= scene.Meshes.size())
-            {
-                LOG_WARNING("{}  MeshRef[{}] -> INVALID {}", indent, i, meshIndex);
-                continue;
-            }
-
-            const ImportedMesh& mesh = scene.Meshes[meshIndex];
-            const std::uint32_t mat = mesh.MaterialIndex;
-
-            LOG_INFO("{}  MeshRef[{}] -> Mesh '{}' (mat={}, verts={}, indices={})",
-                indent,
-                i,
-                mesh.Name,
-                mat,
-                mesh.Vertices.size(),
-                mesh.Indices.size());
-        }
-
-        for (auto& child : node.Children)
-            DebugPrintNodeRecursive(child, scene, depth + 1);
-    }
-
-    void DebugPrintSceneTree(const ImportedScene& scene) noexcept
-    {
-        if (!scene.IsValid())
-        {
-            LOG_WARNING("DebugPrintSceneTree: INVALID scene");
-            return;
-        }
-
-        LOG_INFO("IMPORTED SCENE TREE");
-        DebugPrintNodeRecursive(scene.RootNode, scene, 0);
     }
 
 } // namespace kfe::import

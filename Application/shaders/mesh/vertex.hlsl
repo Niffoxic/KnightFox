@@ -38,11 +38,16 @@ struct VSInput
 
 struct PSInput
 {
-    float4 Position   : SV_POSITION;
-    float3 WorldPos   : TEXCOORD0;
-    float3 Normal     : TEXCOORD1;
-    float2 TexCoord0  : TEXCOORD2;
-    float2 TexCoord1  : TEXCOORD3;
+    float4 Position    : SV_POSITION;
+
+    float3 WorldPos    : TEXCOORD0;
+
+    float3 WorldNormal : TEXCOORD1;
+    float3 WorldTangent: TEXCOORD2;
+    float3 WorldBitan  : TEXCOORD3;
+
+    float2 TexCoord0   : TEXCOORD4;
+    float2 TexCoord1   : TEXCOORD5;
 };
 
 PSInput main(VSInput input)
@@ -57,8 +62,19 @@ PSInput main(VSInput input)
     output.Position = clipPos;
     output.WorldPos = worldPos4.xyz;
 
-    float3 worldNormal    = mul(gWorldMatrix, float4(input.Normal,    0.0f)).xyz;
-    output.Normal         = normalize(worldNormal);
+    float3 N = mul(gWorldMatrix, float4(input.Normal,    0.0f)).xyz;
+    float3 T = mul(gWorldMatrix, float4(input.Tangent,   0.0f)).xyz;
+    float3 B = mul(gWorldMatrix, float4(input.Bitangent, 0.0f)).xyz;
+
+    N = normalize(N);
+
+    T = normalize(T - N * dot(N, T));
+
+    B = normalize(cross(N, T));
+
+    output.WorldNormal  = N;
+    output.WorldTangent = T;
+    output.WorldBitan   = B;
 
     output.TexCoord0 = input.TexCoord0;
     output.TexCoord1 = input.TexCoord1;

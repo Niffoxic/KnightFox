@@ -1,3 +1,13 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
+/*
+ *  -----------------------------------------------------------------------------
+ *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
+ *  File      : gpu_mesh.cpp
+ *  -----------------------------------------------------------------------------
+ */
+
 #include "pch.h"
 
 #include "engine/render_manager/assets_library/model/gpu_mesh.h"
@@ -25,15 +35,13 @@ namespace kfe
         : m_name(std::move(other.m_name))
         , m_vertexCount(other.m_vertexCount)
         , m_indexCount(other.m_indexCount)
-        , m_materialIndex(other.m_materialIndex)
         , m_pVBStaging(std::move(other.m_pVBStaging))
         , m_pIBStaging(std::move(other.m_pIBStaging))
         , m_pVertexView(std::move(other.m_pVertexView))
         , m_pIndexView(std::move(other.m_pIndexView))
     {
-        other.m_vertexCount   = 0u;
-        other.m_indexCount    = 0u;
-        other.m_materialIndex = 0u;
+        other.m_vertexCount = 0u;
+        other.m_indexCount = 0u;
     }
 
     KFEGpuMesh& KFEGpuMesh::operator=(KFEGpuMesh&& other) noexcept
@@ -45,7 +53,6 @@ namespace kfe
             m_name = std::move(other.m_name);
             m_vertexCount = other.m_vertexCount;
             m_indexCount = other.m_indexCount;
-            m_materialIndex = other.m_materialIndex;
 
             m_pVBStaging = std::move(other.m_pVBStaging);
             m_pIBStaging = std::move(other.m_pIBStaging);
@@ -54,7 +61,6 @@ namespace kfe
 
             other.m_vertexCount = 0u;
             other.m_indexCount = 0u;
-            other.m_materialIndex = 0u;
         }
         return *this;
     }
@@ -68,12 +74,11 @@ namespace kfe
 
         m_vertexCount = 0u;
         m_indexCount = 0u;
-        m_materialIndex = 0u;
         m_name.clear();
     }
 
     _Use_decl_annotations_
-    bool KFEGpuMesh::Build(const KFE_GPU_MESH_BUILD_DESC& desc) noexcept
+        bool KFEGpuMesh::Build(const KFE_GPU_MESH_BUILD_DESC& desc) noexcept
     {
         Destroy();
 
@@ -92,11 +97,10 @@ namespace kfe
         }
 
         const auto& vertices = geom.GetVertices();
-        const auto& indices  = geom.GetIndices();
+        const auto& indices = geom.GetIndices();
 
-        m_vertexCount   = static_cast<std::uint32_t>(vertices.size());
-        m_indexCount    = static_cast<std::uint32_t>(indices.size());
-        m_materialIndex = geom.GetMaterialIndex();
+        m_vertexCount = static_cast<std::uint32_t>(vertices.size());
+        m_indexCount = static_cast<std::uint32_t>(indices.size());
 
         if (m_vertexCount == 0u || m_indexCount == 0u)
         {
@@ -111,9 +115,11 @@ namespace kfe
             m_name = desc.DebugName;
         }
 
-        // Calculate buffer sizes
-        const std::uint32_t vbSize = static_cast<std::uint32_t>(vertices.size() * sizeof(KFEMeshVertex));
-        const std::uint32_t ibSize = static_cast<std::uint32_t>(indices.size() * sizeof(std::uint32_t));
+        const std::uint32_t vbSize =
+            static_cast<std::uint32_t>(vertices.size() * sizeof(KFEMeshVertex));
+
+        const std::uint32_t ibSize =
+            static_cast<std::uint32_t>(indices.size() * sizeof(std::uint32_t));
 
         auto* cmdListNative = desc.CommandList->GetNative();
         if (!cmdListNative)
@@ -123,7 +129,7 @@ namespace kfe
             return false;
         }
 
-        // Vertex staging buffer
+        //~ Vertex staging buffer
         m_pVBStaging = std::make_unique<KFEStagingBuffer>();
 
         KFE_STAGING_BUFFER_CREATE_DESC vbDesc{};
@@ -151,11 +157,11 @@ namespace kfe
             return false;
         }
 
-        // Index staging buffer
+        //~ Index staging buffer
         m_pIBStaging = std::make_unique<KFEStagingBuffer>();
 
         KFE_STAGING_BUFFER_CREATE_DESC ibDesc{};
-        ibDesc.Device      = desc.Device;
+        ibDesc.Device = desc.Device;
         ibDesc.SizeInBytes = ibSize;
 
         if (!m_pIBStaging->Initialize(ibDesc))
@@ -179,7 +185,7 @@ namespace kfe
             return false;
         }
 
-        // Get default buffers
+        //~ Default buffers
         KFEBuffer* vbDefault = m_pVBStaging->GetDefaultBuffer();
         KFEBuffer* ibDefault = m_pIBStaging->GetDefaultBuffer();
 
@@ -197,7 +203,7 @@ namespace kfe
             return false;
         }
 
-        // Resource barriers
+        //~ Resource barriers
         D3D12_RESOURCE_BARRIER barriers[2]{};
 
         barriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -216,7 +222,7 @@ namespace kfe
 
         cmdListNative->ResourceBarrier(2u, barriers);
 
-        // Create vertex buffer view
+        //~ Vertex buffer view
         m_pVertexView = std::make_unique<KFEVertexBuffer>();
 
         KFE_VERTEX_BUFFER_CREATE_DESC vbViewDesc{};
@@ -233,7 +239,7 @@ namespace kfe
             return false;
         }
 
-        // Create index buffer view
+        //~ Index buffer view
         m_pIndexView = std::make_unique<KFEIndexBuffer>();
 
         KFE_INDEX_BUFFER_CREATE_DESC ibViewDesc{};
@@ -268,11 +274,6 @@ namespace kfe
     std::uint32_t KFEGpuMesh::GetIndexCount() const noexcept
     {
         return m_indexCount;
-    }
-
-    std::uint32_t KFEGpuMesh::GetMaterialIndex() const noexcept
-    {
-        return m_materialIndex;
     }
 
     const KFEVertexBuffer* KFEGpuMesh::GetVertexBufferView() const noexcept

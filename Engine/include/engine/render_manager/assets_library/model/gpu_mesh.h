@@ -5,7 +5,7 @@
  *  -----------------------------------------------------------------------------
  *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
  *  File      : gpu_mesh.h
- *  Purpose   : GPU-side mesh built from KFEMeshGeometry.
+ *  Purpose   : GPU side mesh built from KFEMeshGeometry.
  *  -----------------------------------------------------------------------------
  */
 #pragma once
@@ -54,7 +54,6 @@ namespace kfe
         const std::string& GetName          () const noexcept;
         std::uint32_t      GetVertexCount   () const noexcept;
         std::uint32_t      GetIndexCount    () const noexcept;
-        std::uint32_t      GetMaterialIndex () const noexcept;
 
         const KFEVertexBuffer* GetVertexBufferView() const noexcept;
         const KFEIndexBuffer*  GetIndexBufferView () const noexcept;
@@ -65,7 +64,6 @@ namespace kfe
         std::string   m_name{ "No Name" };
         std::uint32_t m_vertexCount   = 0u;
         std::uint32_t m_indexCount    = 0u;
-        std::uint32_t m_materialIndex = 0u;
 
         std::unique_ptr<KFEStagingBuffer> m_pVBStaging;
         std::unique_ptr<KFEStagingBuffer> m_pIBStaging;

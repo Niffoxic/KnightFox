@@ -293,6 +293,7 @@
     <ClCompile Include="src\render_manager\assets_library\model\geometry.cpp" />
     <ClCompile Include="src\render_manager\assets_library\model\assimp_importer.cpp" />
     <ClCompile Include="src\render_manager\assets_library\model\gpu_mesh.cpp" />
+    <ClCompile Include="src\render_manager\assets_library\model\model.cpp" />
     <ClCompile Include="src\render_manager\assets_library\texture_library.cpp" />
     <ClCompile Include="src\render_manager\components\camera.cpp" />
     <ClCompile Include="src\render_manager\components\render_queue.cpp" />

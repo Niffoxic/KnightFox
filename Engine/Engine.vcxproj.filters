@@ -527,6 +527,9 @@
     <ClCompile Include="src\render_manager\assets_library\model\mesh_cache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\render_manager\assets_library\model\model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
