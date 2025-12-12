@@ -13,6 +13,7 @@
 #include "engine/editor/widgets/assets_panel.h"
 #include "engine/editor/widgets/creational_panel.h"
 #include "engine/editor/widgets/inspector_panel.h"
+#include "engine/render_manager/assets_library/texture_library.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"

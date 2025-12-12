@@ -66,7 +66,7 @@ namespace kfe
         /// Allocates a single descriptor slot and returns its index
         /// Returns InvalidIndex if no more descriptors are available
         NODISCARD std::uint32_t Allocate() noexcept;
-
+        NODISCARD std::uint32_t Allocate(_In_ std::uint32_t count) noexcept;
         /// Frees an allocated descriptor index.
         NODISCARD bool Free(_In_ std::uint32_t index) noexcept;
 

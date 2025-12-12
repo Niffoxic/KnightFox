@@ -1,13 +1,5 @@
-// This is a personal academic project. Dear PVS-Studio, please check it.
-// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+// texture_library.h
 
-/*
- *  -----------------------------------------------------------------------------
- *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
- *  Author    : Niffoxic (a.k.a Harsh Dubey)
- *  License   : MIT
- *  -----------------------------------------------------------------------------
- */
 #pragma once
 #include "engine/core.h"
 
@@ -23,6 +15,9 @@
 #include "engine/render_manager/api/texture/texture_srv.h"
 #include "engine/render_manager/api/texture/staging_texture.h"
 
+struct ID3D12RootSignature;
+struct ID3D12PipelineState;
+
 namespace kfe
 {
     class KFEDevice;
@@ -30,9 +25,9 @@ namespace kfe
 
     typedef struct _KFE_INIT_IMAGE_POOL
     {
-        KFEDevice*       Device{ nullptr };
+        KFEDevice* Device{ nullptr };
         KFEResourceHeap* ResourceHeap{ nullptr };
-        KFESamplerHeap*  SamplerHeap{ nullptr };
+        KFESamplerHeap* SamplerHeap{ nullptr };
     } KFE_INIT_IMAGE_POOL;
 
     class KFE_API KFEImagePool final : public ISingleton<KFEImagePool>
@@ -42,6 +37,10 @@ namespace kfe
             std::string Name;
             std::unique_ptr<KFEStagingTexture> Staging;
             std::unique_ptr<KFETextureSRV>     Srv;
+
+            std::uint32_t Width = 0u;
+            std::uint32_t Height = 0u;
+            std::uint32_t Mips = 1u;
         };
 
         friend ISingleton<KFEImagePool>;
@@ -77,13 +76,26 @@ namespace kfe
             _In_ const std::string& path,
             _In_ KFEGraphicsCommandList* cmdList,
             _Inout_ TextureData& outData);
+
+        // Mip generation
+        bool InitializeMipGenPipeline();
+        bool GenerateMips(
+            _In_ KFETexture* texture,
+            _In_ std::uint32_t width,
+            _In_ std::uint32_t height,
+            _In_ KFEGraphicsCommandList* cmdList);
+
     private:
         std::unordered_map<std::string, TextureData> m_imagePool{};
 
-        KFEDevice*       m_pDevice{ nullptr };
+        KFEDevice* m_pDevice{ nullptr };
         KFEResourceHeap* m_pResourceHeap{ nullptr };
-        KFESamplerHeap*  m_pSamplerHeap{ nullptr };
+        KFESamplerHeap* m_pSamplerHeap{ nullptr };
 
         bool m_bInitialized{ false };
+
+        bool m_bMipGenInitialized{ false };
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> m_pMipGenRootSignature;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pMipGenPSO;
     };
 } // namespace kfe

@@ -7,7 +7,7 @@ The primary purpose of this project is to **practice computer graphics**, render
 
 ## Current Output
 
-![output](screenshots/output-1.png)
+![output](screenshots/output-3.gif)
 
 ---
 

@@ -1,3 +1,14 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
+/*
+ *  -----------------------------------------------------------------------------
+ *  Project   : KnightFox (WMG Warwick - Module 2 WM9M2:Computer Graphics)
+ *  Author    : Niffoxic (a.k.a Harsh Dubey)
+ *  License   : MIT
+ *  -----------------------------------------------------------------------------
+ */
+
 #pragma once
 
 #include "EngineAPI.h"
@@ -5,6 +16,8 @@
 #include <string>
 #include <unordered_map>
 #include <sstream>
+#include <cstdint>
+
 #include "file_system.h"
 
 class KFE_API JsonLoader
@@ -21,45 +34,91 @@ public:
 
     JsonLoader& operator=(const std::string& value);
 
-    const JsonLoader& operator[](const std::string& key) const;
+    JsonLoader& operator=(const char* value)
+    {
+        m_value = value ? value : "";
+        m_children.clear();
+        return *this;
+    }
 
+    JsonLoader& operator=(int value)
+    {
+        m_value = std::to_string(value);
+        m_children.clear();
+        return *this;
+    }
+
+    JsonLoader& operator=(std::int64_t value)
+    {
+        m_value = std::to_string(value);
+        m_children.clear();
+        return *this;
+    }
+
+    JsonLoader& operator=(float value)
+    {
+        m_value = std::to_string(value);
+        m_children.clear();
+        return *this;
+    }
+
+    JsonLoader& operator=(double value)
+    {
+        m_value = std::to_string(value);
+        m_children.clear();
+        return *this;
+    }
+
+    JsonLoader& operator=(bool value)
+    {
+        m_value = value ? "true" : "false";
+        m_children.clear();
+        return *this;
+    }
+
+    //~ Child access
+
+    const JsonLoader& operator[](const std::string& key) const;
     JsonLoader& operator[](const std::string& key)
     {
         return GetOrCreate(key);
     }
 
-    JsonLoader(JsonLoader&&) = default;
-    JsonLoader& operator=(JsonLoader&&) = default;
+    //~ Rule of 5
+    JsonLoader(JsonLoader&&) noexcept = default;
+    JsonLoader& operator=(JsonLoader&&) noexcept = default;
 
     JsonLoader(const JsonLoader&) = default;
     JsonLoader& operator=(const JsonLoader&) = default;
 
+    //~ Child management
     JsonLoader& GetOrCreate(const std::string& key);
 
-    auto begin()         { return m_children.begin(); }
-    auto end()           { return m_children.end(); }
-    auto begin()  const  { return m_children.begin(); }
-    auto end()    const  { return m_children.end(); }
+    auto begin() { return m_children.begin(); }
+    auto end() { return m_children.end(); }
+    auto begin()  const { return m_children.begin(); }
+    auto end()    const { return m_children.end(); }
 
-    const std::string& GetValue() const  { return m_value; }
+    const std::string& GetValue() const { return m_value; }
     void               SetValue(const std::string& val) { m_value = val; }
 
-    [[nodiscard]] bool Contains(const std::string& key) const ;
+    [[nodiscard]] bool Contains(const std::string& key) const;
 
+    //~ Serialization helpers
     std::string ToFormattedString(int indent = 0) const;
     void        FromStream(std::istream& input);
 
-    // Typed access with optional defaults
-    [[nodiscard]] float AsFloat(float defaultValue = 0.0f) const ;
-    [[nodiscard]] int   AsInt(int   defaultValue = 0)     const ;
-    [[nodiscard]] bool  AsBool(bool  defaultValue = false) const ;
+    //~ Typed access with optional defaults
+    [[nodiscard]] float AsFloat(float defaultValue = 0.0f)   const;
+    [[nodiscard]] int   AsInt(int   defaultValue = 0)      const;
+    [[nodiscard]] bool  AsBool(bool  defaultValue = false)  const;
 
-    [[nodiscard]] bool IsValid() const ;
-    void Clear() ;
+    [[nodiscard]] bool IsValid() const;
+    void               Clear();
 
     // Object vs leaf convenience
-    [[nodiscard]] bool IsObject() const  { return !m_children.empty(); }
-    [[nodiscard]] bool IsLeaf()   const  { return m_children.empty(); }
+    [[nodiscard]] bool IsObject() const { return !m_children.empty(); }
+    [[nodiscard]] bool IsLeaf()   const { return m_children.empty(); }
 
 private:
     void        Serialize(std::ostream& output, int indent) const;

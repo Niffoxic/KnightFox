@@ -1,4 +1,4 @@
-// This is a personal academic project. Dear PVS-Studio, please check it.
+﻿// This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 
 /*
@@ -11,6 +11,7 @@
 #include "pch.h"
 #include "engine/render_manager/scene/cube_scene.h"
 
+#include "engine/render_manager/api/components/device.h"
 #include "engine/render_manager/api/buffer/buffer.h"
 #include "engine/render_manager/api/buffer/vertex_buffer.h"
 #include "engine/render_manager/api/buffer/index_buffer.h"
@@ -38,6 +39,11 @@
 #include <d3d12.h>
 #include <vector>
 #include <cstring>
+#include <unordered_map>
+#include <map>
+#include <array>
+
+#include "engine/render_manager/api/frame_cb.h"
 
 #pragma region Impl_Definition
 
@@ -83,12 +89,78 @@ public:
     }
 };
 
+enum class ECubeTextures : std::uint32_t
+{
+    MainTexture = 0,
+    SecondaryTexture,
+    Normal,
+    Specular,
+    Height,
+
+    Count
+};
+
+struct TextureMetaInformation
+{
+    struct MainTexture
+    {
+        float IsTextureAttached{ 1.0f }; // 0 = no, 1 = yes
+        float LerpToSecondary{ 0.0f }; // 0 = only main, 1 = only secondary
+        float UvTilingX{ 1.0f }; // main UV scale X
+        float UvTilingY{ 1.0f }; // main UV scale Y
+    } MainTexture;
+
+    struct SecondaryTexture
+    {
+        float IsTextureAttached{ 1.0f }; //~ 0 = ignore secondary
+        float BlendFactor{ 1.0f }; //~ how much secondary contributes
+        float UvTilingX{ 1.0f }; //~ secondary UV scale X
+        float UvTilingY{ 1.0f }; //~ secondary UV scale Y
+    } SecondaryTexture;
+
+    struct NormalTexture
+    {
+        float IsTextureAttached{ 1.0f }; //~ 0 = use vertex normal only
+        float NormalStrength{ 1.0f }; //~ scale of normal map effect
+        float UvTilingX{ 1.0f };
+        float UvTilingY{ 1.0f };
+    } Normal;
+
+    struct SpecularTexture
+    {
+        float IsTextureAttached{ 1.0f }; //~ 0 = fallback specular
+        float SpecularIntensity{ 1.0f }; //~ overall spec brightness
+        float RoughnessMultiplier{ 1.0f }; //~ tweak roughness from map
+        float MetalnessMultiplier{ 1.0f }; //~ tweak metalness from map
+    } Specular;
+
+    struct HeightTexture
+    {
+        float IsTextureAttached{ 1.0f };  //~ 0 = no parallax
+        float HeightScale{ 0.05f };       //~ displacement/parallax strength
+        float ParallaxMinLayers{ 8.0f };  //~ min layers for parallax
+        float ParallaxMaxLayers{ 32.0f }; //~ max layers for parallax
+    } Height;
+
+    float ForcedMipLevel{ 0.0f };
+    float UseForcedMip{ 0.0f };
+    float _Pad0{ 0.0f };
+    float _Pad1{ 0.0f };
+};
+
 class kfe::KEFCubeSceneObject::Impl
 {
 public:
     Impl(KEFCubeSceneObject* obj, const std::uint32_t multiple = 1)
         : m_pObject(obj), m_nVertexMultiples(multiple)
     {
+        for (auto& entry : m_srvs)
+        {
+            entry.TexturePath = {};
+            entry.TextureSrv = nullptr;
+            entry.ResourceHandle = KFE_INVALID_INDEX;
+            entry.ReservedSlot = 0u;
+        }
     }
     ~Impl() = default;
 
@@ -133,11 +205,23 @@ private:
     std::vector<CubeVertex>    GetVertices() const noexcept;
     std::vector<std::uint16_t> GetIndices() const noexcept;
 
-    void SetTexture(const std::string& texture)
+    void SetTexture(ECubeTextures tex, const std::string& path)
     {
-        m_texturePath = texture;
+        auto index = static_cast<std::size_t>(tex);
+
+        auto& data = m_srvs[index];
+        data.TexturePath = path;
+        data.TextureSrv = nullptr;
+        data.ResourceHandle = KFE_INVALID_INDEX;
+        data.Dirty = true;
         m_bTextureDirty = true;
     }
+
+    void SetMainTexture     (const std::string& p) { SetTexture(ECubeTextures::MainTexture, p); }
+    void SetSecondaryTexture(const std::string& p) { SetTexture(ECubeTextures::SecondaryTexture, p); }
+    void SetNormalMap       (const std::string& p) { SetTexture(ECubeTextures::Normal, p); }
+    void SetSpecularMap     (const std::string& p) { SetTexture(ECubeTextures::Specular, p); }
+    void SetHeightMap       (const std::string& p) { SetTexture(ECubeTextures::Height, p); }
 
 public:
     ECullMode m_cullMode      { ECullMode::None };
@@ -171,21 +255,32 @@ private:
     std::unique_ptr<KFEBuffer>         m_pCBBuffer{ nullptr };
     std::unique_ptr<KFEConstantBuffer> m_pCBV{ nullptr };
 
+    //~ Meta information
+    std::unique_ptr<KFEBuffer>         m_pMetaCBBuffer{ nullptr };
+    std::unique_ptr<KFEConstantBuffer> m_pMetaCBV{ nullptr };
+    TextureMetaInformation             m_metaInformation{};
+
     // Pipeline
     std::unique_ptr<KFEPipelineState>  m_pPipeline{ nullptr };
     KFEDevice* m_pDevice{ nullptr };
 
-    // Textures / sampling
+    //~ sampling
     KFEResourceHeap* m_pResourceHeap{ nullptr };
     KFESamplerHeap* m_pSamplerHeap{ nullptr };
-
-    std::string      m_texturePath{ "assets/textures/default.png" };
-    KFETextureSRV* m_pTextureSrv{ nullptr };
-
     std::unique_ptr<KFESampler> m_pSampler{ nullptr };
-
-    std::uint32_t m_srvIndex{ KFE_INVALID_INDEX };
     std::uint32_t m_samplerIndex{ KFE_INVALID_INDEX };
+
+    //~ Textures
+    struct SrvData
+    {
+        std::string     TexturePath;
+        KFETextureSRV*  TextureSrv;
+        std::uint32_t   ResourceHandle;
+        std::uint32_t   ReservedSlot;
+        bool Dirty{ false };
+    };
+    std::array<SrvData, static_cast<std::size_t>(ECubeTextures::Count)> m_srvs;
+    std::uint32_t m_baseSrvIndex{ KFE_INVALID_INDEX };
 };
 
 #pragma endregion
@@ -444,18 +539,48 @@ void kfe::KEFCubeSceneObject::Impl::Update(const KFE_UPDATE_OBJECT_DESC& desc)
     UpdateConstantBuffer(desc);
 }
 
-bool kfe::KEFCubeSceneObject::Impl::Build(_In_ const KFE_BUILD_OBJECT_DESC& desc)
+_Use_decl_annotations_
+bool kfe::KEFCubeSceneObject::Impl::Build(const KFE_BUILD_OBJECT_DESC& desc)
 {
     m_pDevice       = desc.Device;
     m_pResourceHeap = desc.ResourceHeap;
     m_pSamplerHeap  = desc.SamplerHeap;
 
-    BindTextureFromPath(desc.CommandList);
-    if (!BuildSampler(desc)) return false;
-    if (!BuildGeometry(desc)) return false;
-    if (!BuildRootSignature(desc)) return false;
-    if (!BuildPipeline(desc.Device)) return false;
-    if (!BuildConstantBuffer(desc)) return false;
+    if (!m_pDevice || !m_pResourceHeap || !m_pSamplerHeap)
+    {
+        LOG_ERROR("KEFCubeSceneObject::Impl::Build - One or more required pointers are null.");
+        return false;
+    }
+    
+    //~ Allocate Block
+    const std::uint32_t srvCount = static_cast<std::uint32_t>(ECubeTextures::Count);
+    m_baseSrvIndex = m_pResourceHeap->Allocate(srvCount);
+
+    for (std::uint32_t i = 0; i < srvCount; ++i)
+    {
+        m_srvs[i].ReservedSlot = m_baseSrvIndex + i;
+    }
+
+    if (!BindTextureFromPath(desc.CommandList))
+    {
+        LOG_ERROR("KEFCubeSceneObject::Impl::Build - BindTextureFromPath failed.");
+        return false;
+    }
+
+    if (!BuildSampler(desc))
+        return false;
+
+    if (!BuildGeometry(desc))
+        return false;
+
+    if (!BuildRootSignature(desc))
+        return false;
+
+    if (!BuildPipeline(desc.Device))
+        return false;
+
+    if (!BuildConstantBuffer(desc))
+        return false;
 
     LOG_SUCCESS("Cube Built!");
     return true;
@@ -463,39 +588,69 @@ bool kfe::KEFCubeSceneObject::Impl::Build(_In_ const KFE_BUILD_OBJECT_DESC& desc
 
 bool kfe::KEFCubeSceneObject::Impl::Destroy()
 {
-    if (m_pVertexView)  m_pVertexView->Destroy();
-    if (m_pIndexView)   m_pIndexView->Destroy();
-    if (m_pVBStaging)   m_pVBStaging->Destroy();
-    if (m_pIBStaging)   m_pIBStaging->Destroy();
+    //~ Destroy GPU resources
+    if (m_pVertexView)    m_pVertexView->Destroy();
+    if (m_pIndexView)     m_pIndexView->Destroy();
+    if (m_pVBStaging)     m_pVBStaging->Destroy();
+    if (m_pIBStaging)     m_pIBStaging->Destroy();
 
-    if (m_pCBV)      m_pCBV->Destroy();
-    if (m_pCBBuffer) m_pCBBuffer->Destroy();
+    if (m_pCBV)           m_pCBV->Destroy();
+    if (m_pCBBuffer)      m_pCBBuffer->Destroy();
+
+
+    if (m_pMetaCBBuffer)           m_pMetaCBBuffer->Destroy();
+    if (m_pMetaCBV)      m_pMetaCBV->Destroy();
 
     if (m_pPipeline)      m_pPipeline->Destroy();
     if (m_pRootSignature) m_pRootSignature->Destroy();
 
-    if (m_pSampler)
-    {
-        m_pSampler->Destroy();
-    }
+    if (m_pSampler)       m_pSampler->Destroy();
 
+    //~ Reset smart pointers
     m_pVertexView.reset();
     m_pIndexView.reset();
     m_pVBStaging.reset();
     m_pIBStaging.reset();
     m_pCBV.reset();
     m_pCBBuffer.reset();
+    m_pMetaCBBuffer.reset();
+    m_pMetaCBV.reset();
     m_pPipeline.reset();
     m_pRootSignature.reset();
     m_pSampler.reset();
 
-    m_pTextureSrv = nullptr;
+    //~ Free SRV descriptor slots
+    if (m_pResourceHeap)
+    {
+        for (auto& data : m_srvs)
+        {
+            if (data.ReservedSlot != KFE_INVALID_INDEX)
+            {
+                m_pResourceHeap->Free(data.ReservedSlot);
+                data.ReservedSlot = KFE_INVALID_INDEX;
+            }
+
+            data.TextureSrv = nullptr;
+            data.ResourceHandle = KFE_INVALID_INDEX;
+        }
+
+    }
+
+    //~ Free sampler slot
+    if (m_pSamplerHeap && m_samplerIndex != KFE_INVALID_INDEX)
+    {
+        m_pSamplerHeap->Free(m_samplerIndex);
+        m_samplerIndex = KFE_INVALID_INDEX;
+    }
+
+    //~ Clear tracking
+    m_bTextureDirty = false;
+    m_baseSrvIndex  = KFE_INVALID_INDEX;
+
+    //~ Null references
     m_pResourceHeap = nullptr;
     m_pSamplerHeap = nullptr;
     m_pDevice = nullptr;
-
-    m_srvIndex = KFE_INVALID_INDEX;
-    m_samplerIndex = KFE_INVALID_INDEX;
 
     return true;
 }
@@ -506,6 +661,7 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
     {
         BindTextureFromPath(desc.CommandList);
     }
+
     if (m_bPipelineDirty)
     {
         if (!m_pDevice)
@@ -522,12 +678,15 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
     }
 
     auto* cmdListObj = desc.CommandList;
-    if (!cmdListObj || !cmdListObj->GetNative()) return;
-    auto* cmdList = cmdListObj->GetNative();
+    if (!cmdListObj || !cmdListObj->GetNative())
+        return;
+
+    ID3D12GraphicsCommandList* cmdList = cmdListObj->GetNative();
 
     cmdList->SetPipelineState(m_pPipeline->GetNative());
     cmdList->SetGraphicsRootSignature(m_pPipeline->GetRootSignature());
 
+    //~ Bind descriptor heaps
     if (m_pResourceHeap)
     {
         if (m_pSamplerHeap)
@@ -548,30 +707,49 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
             cmdList->SetDescriptorHeaps(1u, heaps);
         }
 
-        if (m_pTextureSrv) 
+        //~ Bind SRV descriptor table to t0..tN-1 starting at m_baseSrvIndex
+        if (m_baseSrvIndex != KFE_INVALID_INDEX &&
+            m_pResourceHeap->IsValidIndex(m_baseSrvIndex))
         {
-            m_srvIndex = m_pTextureSrv->GetDescriptorIndex();
-        }
-        if (m_srvIndex != KFE_INVALID_INDEX && m_pResourceHeap->IsValidIndex(m_srvIndex))
-        {
-            D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = m_pResourceHeap->GetGPUHandle(m_srvIndex);
-            cmdList->SetGraphicsRootDescriptorTable(1u, srvHandle);
+            D3D12_GPU_DESCRIPTOR_HANDLE srvTableHandle =
+                m_pResourceHeap->GetGPUHandle(m_baseSrvIndex);
+
+            cmdList->SetGraphicsRootDescriptorTable(
+                1u, // root parameter index for SRV table
+                srvTableHandle
+            );
         }
         else
         {
-            LOG_WARNING("KEFCubeSceneObject::Impl::Render: SRV index invalid, skipping bind.");
+            LOG_WARNING("KEFCubeSceneObject::Impl::Render: Base SRV index invalid, skipping texture bind.");
         }
     }
 
-    auto addr = static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(m_pCBV->GetGPUVirtualAddress());
-    cmdList->SetGraphicsRootConstantBufferView(0u, addr);
+    //~ Bind per object constant buffer at b0
+    {
+        const D3D12_GPU_VIRTUAL_ADDRESS addr =
+            static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(m_pCBV->GetGPUVirtualAddress());
 
+        cmdList->SetGraphicsRootConstantBufferView(0u, addr);
+    }
+
+    //~ Bind texture meta constant buffer at b1
+    if (m_pMetaCBV)
+    {
+        const D3D12_GPU_VIRTUAL_ADDRESS metaAddr =
+            static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(m_pMetaCBV->GetGPUVirtualAddress());
+
+        cmdList->SetGraphicsRootConstantBufferView(2u, metaAddr);
+    }
+
+    //~ Set vertex and index buffers
     auto vertexView = m_pVertexView->GetView();
     auto indexView = m_pIndexView->GetView();
 
     cmdList->IASetVertexBuffers(0u, 1u, &vertexView);
     cmdList->IASetIndexBuffer(&indexView);
 
+    //~ Primitive topology
     switch (m_drawMode)
     {
     case EDrawMode::Triangle:
@@ -583,9 +761,14 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
         break;
     }
 
+    //~ Draw call
     cmdList->DrawIndexedInstanced(
         m_pIndexView->GetIndexCount(),
-        1u, 0u, 0u, 0u);
+        1u,
+        0u,
+        0u,
+        0u
+    );
 }
 
 _Use_decl_annotations_
@@ -718,9 +901,13 @@ _Use_decl_annotations_
 bool kfe::KEFCubeSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_DESC& desc)
 {
     m_pCBBuffer = std::make_unique<KFEBuffer>();
+    m_pMetaCBBuffer = std::make_unique<KFEBuffer>();
 
     std::uint32_t bytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC));
     bytes = kfe_helpers::AlignTo256(bytes);
+
+    std::uint32_t metaBytes = static_cast<std::uint32_t>(sizeof(TextureMetaInformation));
+    metaBytes = kfe_helpers::AlignTo256(metaBytes);
 
     KFE_CREATE_BUFFER_DESC buffer{};
     buffer.Device = desc.Device;
@@ -735,7 +922,16 @@ bool kfe::KEFCubeSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_D
         return false;
     }
 
-    m_pCBV = std::make_unique<KFEConstantBuffer>();
+    buffer.SizeInBytes = metaBytes;
+
+    if (!m_pMetaCBBuffer->Initialize(buffer))
+    {
+        LOG_ERROR("Failed to build texture constant buffer!");
+        return false;
+    }
+
+    m_pCBV     = std::make_unique<KFEConstantBuffer>();
+    m_pMetaCBV = std::make_unique<KFEConstantBuffer>();;
 
     KFE_CONSTANT_BUFFER_CREATE_DESC view{};
     view.Device = desc.Device;
@@ -750,8 +946,16 @@ bool kfe::KEFCubeSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_D
         return false;
     }
 
-    LOG_SUCCESS("Cube Constant Buffer Created!");
+    view.ResourceBuffer = m_pMetaCBBuffer.get();
+    view.SizeInBytes    = metaBytes;
 
+    if (!m_pMetaCBV->Initialize(view))
+    {
+        LOG_ERROR("Failed to build meta constant buffer View!");
+        return false;
+    }
+
+    LOG_SUCCESS("Cube Constant Buffer Created!");
     return true;
 }
 
@@ -760,24 +964,33 @@ bool kfe::KEFCubeSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
 {
     m_pRootSignature = std::make_unique<KFERootSignature>();
 
+    //~ SRV descriptor table: [t0 .. tN-1]
     D3D12_DESCRIPTOR_RANGE srvRange{};
     srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    srvRange.NumDescriptors = 1u;
-    srvRange.BaseShaderRegister = 0u;
+    srvRange.NumDescriptors = static_cast<UINT>(ECubeTextures::Count);
+    srvRange.BaseShaderRegister = 0u;    // t0
     srvRange.RegisterSpace = 0u;
     srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    D3D12_ROOT_PARAMETER params[2]{};
+    D3D12_ROOT_PARAMETER params[3]{};
 
+    //~ b0: per-object/common constant buffer
     params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    params[0].Descriptor.ShaderRegister = 0u;
+    params[0].Descriptor.ShaderRegister = 0u;  // b0
     params[0].Descriptor.RegisterSpace = 0u;
 
+    //~ descriptor table for SRVs: t0..t(N-1)
     params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     params[1].DescriptorTable.NumDescriptorRanges = 1u;
     params[1].DescriptorTable.pDescriptorRanges = &srvRange;
+
+    //~ b1: texture meta information constant buffer
+    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[2].Descriptor.ShaderRegister = 1u;  // b1
+    params[2].Descriptor.RegisterSpace = 0u;
 
     D3D12_STATIC_SAMPLER_DESC staticSampler{};
     staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -797,7 +1010,7 @@ bool kfe::KEFCubeSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
     KFE_RG_CREATE_DESC root{};
     root.Device = desc.Device;
     root.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-    root.NumRootParameters = 2u;
+    root.NumRootParameters = 3u;
     root.RootParameters = params;
     root.NumStaticSamplers = 1u;
     root.StaticSamplers = &staticSampler;
@@ -1002,6 +1215,7 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
     return true;
 }
 
+_Use_decl_annotations_
 bool kfe::KEFCubeSceneObject::Impl::BuildSampler(const KFE_BUILD_OBJECT_DESC& desc)
 {
     if (!desc.Device)
@@ -1057,35 +1271,136 @@ bool kfe::KEFCubeSceneObject::Impl::BuildSampler(const KFE_BUILD_OBJECT_DESC& de
 
 bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* cmdList)
 {
-    if (m_texturePath.empty())
-    {
-        m_pTextureSrv = nullptr;
-        m_srvIndex = KFE_INVALID_INDEX;
-        LOG_ERROR("TEXTURE PATH IS EMPTY!");
-        return false;
-    }
-
-    if (!kfe_helpers::IsFile(m_texturePath))
-    {
-        LOG_ERROR("Texture Path: {}, Does not exits!");
-        return false;
-    }
+    //~ No textures need updating
+    if (!m_bTextureDirty)
+        return true;
 
     auto& pool = KFEImagePool::Instance();
 
-    KFETextureSRV* srv = pool.GetImageSrv(m_texturePath, cmdList);
-    if (!srv)
+    //~ Loop all defined texture slots
+    const std::size_t count = static_cast<std::size_t>(ECubeTextures::Count);
+
+    // Track first valid texture so we can alias others to it
+    std::size_t      firstValidIndex = static_cast<std::size_t>(-1);
+    std::uint32_t    firstValidResource = KFE_INVALID_INDEX;
+
+    for (std::size_t i = 0; i < count; ++i)
     {
-        LOG_ERROR("KFailed to get SRV for '{}'", m_texturePath);
-        m_pTextureSrv = nullptr;
-        m_srvIndex = KFE_INVALID_INDEX;
-        return false;
+        auto& data = m_srvs[i];
+
+        //~ Skip: nothing dirty here
+        if (!data.Dirty)
+            continue;
+
+        //~ no reserved descriptor slot, means Build() didn't allocate
+        if (data.ReservedSlot == KFE_INVALID_INDEX)
+        {
+            LOG_ERROR("Cube SRV slot {} has no ReservedSlot allocated!", i);
+            data.Dirty = false;
+            continue;
+        }
+
+        //~ Skip empty textures
+        if (data.TexturePath.empty())
+        {
+            data.TextureSrv = nullptr;
+            data.ResourceHandle = KFE_INVALID_INDEX;
+            data.Dirty = false;
+            continue;
+        }
+
+        //~ Check file exists
+        if (!kfe_helpers::IsFile(data.TexturePath))
+        {
+            LOG_ERROR("Texture '{}' does not exist!", data.TexturePath);
+            data.TextureSrv = nullptr;
+            data.ResourceHandle = KFE_INVALID_INDEX;
+            data.Dirty = false;
+            continue;
+        }
+
+        //~ Fetch texture SRV from the image pool
+        KFETextureSRV* srv = pool.GetImageSrv(data.TexturePath, cmdList);
+        if (!srv)
+        {
+            LOG_ERROR("Failed to load SRV for '{}'", data.TexturePath);
+            data.TextureSrv = nullptr;
+            data.ResourceHandle = KFE_INVALID_INDEX;
+            data.Dirty = false;
+            continue;
+        }
+
+        data.TextureSrv = srv;
+        data.ResourceHandle = srv->GetDescriptorIndex();
+
+        //~ Copy SRV into our contiguous block
+        const D3D12_CPU_DESCRIPTOR_HANDLE src =
+            m_pResourceHeap->GetHandle(data.ResourceHandle);
+
+        const D3D12_CPU_DESCRIPTOR_HANDLE dst =
+            m_pResourceHeap->GetHandle(data.ReservedSlot);
+
+        m_pDevice->GetNative()->CopyDescriptorsSimple(
+            1,
+            dst,
+            src,
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+        );
+
+        LOG_SUCCESS("Bound texture '{}' into ReservedSlot {}",
+            data.TexturePath, data.ReservedSlot);
+
+        //~ Track first valid texture so we can alias empties to it later
+        if (firstValidResource == KFE_INVALID_INDEX)
+        {
+            firstValidResource = data.ResourceHandle;
+            firstValidIndex = i;
+        }
+
+        //~ Mark clean
+        data.Dirty = false;
     }
 
-    m_pTextureSrv = srv;
-    m_srvIndex = srv->GetDescriptorIndex();
+    if (firstValidResource != KFE_INVALID_INDEX)
+    {
+        const D3D12_CPU_DESCRIPTOR_HANDLE firstSrc =
+            m_pResourceHeap->GetHandle(firstValidResource);
+
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            auto& data = m_srvs[i];
+
+            // No reserved slot
+            if (data.ReservedSlot == KFE_INVALID_INDEX)
+                continue;
+
+            // Already has a valid handle
+            if (data.ResourceHandle != KFE_INVALID_INDEX)
+                continue;
+
+            // This slot had no texture
+            const D3D12_CPU_DESCRIPTOR_HANDLE dst =
+                m_pResourceHeap->GetHandle(data.ReservedSlot);
+
+            m_pDevice->GetNative()->CopyDescriptorsSimple(
+                1,
+                dst,
+                firstSrc,
+                D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+            );
+
+            data.ResourceHandle = firstValidResource;
+            data.TextureSrv = m_srvs[firstValidIndex].TextureSrv;
+
+            LOG_WARNING(
+                "Cube SRV slot {} had no valid texture; aliased to slot {} (descriptor {}).",
+                i, firstValidIndex, firstValidResource
+            );
+        }
+    }
+
+    //~ Clear the global dirty flag
     m_bTextureDirty = false;
-    LOG_SUCCESS("Cube bound texture '{}' at SRV index {}", m_texturePath, m_srvIndex);
     return true;
 }
 
@@ -1102,7 +1417,7 @@ void kfe::KEFCubeSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT
     cv->MousePosition = desc.MousePosition;
     cv->ObjectPosition = m_pObject->GetPosition();
     cv->_PaddingObjectPos = 0.f;
-    cv->CameraPosition = desc.CameraPosition;
+    cv->CameraPosition  = desc.CameraPosition;
     cv->_PaddingCameraPos = 0.f;
     cv->PlayerPosition = desc.PlayerPosition;
     cv->_PaddingPlayerPos = 0.f;
@@ -1115,6 +1430,47 @@ void kfe::KEFCubeSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT
     cv->_PaddingFinal[0] = 0.f;
     cv->_PaddingFinal[1] = 0.f;
     cv->_PaddingFinal[2] = 0.f;
+
+    //~ Update texture meta CB (b1)
+    auto enforceAttachment = [&](ECubeTextures tex, float& isAttachedField)
+    {
+        const auto& srv = m_srvs[static_cast<std::size_t>(tex)];
+
+        bool hasTexture = !srv.TexturePath.empty();
+        bool userEnabled = (isAttachedField > 0.5f);
+
+        isAttachedField = (hasTexture && userEnabled) ? 1.0f : 0.0f;
+    };
+
+    // Main texture
+    enforceAttachment(ECubeTextures::MainTexture,
+        m_metaInformation.MainTexture.IsTextureAttached);
+
+    // Secondary
+    enforceAttachment(ECubeTextures::SecondaryTexture,
+        m_metaInformation.SecondaryTexture.IsTextureAttached);
+
+    // Normal
+    enforceAttachment(ECubeTextures::Normal,
+        m_metaInformation.Normal.IsTextureAttached);
+
+    // Specular
+    enforceAttachment(ECubeTextures::Specular,
+        m_metaInformation.Specular.IsTextureAttached);
+
+    // Height
+    enforceAttachment(ECubeTextures::Height,
+        m_metaInformation.Height.IsTextureAttached);
+
+    //~ Copy meta buffer to GPU
+    if (m_pMetaCBV)
+    {
+        void* dst = m_pMetaCBV->GetMappedData();
+        if (dst)
+        {
+            std::memcpy(dst, &m_metaInformation, sizeof(m_metaInformation));
+        }
+    }
 }
 
 std::vector<CubeVertex> kfe::KEFCubeSceneObject::Impl::GetVertices() const noexcept
@@ -1259,6 +1615,7 @@ JsonLoader kfe::KEFCubeSceneObject::Impl::GetJsonData() const noexcept
 {
     JsonLoader root{};
 
+    // Basic properties
     root["CullMode"] = ToString(m_cullMode);
     root["DrawMode"] = ToString(m_drawMode);
 
@@ -1269,7 +1626,75 @@ JsonLoader kfe::KEFCubeSceneObject::Impl::GetJsonData() const noexcept
     root["DomainShader"] = m_domainShaderPath;
     root["ComputeShader"] = m_computeShaderPath;
 
-    root["TexturePath"] = m_texturePath;
+    // Texture paths
+    const auto getPath = [this](ECubeTextures tex) -> const std::string&
+        {
+            return m_srvs[static_cast<std::size_t>(tex)].TexturePath;
+        };
+
+    root["MainTexturePath"] = getPath(ECubeTextures::MainTexture);
+    root["SecondaryTexturePath"] = getPath(ECubeTextures::SecondaryTexture);
+    root["NormalMapPath"] = getPath(ECubeTextures::Normal);
+    root["SpecularMapPath"] = getPath(ECubeTextures::Specular);
+    root["HeightMapPath"] = getPath(ECubeTextures::Height);
+
+    root["TexturePath"] = getPath(ECubeTextures::MainTexture);
+
+    // MAIN
+    root["TextureMeta"]["Main"]["IsTextureAttached"] =
+        std::to_string(m_metaInformation.MainTexture.IsTextureAttached);
+    root["TextureMeta"]["Main"]["LerpToSecondary"] =
+        std::to_string(m_metaInformation.MainTexture.LerpToSecondary);
+    root["TextureMeta"]["Main"]["UvTilingX"] =
+        std::to_string(m_metaInformation.MainTexture.UvTilingX);
+    root["TextureMeta"]["Main"]["UvTilingY"] =
+        std::to_string(m_metaInformation.MainTexture.UvTilingY);
+
+    // SECONDARY
+    root["TextureMeta"]["Secondary"]["IsTextureAttached"] =
+        std::to_string(m_metaInformation.SecondaryTexture.IsTextureAttached);
+    root["TextureMeta"]["Secondary"]["BlendFactor"] =
+        std::to_string(m_metaInformation.SecondaryTexture.BlendFactor);
+    root["TextureMeta"]["Secondary"]["UvTilingX"] =
+        std::to_string(m_metaInformation.SecondaryTexture.UvTilingX);
+    root["TextureMeta"]["Secondary"]["UvTilingY"] =
+        std::to_string(m_metaInformation.SecondaryTexture.UvTilingY);
+
+    // NORMAL
+    root["TextureMeta"]["Normal"]["IsTextureAttached"] =
+        std::to_string(m_metaInformation.Normal.IsTextureAttached);
+    root["TextureMeta"]["Normal"]["NormalStrength"] =
+        std::to_string(m_metaInformation.Normal.NormalStrength);
+    root["TextureMeta"]["Normal"]["UvTilingX"] =
+        std::to_string(m_metaInformation.Normal.UvTilingX);
+    root["TextureMeta"]["Normal"]["UvTilingY"] =
+        std::to_string(m_metaInformation.Normal.UvTilingY);
+
+    // SPECULAR
+    root["TextureMeta"]["Specular"]["IsTextureAttached"] =
+        std::to_string(m_metaInformation.Specular.IsTextureAttached);
+    root["TextureMeta"]["Specular"]["SpecularIntensity"] =
+        std::to_string(m_metaInformation.Specular.SpecularIntensity);
+    root["TextureMeta"]["Specular"]["RoughnessMultiplier"] =
+        std::to_string(m_metaInformation.Specular.RoughnessMultiplier);
+    root["TextureMeta"]["Specular"]["MetalnessMultiplier"] =
+        std::to_string(m_metaInformation.Specular.MetalnessMultiplier);
+
+    // HEIGHT
+    root["TextureMeta"]["Height"]["IsTextureAttached"] =
+        std::to_string(m_metaInformation.Height.IsTextureAttached);
+    root["TextureMeta"]["Height"]["HeightScale"] =
+        std::to_string(m_metaInformation.Height.HeightScale);
+    root["TextureMeta"]["Height"]["ParallaxMinLayers"] =
+        std::to_string(m_metaInformation.Height.ParallaxMinLayers);
+    root["TextureMeta"]["Height"]["ParallaxMaxLayers"] =
+        std::to_string(m_metaInformation.Height.ParallaxMaxLayers);
+
+    // MIP DEBUG
+    root["TextureMeta"]["MipDebug"]["ForcedMipLevel"] =
+        std::to_string(m_metaInformation.ForcedMipLevel);
+    root["TextureMeta"]["MipDebug"]["UseForcedMip"] =
+        std::to_string(m_metaInformation.UseForcedMip);
 
     return root;
 }
@@ -1324,10 +1749,105 @@ void kfe::KEFCubeSceneObject::Impl::LoadFromJson(const JsonLoader& loader) noexc
         m_bPipelineDirty = true;
     }
 
+    //~ Texture paths per slot
+    if (loader.Contains("MainTexturePath"))
+    {
+        SetMainTexture(loader["MainTexturePath"].GetValue());
+    }
+
+    if (loader.Contains("SecondaryTexturePath"))
+    {
+        SetSecondaryTexture(loader["SecondaryTexturePath"].GetValue());
+    }
+
+    if (loader.Contains("NormalMapPath"))
+    {
+        SetNormalMap(loader["NormalMapPath"].GetValue());
+    }
+
+    if (loader.Contains("SpecularMapPath"))
+    {
+        SetSpecularMap(loader["SpecularMapPath"].GetValue());
+    }
+
+    if (loader.Contains("HeightMapPath"))
+    {
+        SetHeightMap(loader["HeightMapPath"].GetValue());
+    }
+
     if (loader.Contains("TexturePath"))
     {
-        SetTexture(loader["TexturePath"].GetValue());
+        SetMainTexture(loader["TexturePath"].GetValue());
     }
+
+    //~ Texture meta information
+    if (loader.Contains("TextureMeta"))
+    {
+        const JsonLoader& metaRoot = loader["TextureMeta"];
+
+        auto loadFloat = [](const JsonLoader& obj, const char* key, float& outValue)
+            {
+                if (obj.Contains(key))
+                {
+                    outValue = std::stof(obj[key].GetValue());
+                }
+            };
+
+        if (metaRoot.Contains("Main"))
+        {
+            const JsonLoader& main = metaRoot["Main"];
+            loadFloat(main, "IsTextureAttached", m_metaInformation.MainTexture.IsTextureAttached);
+            loadFloat(main, "LerpToSecondary", m_metaInformation.MainTexture.LerpToSecondary);
+            loadFloat(main, "UvTilingX", m_metaInformation.MainTexture.UvTilingX);
+            loadFloat(main, "UvTilingY", m_metaInformation.MainTexture.UvTilingY);
+        }
+
+        if (metaRoot.Contains("Secondary"))
+        {
+            const JsonLoader& s = metaRoot["Secondary"];
+            loadFloat(s, "IsTextureAttached", m_metaInformation.SecondaryTexture.IsTextureAttached);
+            loadFloat(s, "BlendFactor", m_metaInformation.SecondaryTexture.BlendFactor);
+            loadFloat(s, "UvTilingX", m_metaInformation.SecondaryTexture.UvTilingX);
+            loadFloat(s, "UvTilingY", m_metaInformation.SecondaryTexture.UvTilingY);
+        }
+
+        if (metaRoot.Contains("Normal"))
+        {
+            const JsonLoader& n = metaRoot["Normal"];
+            loadFloat(n, "IsTextureAttached", m_metaInformation.Normal.IsTextureAttached);
+            loadFloat(n, "NormalStrength", m_metaInformation.Normal.NormalStrength);
+            loadFloat(n, "UvTilingX", m_metaInformation.Normal.UvTilingX);
+            loadFloat(n, "UvTilingY", m_metaInformation.Normal.UvTilingY);
+        }
+
+        if (metaRoot.Contains("Specular"))
+        {
+            const JsonLoader& s = metaRoot["Specular"];
+            loadFloat(s, "IsTextureAttached", m_metaInformation.Specular.IsTextureAttached);
+            loadFloat(s, "SpecularIntensity", m_metaInformation.Specular.SpecularIntensity);
+            loadFloat(s, "RoughnessMultiplier", m_metaInformation.Specular.RoughnessMultiplier);
+            loadFloat(s, "MetalnessMultiplier", m_metaInformation.Specular.MetalnessMultiplier);
+        }
+
+        if (metaRoot.Contains("Height"))
+        {
+            const JsonLoader& h = metaRoot["Height"];
+            loadFloat(h, "IsTextureAttached", m_metaInformation.Height.IsTextureAttached);
+            loadFloat(h, "HeightScale", m_metaInformation.Height.HeightScale);
+            loadFloat(h, "ParallaxMinLayers", m_metaInformation.Height.ParallaxMinLayers);
+            loadFloat(h, "ParallaxMaxLayers", m_metaInformation.Height.ParallaxMaxLayers);
+        }
+
+        // MIP DEBUG
+        if (metaRoot.Contains("MipDebug"))
+        {
+            const JsonLoader& dbg = metaRoot["MipDebug"];
+            loadFloat(dbg, "ForcedMipLevel", m_metaInformation.ForcedMipLevel);
+            loadFloat(dbg, "UseForcedMip", m_metaInformation.UseForcedMip);
+        }
+    }
+
+    m_bTextureDirty = true;
 }
 
 void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
@@ -1359,7 +1879,7 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
 
         {
             const char* cullModeItems[] = { "Front", "Back", "None" };
-            int currentCullIndex = 2; // None default
+            int currentCullIndex = 2;
             switch (m_cullMode)
             {
             case ECullMode::Front: currentCullIndex = 0; break;
@@ -1417,70 +1937,204 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
                     }
                 };
 
-            EditPath("Vertex Shader", m_vertexShaderPath,
-                [this](const std::string& p) { SetVertexShaderPath(p); m_bPipelineDirty = true; });
-
-            EditPath("Pixel Shader", m_pixelShaderPath,
-                [this](const std::string& p) { SetPixelShaderPath(p); m_bPipelineDirty = true; });
-
-            EditPath("Geometry Shader", m_geometryShaderPath,
-                [this](const std::string& p) { SetGeometryShaderPath(p); m_bPipelineDirty = true; });
-
-            EditPath("Hull Shader", m_hullShaderPath,
-                [this](const std::string& p) { SetHullShaderPath(p); m_bPipelineDirty = true; });
-
-            EditPath("Domain Shader", m_domainShaderPath,
-                [this](const std::string& p) { SetDomainShaderPath(p); m_bPipelineDirty = true; });
-
-            EditPath("Compute Shader", m_computeShaderPath,
-                [this](const std::string& p) { SetComputeShaderPath(p); m_bPipelineDirty = true; });
+            EditPath("Vertex Shader", m_vertexShaderPath, [this](const std::string& p) { SetVertexShaderPath(p);   m_bPipelineDirty = true; });
+            EditPath("Pixel Shader", m_pixelShaderPath, [this](const std::string& p) { SetPixelShaderPath(p);    m_bPipelineDirty = true; });
+            EditPath("Geometry Shader", m_geometryShaderPath, [this](const std::string& p) { SetGeometryShaderPath(p); m_bPipelineDirty = true; });
+            EditPath("Hull Shader", m_hullShaderPath, [this](const std::string& p) { SetHullShaderPath(p);     m_bPipelineDirty = true; });
+            EditPath("Domain Shader", m_domainShaderPath, [this](const std::string& p) { SetDomainShaderPath(p);   m_bPipelineDirty = true; });
+            EditPath("Compute Shader", m_computeShaderPath, [this](const std::string& p) { SetComputeShaderPath(p);  m_bPipelineDirty = true; });
 
             ImGui::TreePop();
         }
 
         ImGui::Separator();
 
+        // ---------------------------------------------------------
+        // 🔍 Mip Debug Controls (shown before Texture Binding)
+        // ---------------------------------------------------------
+        {
+            ImGui::TextUnformatted("Texture Mip Debug");
+            ImGui::Separator();
+
+            bool forceMip = (m_metaInformation.UseForcedMip > 0.5f);
+            if (ImGui::Checkbox("Force Mip Level", &forceMip))
+            {
+                m_metaInformation.UseForcedMip = forceMip ? 1.0f : 0.0f;
+            }
+
+            // Optional: you can clamp this later to actual mip count if you want.
+            ImGui::SliderFloat(
+                "Forced Mip",
+                &m_metaInformation.ForcedMipLevel,
+                0.0f,
+                10.0f,
+                "%.1f"
+            );
+
+            ImGui::Separator();
+        }
+        // ---------------------------------------------------------
+
         if (ImGui::TreeNode("Texture Binding"))
         {
-            auto ApplyTexturePath = [this]()
+            auto EditTextureNode =
+                [this](const char* nodeLabel,
+                    ECubeTextures tex,
+                    const char* pathLabel,
+                    std::string& texturePath,
+                    auto& meta,
+                    auto setter,
+                    auto drawMetaControls)
                 {
-                    m_bTextureDirty = true;
+                    if (!ImGui::TreeNode(nodeLabel))
+                        return;
+
+                    // Path edit
+                    char buf[260];
+                    std::memset(buf, 0, sizeof(buf));
+
+                    const size_t maxCopy = sizeof(buf) - 1;
+                    const size_t count = std::min(texturePath.size(), maxCopy);
+                    texturePath.copy(buf, count);
+                    buf[count] = '\0';
+
+                    if (ImGui::InputText(pathLabel, buf, sizeof(buf)))
+                    {
+                        texturePath.assign(buf);
+                    }
+
+                    if (ImGui::BeginDragDropTarget())
+                    {
+                        if (const ImGuiPayload* payload =
+                            ImGui::AcceptDragDropPayload(kfe::KFEAssetPanel::kPayloadType))
+                        {
+                            kfe::KFEAssetPanel::PayloadHeader hdr{};
+                            std::string pathUtf8;
+
+                            if (kfe::KFEAssetPanel::ParsePayload(payload, hdr, pathUtf8))
+                            {
+                                texturePath = pathUtf8;
+                                setter(pathUtf8);
+                            }
+                        }
+                        ImGui::EndDragDropTarget();
+                    }
+
+                    if (ImGui::Button("Apply Path"))
+                    {
+                        setter(std::string{ buf });
+                    }
+
+                    ImGui::Separator();
+
+                    // Meta controls
+                    drawMetaControls(meta);
+
+                    ImGui::TreePop();
                 };
 
-            char texBuf[260];
-            std::memset(texBuf, 0, sizeof(texBuf));
-            {
-                const size_t maxCopy = sizeof(texBuf) - 1;
-                const size_t count = std::min(m_texturePath.size(), maxCopy);
-                m_texturePath.copy(texBuf, count);
-                texBuf[count] = '\0';
-            }
-
-            if (ImGui::InputText("Texture Path", texBuf, sizeof(texBuf)))
-            {
-                m_texturePath = std::string{ texBuf };
-            }
-
-            if (ImGui::BeginDragDropTarget())
-            {
-                if (const ImGuiPayload* payload =
-                    ImGui::AcceptDragDropPayload(kfe::KFEAssetPanel::kPayloadType))
+            // Main texture
+            EditTextureNode(
+                "Main Texture",
+                ECubeTextures::MainTexture,
+                "Main Texture Path",
+                m_srvs[static_cast<std::size_t>(ECubeTextures::MainTexture)].TexturePath,
+                m_metaInformation.MainTexture,
+                [this](const std::string& p) { SetMainTexture(p); },
+                [](auto& meta)
                 {
-                    kfe::KFEAssetPanel::PayloadHeader hdr{};
-                    std::string pathUtf8;
-
-                    if (kfe::KFEAssetPanel::ParsePayload(payload, hdr, pathUtf8))
+                    bool enabled = meta.IsTextureAttached > 0.5f;
+                    if (ImGui::Checkbox("Enabled", &enabled))
                     {
-                        m_texturePath = pathUtf8;
+                        meta.IsTextureAttached = enabled ? 1.0f : 0.0f;
                     }
-                }
-                ImGui::EndDragDropTarget();
-            }
 
-            if (ImGui::Button("Apply Texture"))
-            {
-                ApplyTexturePath();
-            }
+                    ImGui::SliderFloat("Lerp To Secondary", &meta.LerpToSecondary, 0.0f, 1.0f);
+                    ImGui::DragFloat2("UV Tiling", &meta.UvTilingX, 0.01f, 0.01f, 100.0f);
+                });
+
+            // Secondary texture
+            EditTextureNode(
+                "Secondary Texture",
+                ECubeTextures::SecondaryTexture,
+                "Secondary Texture Path",
+                m_srvs[static_cast<std::size_t>(ECubeTextures::SecondaryTexture)].TexturePath,
+                m_metaInformation.SecondaryTexture,
+                [this](const std::string& p) { SetSecondaryTexture(p); },
+                [](auto& meta)
+                {
+                    bool enabled = meta.IsTextureAttached > 0.5f;
+                    if (ImGui::Checkbox("Enabled", &enabled))
+                    {
+                        meta.IsTextureAttached = enabled ? 1.0f : 0.0f;
+                    }
+
+                    ImGui::SliderFloat("Blend Factor", &meta.BlendFactor, 0.0f, 2.0f);
+                    ImGui::DragFloat2("UV Tiling", &meta.UvTilingX, 0.01f, 0.01f, 100.0f);
+                });
+
+            // Normal map
+            EditTextureNode(
+                "Normal Map",
+                ECubeTextures::Normal,
+                "Normal Map Path",
+                m_srvs[static_cast<std::size_t>(ECubeTextures::Normal)].TexturePath,
+                m_metaInformation.Normal,
+                [this](const std::string& p) { SetNormalMap(p); },
+                [](auto& meta)
+                {
+                    bool enabled = meta.IsTextureAttached > 0.5f;
+                    if (ImGui::Checkbox("Enabled", &enabled))
+                    {
+                        meta.IsTextureAttached = enabled ? 1.0f : 0.0f;
+                    }
+
+                    ImGui::SliderFloat("Normal Strength", &meta.NormalStrength, 0.0f, 4.0f);
+                    ImGui::DragFloat2("UV Tiling", &meta.UvTilingX, 0.01f, 0.01f, 100.0f);
+                });
+
+            // Specular map
+            EditTextureNode(
+                "Specular Map",
+                ECubeTextures::Specular,
+                "Specular Map Path",
+                m_srvs[static_cast<std::size_t>(ECubeTextures::Specular)].TexturePath,
+                m_metaInformation.Specular,
+                [this](const std::string& p) { SetSpecularMap(p); },
+                [](auto& meta)
+                {
+                    bool enabled = meta.IsTextureAttached > 0.5f;
+                    if (ImGui::Checkbox("Enabled", &enabled))
+                    {
+                        meta.IsTextureAttached = enabled ? 1.0f : 0.0f;
+                    }
+
+                    ImGui::SliderFloat("Specular Intensity", &meta.SpecularIntensity, 0.0f, 4.0f);
+                    ImGui::SliderFloat("Roughness Multiplier", &meta.RoughnessMultiplier, 0.0f, 4.0f);
+                    ImGui::SliderFloat("Metalness Multiplier", &meta.MetalnessMultiplier, 0.0f, 4.0f);
+                });
+
+            // Height map
+            EditTextureNode(
+                "Height Map",
+                ECubeTextures::Height,
+                "Height Map Path",
+                m_srvs[static_cast<std::size_t>(ECubeTextures::Height)].TexturePath,
+                m_metaInformation.Height,
+                [this](const std::string& p) { SetHeightMap(p); },
+                [](auto& meta)
+                {
+                    bool enabled = meta.IsTextureAttached > 0.5f;
+                    if (ImGui::Checkbox("Enabled", &enabled))
+                    {
+                        meta.IsTextureAttached = enabled ? 1.0f : 0.0f;
+                    }
+
+                    ImGui::SliderFloat("Height Scale", &meta.HeightScale, 0.0f, 0.2f);
+                    ImGui::SliderFloat("Parallax MinLayers", &meta.ParallaxMinLayers, 1.0f, 64.0f);
+                    ImGui::SliderFloat("Parallax MaxLayers", &meta.ParallaxMaxLayers, 1.0f, 128.0f);
+                });
+
             ImGui::TreePop();
         }
 
