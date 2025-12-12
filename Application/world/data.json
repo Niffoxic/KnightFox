@@ -43,10 +43,10 @@
 						"MetalnessMultiplier": "1.000000"
 					},
 					"Main": {
-						"UvTilingY": "3.290000",
+						"UvTilingY": "1.000000",
 						"IsTextureAttached": "1.000000",
 						"LerpToSecondary": "0.000000",
-						"UvTilingX": "2.290000"
+						"UvTilingX": "1.000000"
 					},
 					"Secondary": {
 						"UvTilingY": "1.000000",
@@ -61,10 +61,14 @@
 						"ParallaxMaxLayers": "32.000000"
 					},
 					"Normal": {
-						"UvTilingY": "1.570000",
+						"UvTilingY": "1.000000",
 						"IsTextureAttached": "1.000000",
-						"UvTilingX": "2.460000",
+						"UvTilingX": "1.000000",
 						"NormalStrength": "1.000000"
+					},
+					"MipDebug": {
+						"ForcedMipLevel": "0.000000",
+						"UseForcedMip": "0.000000"
 					}
 				}
 			}
@@ -138,6 +142,10 @@
 						"IsTextureAttached": "0.000000",
 						"UvTilingX": "1.000000",
 						"NormalStrength": "1.000000"
+					},
+					"MipDebug": {
+						"ForcedMipLevel": "0.000000",
+						"UseForcedMip": "0.000000"
 					}
 				}
 			}
@@ -211,6 +219,10 @@
 						"IsTextureAttached": "0.000000",
 						"UvTilingX": "1.000000",
 						"NormalStrength": "1.000000"
+					},
+					"MipDebug": {
+						"ForcedMipLevel": "0.000000",
+						"UseForcedMip": "0.000000"
 					}
 				}
 			}

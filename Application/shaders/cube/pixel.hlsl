@@ -28,11 +28,15 @@ cbuffer CommonCB : register(b0)
 
 cbuffer TextureMetaCB : register(b1)
 {
-    float4 gMainTextureInfo;      // IsAttached(0 means no 1 means yes), LerpToSecondary, UvTilingX, UvTilingY
+    float4 gMainTextureInfo;      // IsAttached, LerpToSecondary, UvTilingX, UvTilingY
     float4 gSecondaryTextureInfo; // IsAttached, BlendFactor,   UvTilingX, UvTilingY
     float4 gNormalTextureInfo;    // IsAttached, NormalStrength, UvTilingX, UvTilingY
     float4 gSpecularTextureInfo;  // IsAttached, SpecInt, RoughMul, MetalMul
     float4 gHeightTextureInfo;    // IsAttached, HeightScale, MinLayers, MaxLayers
+
+    float  gForceMipLevel;        // which mip to use (0 = full res)
+    float  gUseForcedMip;         // 0 = off, 1 = force mip for debug
+    float2 _PaddingMip;
 };
 
 //~ Texture layout must match ECubeTextures + root signature:
@@ -69,8 +73,19 @@ float4 GetBaseColor(float2 uv)
     float2 mainUV = uv * gMainTextureInfo.zw;
     float2 secUV  = uv * gSecondaryTextureInfo.zw;
 
-    float4 mainSample = gMainTexture.Sample(gSampler, mainUV);
-    float4 secSample  = gSecondaryTexture.Sample(gSampler, secUV);
+    float4 mainSample;
+    float4 secSample;
+
+    if (gUseForcedMip > 0.5f)
+    {
+        mainSample = gMainTexture.SampleLevel(gSampler,      mainUV, gForceMipLevel);
+        secSample  = gSecondaryTexture.SampleLevel(gSampler, secUV,  gForceMipLevel);
+    }
+    else
+    {
+        mainSample = gMainTexture.Sample(gSampler,      mainUV);
+        secSample  = gSecondaryTexture.Sample(gSampler, secUV);
+    }
 
     float3 mainRgb = mainSample.rgb;
     float3 secRgb  = secSample.rgb;
@@ -123,7 +138,16 @@ float3 GetNormalWS(PSInput input)
     float normalStrength = gNormalTextureInfo.y;           // can be > 1
 
     float2 normalUV = input.TexCoord * gNormalTextureInfo.zw;
-    float3 nTS = gNormalMap.Sample(gSampler, normalUV).xyz;
+
+    float3 nTS;
+    if (gUseForcedMip > 0.5f)
+    {
+        nTS = gNormalMap.SampleLevel(gSampler, normalUV, gForceMipLevel).xyz;
+    }
+    else
+    {
+        nTS = gNormalMap.Sample(gSampler, normalUV).xyz;
+    }
 
     // Unpack
     nTS = nTS * 2.0f - 1.0f;
@@ -142,9 +166,10 @@ float3 GetNormalWS(PSInput input)
 float4 main(PSInput input) : SV_TARGET
 {
     float4 baseColor = GetBaseColor(input.TexCoord);
-    float3 normalWS = GetNormalWS(input);
+    float3 normalWS  = GetNormalWS(input);
+
     float lightFactor = 0.5f + 0.5f * normalWS.z; // test light
-    float3 finalRgb = baseColor.rgb * lightFactor;
+    float3 finalRgb   = baseColor.rgb * lightFactor;
 
     return float4(finalRgb, baseColor.a);
 }

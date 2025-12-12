@@ -141,6 +141,11 @@ struct TextureMetaInformation
         float ParallaxMinLayers{ 8.0f };  //~ min layers for parallax
         float ParallaxMaxLayers{ 32.0f }; //~ max layers for parallax
     } Height;
+
+    float ForcedMipLevel{ 0.0f };
+    float UseForcedMip{ 0.0f };
+    float _Pad0{ 0.0f };
+    float _Pad1{ 0.0f };
 };
 
 class kfe::KEFCubeSceneObject::Impl
@@ -1636,34 +1641,60 @@ JsonLoader kfe::KEFCubeSceneObject::Impl::GetJsonData() const noexcept
     root["TexturePath"] = getPath(ECubeTextures::MainTexture);
 
     // MAIN
-    root["TextureMeta"]["Main"]["IsTextureAttached"] = std::to_string(m_metaInformation.MainTexture.IsTextureAttached);
-    root["TextureMeta"]["Main"]["LerpToSecondary"] = std::to_string(m_metaInformation.MainTexture.LerpToSecondary);
-    root["TextureMeta"]["Main"]["UvTilingX"] = std::to_string(m_metaInformation.MainTexture.UvTilingX);
-    root["TextureMeta"]["Main"]["UvTilingY"] = std::to_string(m_metaInformation.MainTexture.UvTilingY);
+    root["TextureMeta"]["Main"]["IsTextureAttached"] =
+        std::to_string(m_metaInformation.MainTexture.IsTextureAttached);
+    root["TextureMeta"]["Main"]["LerpToSecondary"] =
+        std::to_string(m_metaInformation.MainTexture.LerpToSecondary);
+    root["TextureMeta"]["Main"]["UvTilingX"] =
+        std::to_string(m_metaInformation.MainTexture.UvTilingX);
+    root["TextureMeta"]["Main"]["UvTilingY"] =
+        std::to_string(m_metaInformation.MainTexture.UvTilingY);
 
     // SECONDARY
-    root["TextureMeta"]["Secondary"]["IsTextureAttached"] = std::to_string(m_metaInformation.SecondaryTexture.IsTextureAttached);
-    root["TextureMeta"]["Secondary"]["BlendFactor"] = std::to_string(m_metaInformation.SecondaryTexture.BlendFactor);
-    root["TextureMeta"]["Secondary"]["UvTilingX"] = std::to_string(m_metaInformation.SecondaryTexture.UvTilingX);
-    root["TextureMeta"]["Secondary"]["UvTilingY"] = std::to_string(m_metaInformation.SecondaryTexture.UvTilingY);
+    root["TextureMeta"]["Secondary"]["IsTextureAttached"] =
+        std::to_string(m_metaInformation.SecondaryTexture.IsTextureAttached);
+    root["TextureMeta"]["Secondary"]["BlendFactor"] =
+        std::to_string(m_metaInformation.SecondaryTexture.BlendFactor);
+    root["TextureMeta"]["Secondary"]["UvTilingX"] =
+        std::to_string(m_metaInformation.SecondaryTexture.UvTilingX);
+    root["TextureMeta"]["Secondary"]["UvTilingY"] =
+        std::to_string(m_metaInformation.SecondaryTexture.UvTilingY);
 
     // NORMAL
-    root["TextureMeta"]["Normal"]["IsTextureAttached"] = std::to_string(m_metaInformation.Normal.IsTextureAttached);
-    root["TextureMeta"]["Normal"]["NormalStrength"] = std::to_string(m_metaInformation.Normal.NormalStrength);
-    root["TextureMeta"]["Normal"]["UvTilingX"] = std::to_string(m_metaInformation.Normal.UvTilingX);
-    root["TextureMeta"]["Normal"]["UvTilingY"] = std::to_string(m_metaInformation.Normal.UvTilingY);
+    root["TextureMeta"]["Normal"]["IsTextureAttached"] =
+        std::to_string(m_metaInformation.Normal.IsTextureAttached);
+    root["TextureMeta"]["Normal"]["NormalStrength"] =
+        std::to_string(m_metaInformation.Normal.NormalStrength);
+    root["TextureMeta"]["Normal"]["UvTilingX"] =
+        std::to_string(m_metaInformation.Normal.UvTilingX);
+    root["TextureMeta"]["Normal"]["UvTilingY"] =
+        std::to_string(m_metaInformation.Normal.UvTilingY);
 
     // SPECULAR
-    root["TextureMeta"]["Specular"]["IsTextureAttached"] = std::to_string(m_metaInformation.Specular.IsTextureAttached);
-    root["TextureMeta"]["Specular"]["SpecularIntensity"] = std::to_string(m_metaInformation.Specular.SpecularIntensity);
-    root["TextureMeta"]["Specular"]["RoughnessMultiplier"] = std::to_string(m_metaInformation.Specular.RoughnessMultiplier);
-    root["TextureMeta"]["Specular"]["MetalnessMultiplier"] = std::to_string(m_metaInformation.Specular.MetalnessMultiplier);
+    root["TextureMeta"]["Specular"]["IsTextureAttached"] =
+        std::to_string(m_metaInformation.Specular.IsTextureAttached);
+    root["TextureMeta"]["Specular"]["SpecularIntensity"] =
+        std::to_string(m_metaInformation.Specular.SpecularIntensity);
+    root["TextureMeta"]["Specular"]["RoughnessMultiplier"] =
+        std::to_string(m_metaInformation.Specular.RoughnessMultiplier);
+    root["TextureMeta"]["Specular"]["MetalnessMultiplier"] =
+        std::to_string(m_metaInformation.Specular.MetalnessMultiplier);
 
     // HEIGHT
-    root["TextureMeta"]["Height"]["IsTextureAttached"] = std::to_string(m_metaInformation.Height.IsTextureAttached);
-    root["TextureMeta"]["Height"]["HeightScale"] = std::to_string(m_metaInformation.Height.HeightScale);
-    root["TextureMeta"]["Height"]["ParallaxMinLayers"] = std::to_string(m_metaInformation.Height.ParallaxMinLayers);
-    root["TextureMeta"]["Height"]["ParallaxMaxLayers"] = std::to_string(m_metaInformation.Height.ParallaxMaxLayers);
+    root["TextureMeta"]["Height"]["IsTextureAttached"] =
+        std::to_string(m_metaInformation.Height.IsTextureAttached);
+    root["TextureMeta"]["Height"]["HeightScale"] =
+        std::to_string(m_metaInformation.Height.HeightScale);
+    root["TextureMeta"]["Height"]["ParallaxMinLayers"] =
+        std::to_string(m_metaInformation.Height.ParallaxMinLayers);
+    root["TextureMeta"]["Height"]["ParallaxMaxLayers"] =
+        std::to_string(m_metaInformation.Height.ParallaxMaxLayers);
+
+    // MIP DEBUG
+    root["TextureMeta"]["MipDebug"]["ForcedMipLevel"] =
+        std::to_string(m_metaInformation.ForcedMipLevel);
+    root["TextureMeta"]["MipDebug"]["UseForcedMip"] =
+        std::to_string(m_metaInformation.UseForcedMip);
 
     return root;
 }
@@ -1755,12 +1786,12 @@ void kfe::KEFCubeSceneObject::Impl::LoadFromJson(const JsonLoader& loader) noexc
         const JsonLoader& metaRoot = loader["TextureMeta"];
 
         auto loadFloat = [](const JsonLoader& obj, const char* key, float& outValue)
-        {
-            if (obj.Contains(key))
             {
-                outValue = std::stof(obj[key].GetValue());
-            }
-        };
+                if (obj.Contains(key))
+                {
+                    outValue = std::stof(obj[key].GetValue());
+                }
+            };
 
         if (metaRoot.Contains("Main"))
         {
@@ -1805,6 +1836,14 @@ void kfe::KEFCubeSceneObject::Impl::LoadFromJson(const JsonLoader& loader) noexc
             loadFloat(h, "HeightScale", m_metaInformation.Height.HeightScale);
             loadFloat(h, "ParallaxMinLayers", m_metaInformation.Height.ParallaxMinLayers);
             loadFloat(h, "ParallaxMaxLayers", m_metaInformation.Height.ParallaxMaxLayers);
+        }
+
+        // MIP DEBUG
+        if (metaRoot.Contains("MipDebug"))
+        {
+            const JsonLoader& dbg = metaRoot["MipDebug"];
+            loadFloat(dbg, "ForcedMipLevel", m_metaInformation.ForcedMipLevel);
+            loadFloat(dbg, "UseForcedMip", m_metaInformation.UseForcedMip);
         }
     }
 
@@ -1909,6 +1948,32 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
         }
 
         ImGui::Separator();
+
+        // ---------------------------------------------------------
+        // 🔍 Mip Debug Controls (shown before Texture Binding)
+        // ---------------------------------------------------------
+        {
+            ImGui::TextUnformatted("Texture Mip Debug");
+            ImGui::Separator();
+
+            bool forceMip = (m_metaInformation.UseForcedMip > 0.5f);
+            if (ImGui::Checkbox("Force Mip Level", &forceMip))
+            {
+                m_metaInformation.UseForcedMip = forceMip ? 1.0f : 0.0f;
+            }
+
+            // Optional: you can clamp this later to actual mip count if you want.
+            ImGui::SliderFloat(
+                "Forced Mip",
+                &m_metaInformation.ForcedMipLevel,
+                0.0f,
+                10.0f,
+                "%.1f"
+            );
+
+            ImGui::Separator();
+        }
+        // ---------------------------------------------------------
 
         if (ImGui::TreeNode("Texture Binding"))
         {
@@ -2059,10 +2124,10 @@ void kfe::KEFCubeSceneObject::Impl::ImguiView(float)
                 [this](const std::string& p) { SetHeightMap(p); },
                 [](auto& meta)
                 {
-                    bool Disable = meta.IsTextureAttached > 0.5f;
-                    if (ImGui::Checkbox("Enabled", &Disable))
+                    bool enabled = meta.IsTextureAttached > 0.5f;
+                    if (ImGui::Checkbox("Enabled", &enabled))
                     {
-                        meta.IsTextureAttached = Disable ? 1.0f : 0.0f;
+                        meta.IsTextureAttached = enabled ? 1.0f : 0.0f;
                     }
 
                     ImGui::SliderFloat("Height Scale", &meta.HeightScale, 0.0f, 0.2f);
