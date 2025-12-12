@@ -43,6 +43,8 @@
 #include <map>
 #include <array>
 
+#include "engine/render_manager/api/frame_cb.h"
+
 #pragma region Impl_Definition
 
 struct CubeVertex
@@ -151,7 +153,7 @@ public:
         {
             entry.TexturePath = {};
             entry.TextureSrv = nullptr;
-            entry.ResourceHandle = 0u;
+            entry.ResourceHandle = KFE_INVALID_INDEX;
             entry.ReservedSlot = 0u;
         }
     }
@@ -1269,8 +1271,12 @@ bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* 
 
     auto& pool = KFEImagePool::Instance();
 
-    //~ Loop all defined texture slots (Main, Normal, Specular, etc.)
+    //~ Loop all defined texture slots
     const std::size_t count = static_cast<std::size_t>(ECubeTextures::Count);
+
+    // Track first valid texture so we can alias others to it
+    std::size_t      firstValidIndex = static_cast<std::size_t>(-1);
+    std::uint32_t    firstValidResource = KFE_INVALID_INDEX;
 
     for (std::size_t i = 0; i < count; ++i)
     {
@@ -1284,6 +1290,7 @@ bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* 
         if (data.ReservedSlot == KFE_INVALID_INDEX)
         {
             LOG_ERROR("Cube SRV slot {} has no ReservedSlot allocated!", i);
+            data.Dirty = false;
             continue;
         }
 
@@ -1300,6 +1307,8 @@ bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* 
         if (!kfe_helpers::IsFile(data.TexturePath))
         {
             LOG_ERROR("Texture '{}' does not exist!", data.TexturePath);
+            data.TextureSrv = nullptr;
+            data.ResourceHandle = KFE_INVALID_INDEX;
             data.Dirty = false;
             continue;
         }
@@ -1335,14 +1344,60 @@ bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* 
         LOG_SUCCESS("Bound texture '{}' into ReservedSlot {}",
             data.TexturePath, data.ReservedSlot);
 
+        //~ Track first valid texture so we can alias empties to it later
+        if (firstValidResource == KFE_INVALID_INDEX)
+        {
+            firstValidResource = data.ResourceHandle;
+            firstValidIndex = i;
+        }
+
         //~ Mark clean
         data.Dirty = false;
+    }
+
+    if (firstValidResource != KFE_INVALID_INDEX)
+    {
+        const D3D12_CPU_DESCRIPTOR_HANDLE firstSrc =
+            m_pResourceHeap->GetHandle(firstValidResource);
+
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            auto& data = m_srvs[i];
+
+            // No reserved slot -> nothing to alias
+            if (data.ReservedSlot == KFE_INVALID_INDEX)
+                continue;
+
+            // Already has a valid handle -> skip
+            if (data.ResourceHandle != KFE_INVALID_INDEX)
+                continue;
+
+            // This slot had no texture / failed to load; alias to first valid
+            const D3D12_CPU_DESCRIPTOR_HANDLE dst =
+                m_pResourceHeap->GetHandle(data.ReservedSlot);
+
+            m_pDevice->GetNative()->CopyDescriptorsSimple(
+                1,
+                dst,
+                firstSrc,
+                D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+            );
+
+            data.ResourceHandle = firstValidResource;
+            data.TextureSrv = m_srvs[firstValidIndex].TextureSrv;
+
+            LOG_WARNING(
+                "Cube SRV slot {} had no valid texture; aliased to slot {} (descriptor {}).",
+                i, firstValidIndex, firstValidResource
+            );
+        }
     }
 
     //~ Clear the global dirty flag
     m_bTextureDirty = false;
     return true;
 }
+
 
 void kfe::KEFCubeSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc)
 {

@@ -270,6 +270,9 @@
     <ClInclude Include="include\engine\render_manager\api\texture\staging_texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\engine\render_manager\api\frame_cb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -492,6 +495,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="externals\stb_image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\api\texture\frame_cb.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

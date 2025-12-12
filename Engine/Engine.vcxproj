@@ -194,6 +194,7 @@
     <ClInclude Include="include\engine\render_manager\components\render_queue.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="include\engine\render_manager\api\frame_cb.h" />
     <ClInclude Include="include\engine\render_manager\scene\cube_scene.h" />
     <ClInclude Include="include\engine\render_manager\scene\model_scene.h" />
     <ClInclude Include="include\engine\system\interface\interface_scene.h" />
@@ -256,6 +257,7 @@
     <ClCompile Include="src\render_manager\api\pso.cpp" />
     <ClCompile Include="src\render_manager\api\root_signature.cpp" />
     <ClCompile Include="src\render_manager\api\sampler.cpp" />
+    <ClCompile Include="src\render_manager\api\texture\frame_cb.cpp" />
     <ClCompile Include="src\render_manager\api\texture\staging_texture.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_dsv.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_rtv.cpp" />

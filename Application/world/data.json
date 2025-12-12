@@ -43,10 +43,10 @@
 						"MetalnessMultiplier": "1.000000"
 					},
 					"Main": {
-						"UvTilingY": "1.000000",
+						"UvTilingY": "3.290000",
 						"IsTextureAttached": "1.000000",
-						"LerpToSecondary": "0.450000",
-						"UvTilingX": "1.000000"
+						"LerpToSecondary": "0.000000",
+						"UvTilingX": "2.290000"
 					},
 					"Secondary": {
 						"UvTilingY": "1.000000",
@@ -61,9 +61,9 @@
 						"ParallaxMaxLayers": "32.000000"
 					},
 					"Normal": {
-						"UvTilingY": "1.000000",
+						"UvTilingY": "1.570000",
 						"IsTextureAttached": "1.000000",
-						"UvTilingX": "1.000000",
+						"UvTilingX": "2.460000",
 						"NormalStrength": "1.000000"
 					}
 				}
