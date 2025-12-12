@@ -1,4 +1,4 @@
-// This is a personal academic project. Dear PVS-Studio, please check it.
+﻿// This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 
 /*
@@ -681,7 +681,7 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
     cmdList->SetPipelineState(m_pPipeline->GetNative());
     cmdList->SetGraphicsRootSignature(m_pPipeline->GetRootSignature());
 
-    //~ Bind descriptor heaps (SRV/CBV/UAV + Sampler)
+    //~ Bind descriptor heaps
     if (m_pResourceHeap)
     {
         if (m_pSamplerHeap)
@@ -702,7 +702,7 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
             cmdList->SetDescriptorHeaps(1u, heaps);
         }
 
-        //~ Bind SRV descriptor table: t0..tN-1 starting at m_baseSrvIndex
+        //~ Bind SRV descriptor table to t0..tN-1 starting at m_baseSrvIndex
         if (m_baseSrvIndex != KFE_INVALID_INDEX &&
             m_pResourceHeap->IsValidIndex(m_baseSrvIndex))
         {
@@ -720,7 +720,7 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
         }
     }
 
-    //~ Bind per-object constant buffer at b0 (root param 0)
+    //~ Bind per object constant buffer at b0
     {
         const D3D12_GPU_VIRTUAL_ADDRESS addr =
             static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(m_pCBV->GetGPUVirtualAddress());
@@ -728,7 +728,7 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
         cmdList->SetGraphicsRootConstantBufferView(0u, addr);
     }
 
-    //~ Bind texture meta constant buffer at b1 (root param 2)
+    //~ Bind texture meta constant buffer at b1
     if (m_pMetaCBV)
     {
         const D3D12_GPU_VIRTUAL_ADDRESS metaAddr =
@@ -737,7 +737,7 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
         cmdList->SetGraphicsRootConstantBufferView(2u, metaAddr);
     }
 
-    //~ Set vertex/index buffers
+    //~ Set vertex and index buffers
     auto vertexView = m_pVertexView->GetView();
     auto indexView = m_pIndexView->GetView();
 
@@ -1210,6 +1210,7 @@ bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
     return true;
 }
 
+_Use_decl_annotations_
 bool kfe::KEFCubeSceneObject::Impl::BuildSampler(const KFE_BUILD_OBJECT_DESC& desc)
 {
     if (!desc.Device)
@@ -1286,7 +1287,7 @@ bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* 
         if (!data.Dirty)
             continue;
 
-        //~ Skip: no reserved descriptor slot, means Build() didn't allocate
+        //~ no reserved descriptor slot, means Build() didn't allocate
         if (data.ReservedSlot == KFE_INVALID_INDEX)
         {
             LOG_ERROR("Cube SRV slot {} has no ReservedSlot allocated!", i);
@@ -1364,15 +1365,15 @@ bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* 
         {
             auto& data = m_srvs[i];
 
-            // No reserved slot -> nothing to alias
+            // No reserved slot
             if (data.ReservedSlot == KFE_INVALID_INDEX)
                 continue;
 
-            // Already has a valid handle -> skip
+            // Already has a valid handle
             if (data.ResourceHandle != KFE_INVALID_INDEX)
                 continue;
 
-            // This slot had no texture / failed to load; alias to first valid
+            // This slot had no texture
             const D3D12_CPU_DESCRIPTOR_HANDLE dst =
                 m_pResourceHeap->GetHandle(data.ReservedSlot);
 
@@ -1398,7 +1399,6 @@ bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* 
     return true;
 }
 
-
 void kfe::KEFCubeSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc)
 {
     auto* cv = static_cast<KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC*>(m_pCBV->GetMappedData());
@@ -1412,7 +1412,7 @@ void kfe::KEFCubeSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT
     cv->MousePosition = desc.MousePosition;
     cv->ObjectPosition = m_pObject->GetPosition();
     cv->_PaddingObjectPos = 0.f;
-    cv->CameraPosition = desc.CameraPosition;
+    cv->CameraPosition  = desc.CameraPosition;
     cv->_PaddingCameraPos = 0.f;
     cv->PlayerPosition = desc.PlayerPosition;
     cv->_PaddingPlayerPos = 0.f;

@@ -241,7 +241,7 @@ bool kfe::KFEStagingTexture::Impl::Initialize(const KFE_STAGING_TEXTURE_CREATE_D
     texDesc.SampleDesc.Count = 1;
     texDesc.SampleDesc.Quality = 0;
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    texDesc.Flags = static_cast<D3D12_RESOURCE_FLAGS>(0);
+    texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     UINT   numSubresources = 1u;
     UINT64 totalBytes = 0u;
@@ -288,7 +288,6 @@ bool kfe::KFEStagingTexture::Impl::Initialize(const KFE_STAGING_TEXTURE_CREATE_D
         return false;
     }
 
-    // Create default texture using your KFETexture + KFE_TEXTURE_CREATE_DESC
     KFE_TEXTURE_CREATE_DESC texCreate{};
     texCreate.Device = m_pDevice;
     texCreate.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -299,10 +298,10 @@ bool kfe::KFEStagingTexture::Impl::Initialize(const KFE_STAGING_TEXTURE_CREATE_D
     texCreate.Format = m_format;
     texCreate.SampleDesc.Count = 1;
     texCreate.SampleDesc.Quality = 0;
-    texCreate.ResourceFlags = static_cast<D3D12_RESOURCE_FLAGS>(0);
     texCreate.HeapType = D3D12_HEAP_TYPE_DEFAULT;
     texCreate.InitialState = D3D12_RESOURCE_STATE_COPY_DEST;
     texCreate.ClearValue = nullptr;
+    texCreate.ResourceFlags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
     if (!m_texture.Initialize(texCreate))
     {
