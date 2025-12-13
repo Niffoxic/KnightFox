@@ -103,6 +103,7 @@ public:
     void               SetValue(const std::string& val) { m_value = val; }
 
     [[nodiscard]] bool Contains(const std::string& key) const;
+    [[nodiscard]] bool Has(const std::string& key) const;
 
     //~ Serialization helpers
     std::string ToFormattedString(int indent = 0) const;
