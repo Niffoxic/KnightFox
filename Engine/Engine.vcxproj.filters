@@ -255,7 +255,7 @@
     <ClInclude Include="include\engine\render_manager\scene\model_scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\engine\render_manager\assets_library\assets_library.h">
+    <ClInclude Include="include\engine\render_manager\assets_library\model\geometry.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\engine\render_manager\api\sampler.h">
@@ -271,6 +271,21 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\engine\render_manager\api\frame_cb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\assets_library\model\assimp_importer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\assets_library\model\gpu_mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\assets_library\model\model.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\assets_library\model\mesh_cache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -498,6 +513,21 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\render_manager\api\texture\frame_cb.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\assets_library\model\assimp_importer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\assets_library\model\geometry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\assets_library\model\gpu_mesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\assets_library\model\mesh_cache.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\assets_library\model\model.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

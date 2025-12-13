@@ -11,6 +11,7 @@
 #include "pch.h"
 #include "engine/system/interface/interface_scene.h"
 
+#include "imgui/imgui.h"
 #include <DirectXMath.h>
 
 using namespace DirectX;
@@ -287,4 +288,37 @@ void kfe::IKFESceneObject::LoadTransformFromJson(const JsonLoader& loader) noexc
     SetPosition(position);
     SetOrientation(orientation);
     SetScale(scale);
+}
+
+void kfe::IKFESceneObject::ImguiTransformView(float)
+{
+    if (!ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return;
+    }
+
+    DirectX::XMFLOAT3 pos = GetPosition();
+    if (ImGui::DragFloat3("Position", &pos.x, 0.1f))
+    {
+        SetPosition(pos);
+    }
+
+    DirectX::XMFLOAT4 ori = GetOrientation();
+    float q[4] = { ori.x, ori.y, ori.z, ori.w };
+
+    if (ImGui::DragFloat4("Rotation (quat)", q, 0.01f))
+    {
+        DirectX::XMVECTOR qv = DirectX::XMVectorSet(q[0], q[1], q[2], q[3]);
+        qv = DirectX::XMQuaternionNormalize(qv);
+        DirectX::XMStoreFloat4(&ori, qv);
+        SetOrientation(ori);
+    }
+
+    DirectX::XMFLOAT3 scl = GetScale();
+    if (ImGui::DragFloat3("Scale", &scl.x, 0.01f))
+    {
+        SetScale(scl);
+    }
+
+    ImGui::TextDisabled("Tip: Rotation is edited as a normalized quaternion.");
 }

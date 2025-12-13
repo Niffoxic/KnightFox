@@ -439,7 +439,6 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		0u,
 		nullptr);
 
-
 	KFE_RENDER_QUEUE_RENDER_DESC render{};
 	render.FenceValue = m_nFenceValue;
 	render.GraphicsCommandList = m_pGfxList.get();
@@ -448,13 +447,13 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 
 #ifdef _DEBUG
 	{
-
+		ID3D12DescriptorHeap* heaps[]{ m_pImguiHeap->GetNative() };
+		cmdList->SetDescriptorHeaps(1u, heaps);
 		ImGui_ImplWin32_NewFrame();
-		ImGui_ImplDX12_NewFrame();
-		ImGui::NewFrame();
+		ImGui_ImplDX12_NewFrame	();
+		ImGui::NewFrame			();
 	}
 #endif
-
 }
 
 void kfe::KFERenderManager::Impl::FrameEnd()

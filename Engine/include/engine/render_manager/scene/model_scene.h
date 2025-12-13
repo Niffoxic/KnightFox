@@ -16,18 +16,17 @@
 
 namespace kfe
 {
-    class KFE_API KFEStaticSceneObject final : public IKFESceneObject
+    class KFE_API KFEMeshSceneObject final : public IKFESceneObject
     {
     public:
-        KFEStaticSceneObject();
-        KFEStaticSceneObject(const std::uint32_t multiple);
-        ~KFEStaticSceneObject() override;
+        KFEMeshSceneObject();
+        ~KFEMeshSceneObject() override;
 
-        KFEStaticSceneObject(const KFEStaticSceneObject&) = delete;
-        KFEStaticSceneObject& operator=(const KFEStaticSceneObject&) = delete;
+        KFEMeshSceneObject(const KFEMeshSceneObject&) = delete;
+        KFEMeshSceneObject& operator=(const KFEMeshSceneObject&) = delete;
 
-        KFEStaticSceneObject(KFEStaticSceneObject&&);
-        KFEStaticSceneObject& operator=(KFEStaticSceneObject&&);
+        KFEMeshSceneObject(KFEMeshSceneObject&&);
+        KFEMeshSceneObject& operator=(KFEMeshSceneObject&&);
 
         // ~ Inherited via IKFESceneObject / IKFEObject
         std::string GetName() const noexcept override;
