@@ -57,6 +57,11 @@ namespace kfe
 		return m_srv;
 	}
 
+    std::uint32_t KFEShadowMap::GetHandle() const noexcept
+    {
+        return m_handle;
+    }
+
 	_Use_decl_annotations_
 	std::uint32_t KFEShadowMap::GetWidth() const noexcept { return m_width; }
 
@@ -152,15 +157,15 @@ namespace kfe
         dev->CreateDepthStencilView(m_shadowTex.Get(), &dsvDesc, m_dsv);
 
         //~ Allocate SRV
-        std::uint32_t srvIndex = desc.ResourceHeap->Allocate();
-        if (srvIndex == KFE_INVALID_INDEX)
+        m_handle = desc.ResourceHeap->Allocate();
+        if (m_handle == KFE_INVALID_INDEX)
         {
             LOG_ERROR("ShadowMap SRV allocation failed.");
             return false;
         }
 
-        D3D12_CPU_DESCRIPTOR_HANDLE srvCpu = desc.ResourceHeap->GetHandle(srvIndex);
-        m_srv = desc.ResourceHeap->GetGPUHandle(srvIndex);
+        D3D12_CPU_DESCRIPTOR_HANDLE srvCpu = desc.ResourceHeap->GetHandle(m_handle);
+        m_srv = desc.ResourceHeap->GetGPUHandle(m_handle);
 
         if (srvCpu.ptr == 0u || m_srv.ptr == 0u)
         {

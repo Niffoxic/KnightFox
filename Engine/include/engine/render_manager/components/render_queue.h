@@ -53,6 +53,7 @@ namespace kfe
 		ID3D12Fence*			pFence;
 		std::uint64_t			FenceValue;
 		KFEGraphicsCommandList* GraphicsCommandList;
+		KFEShadowMap*			ShadowMap;
 	} KFE_RENDER_QUEUE_RENDER_DESC;
 
 	class KFE_API KFERenderQueue final: public ISingleton<KFERenderQueue>

@@ -467,6 +467,7 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 	render.FenceValue			= m_nFenceValue;
 	render.GraphicsCommandList	= m_pGfxList.get();
 	render.pFence				= m_pFence.Get();
+	render.ShadowMap			= m_pShadowMap.get();
 	KFERenderQueue::Instance().RenderSceneObject(render);
 
 #ifdef _DEBUG
@@ -938,6 +939,7 @@ void kfe::KFERenderManager::Impl::RenderShadowPass(ID3D12GraphicsCommandList* cm
 	shadow.FenceValue			= m_nFenceValue;
 	shadow.GraphicsCommandList	= m_pGfxList.get();
 	shadow.pFence				= m_pFence.Get();
+	shadow.ShadowMap			= nullptr;
 
 	//~ Draw all shadow casters
 	KFERenderQueue::Instance().RenderShadowSceneObject(shadow);
@@ -945,12 +947,12 @@ void kfe::KFERenderManager::Impl::RenderShadowPass(ID3D12GraphicsCommandList* cm
 	//~ Transition back to SRV for main pass sampling
 	{
 		D3D12_RESOURCE_BARRIER b{};
-		b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		b.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		b.Transition.pResource = shadowRes;
+		b.Type					 = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		b.Flags					 = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		b.Transition.pResource	 = shadowRes;
 		b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 		b.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-		b.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		b.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 		cmdList->ResourceBarrier(1u, &b);
 
 		m_shadowMapIsSRV = true;

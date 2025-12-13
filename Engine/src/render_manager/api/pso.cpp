@@ -63,7 +63,7 @@ public:
 
 	void SetSampleMask(_In_ std::uint32_t mask)				  noexcept;
 	void SetFlags	  (_In_ D3D12_PIPELINE_STATE_FLAGS flags) noexcept;
-
+	void SetNumRenderTargets(UINT count) noexcept;
 
 	//~ Getters
 	NODISCARD ID3D12RootSignature* GetRootSignature	() const noexcept;
@@ -234,6 +234,11 @@ _Use_decl_annotations_
 void kfe::KFEPipelineState::SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE type) noexcept
 {
 	if (m_impl) m_impl->SetPrimitiveType(type);
+}
+
+void kfe::KFEPipelineState::SetNumRenderTargets(UINT count) noexcept
+{
+	if (m_impl) m_impl->SetNumRenderTargets(count);
 }
 
 _Use_decl_annotations_
@@ -763,6 +768,14 @@ _Use_decl_annotations_
 D3D12_PIPELINE_STATE_FLAGS kfe::KFEPipelineState::Impl::GetFlags() const noexcept
 {
 	return m_desc.Flags;
+}
+
+void kfe::KFEPipelineState::Impl::SetNumRenderTargets(UINT count) noexcept
+{
+	m_desc.NumRenderTargets = count;
+
+	for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+		m_desc.RTVFormats[i] = DXGI_FORMAT_UNKNOWN;
 }
 
 #pragma endregion

@@ -226,6 +226,7 @@ bool kfe::KFERenderQueue::Impl::Destroy() noexcept
 void kfe::KFERenderQueue::Impl::Update(float deltaTime)
 {
 	UpdateSceneObjects(deltaTime);
+	UpdateDirectionalLight(deltaTime);
 }
 
 void kfe::KFERenderQueue::Impl::AddSceneObject(IKFESceneObject* scene) noexcept
@@ -355,6 +356,7 @@ void kfe::KFERenderQueue::Impl::RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_
 	renderInfo.CommandList	= desc.GraphicsCommandList;
 	renderInfo.Fence		= desc.pFence;
 	renderInfo.FenceValue	= desc.FenceValue;
+	renderInfo.ShadowMap	= desc.ShadowMap;
 
 	for (auto& [id, scene] : m_sceneObjects)
 	{

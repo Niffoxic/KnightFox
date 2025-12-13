@@ -31,6 +31,7 @@
 #include "engine/render_manager/api/heap/heap_sampler.h"
 #include "engine/render_manager/api/root_signature.h"
 #include <d3d12.h>
+#include "engine/render_manager/shadow/shadow_map.h"
 
 //struct ID3D12Fence;
 
@@ -85,6 +86,7 @@ namespace kfe
         KFEGraphicsCommandList* CommandList;
         ID3D12Fence*            Fence;
         std::uint64_t           FenceValue;
+        KFEShadowMap*           ShadowMap;
     } KFE_RENDER_OBJECT_DESC;
 
     typedef struct _KFE_UPDATE_OBJECT_DESC
@@ -183,10 +185,10 @@ namespace kfe
 
         //~ Test
         NODISCARD bool InitShadowRootSignature(_In_ const KFE_BUILD_OBJECT_DESC& desc);
-
-        bool        BuildLightCB(_In_ const KFE_BUILD_OBJECT_DESC& desc);
+        NODISCARD virtual bool InitShadowPipeline(KFEDevice* device) { return true; };
+        bool         BuildLightCB(_In_ const KFE_BUILD_OBJECT_DESC& desc);
         virtual void Render(_In_ const KFE_RENDER_OBJECT_DESC& desc) = 0;
-        virtual void ShadowPass(_In_ const KFE_RENDER_OBJECT_DESC& desc) = 0;
+        virtual void ShadowPass(_In_ const KFE_RENDER_OBJECT_DESC& desc) {};
 
         // Serialization
         virtual JsonLoader GetJsonData() const = 0;

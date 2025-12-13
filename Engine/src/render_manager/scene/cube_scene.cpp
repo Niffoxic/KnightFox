@@ -44,6 +44,9 @@
 #include <array>
 
 #include "engine/render_manager/api/frame_cb.h"
+#include "engine/utils/helpers.h"
+
+#include "engine/render_manager/shadow/shadow_map.h"
 
 #pragma region Impl_Definition
 
@@ -96,7 +99,7 @@ enum class ECubeTextures : std::uint32_t
     Normal,
     Specular,
     Height,
-
+    ShadowMap,
     Count
 };
 
@@ -166,10 +169,13 @@ public:
 
     void Update(const KFE_UPDATE_OBJECT_DESC& desc);
     bool Build(_In_ const KFE_BUILD_OBJECT_DESC& desc);
+    bool InitShadowPipeline(KFEDevice* device);
 
     bool Destroy();
 
-    void Render(_In_ const KFE_RENDER_OBJECT_DESC& desc);
+    void Render    (_In_ const KFE_RENDER_OBJECT_DESC& desc);
+    void ShadowPass(_In_ const KFE_RENDER_OBJECT_DESC& desc);
+
 
     // Shader path setters
     void SetVertexShaderPath(const std::string& path) noexcept;
@@ -223,6 +229,10 @@ private:
     void SetSpecularMap     (const std::string& p) { SetTexture(ECubeTextures::Specular, p); }
     void SetHeightMap       (const std::string& p) { SetTexture(ECubeTextures::Height, p); }
 
+    //~ bind shadow
+    void BindShadowMapSRV(KFEResourceHeap* heap,
+                          KFEShadowMap* shadowMap) noexcept;
+
 public:
     ECullMode m_cullMode      { ECullMode::None };
     EDrawMode m_drawMode      { EDrawMode::Triangle };
@@ -234,6 +244,7 @@ private:
     float               m_nTimeLived{ 0.0f };
 
     // Shaders
+    const std::string shadowVSPath  { "shaders/shadow/cube_shadow_vs.hlsl" };
     std::string m_vertexShaderPath  { "shaders/cube/vertex.hlsl" };
     std::string m_pixelShaderPath   { "shaders/cube/pixel.hlsl" };
     std::string m_geometryShaderPath{};
@@ -262,13 +273,16 @@ private:
 
     // Pipeline
     std::unique_ptr<KFEPipelineState>  m_pPipeline{ nullptr };
+    std::unique_ptr<KFEPipelineState>  m_pShadowPipeline{ nullptr };
     KFEDevice* m_pDevice{ nullptr };
 
     //~ sampling
     KFEResourceHeap* m_pResourceHeap{ nullptr };
-    KFESamplerHeap* m_pSamplerHeap{ nullptr };
     std::unique_ptr<KFESampler> m_pSampler{ nullptr };
+    std::unique_ptr<KFESampler> m_pShadowSampler{ nullptr };
     std::uint32_t m_samplerIndex{ KFE_INVALID_INDEX };
+    std::uint32_t m_shadowSamplerIndex{ KFE_INVALID_INDEX };
+    KFESamplerHeap* m_pSamplerHeap{ nullptr };
 
     //~ Textures
     struct SrvData
@@ -338,6 +352,16 @@ _Use_decl_annotations_
 void kfe::KEFCubeSceneObject::Render(const KFE_RENDER_OBJECT_DESC& desc)
 {
     m_impl->Render(desc);
+}
+
+void kfe::KEFCubeSceneObject::ShadowPass(const KFE_RENDER_OBJECT_DESC& desc)
+{
+    m_impl->ShadowPass(desc);
+}
+
+bool kfe::KEFCubeSceneObject::InitShadowPipeline(KFEDevice* device)
+{
+    return m_impl->InitShadowPipeline(device);
 }
 
 void kfe::KEFCubeSceneObject::ImguiView(float deltaTime)
@@ -617,14 +641,16 @@ bool kfe::KEFCubeSceneObject::Impl::Destroy()
 
     //~ Null references
     m_pResourceHeap = nullptr;
-    m_pSamplerHeap = nullptr;
-    m_pDevice = nullptr;
+    m_pSamplerHeap  = nullptr;
+    m_pDevice       = nullptr;
 
     return true;
 }
 
 void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& desc)
 {
+    BindShadowMapSRV(m_pResourceHeap, desc.ShadowMap);
+
     if (m_bTextureDirty)
     {
         BindTextureFromPath(desc.CommandList);
@@ -746,6 +772,79 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
         0u,
         0u
     );
+}
+
+_Use_decl_annotations_
+void kfe::KEFCubeSceneObject::Impl::ShadowPass(const KFE_RENDER_OBJECT_DESC& desc)
+{
+    auto* cmdListObj = desc.CommandList;
+    if (!cmdListObj || !cmdListObj->GetNative())
+        return;
+
+    ID3D12GraphicsCommandList* cmdList = cmdListObj->GetNative();
+
+    if (!m_pShadowPipeline || !m_pShadowPipeline->GetNative())
+    {
+        LOG_WARNING("KEFCubeSceneObject::Impl::ShadowPass: Shadow pipeline is null.");
+        return;
+    }
+
+    if (!m_pObject || !m_pObject->m_pShadowSignature || !m_pObject->m_pShadowSignature->GetNative())
+    {
+        LOG_WARNING("KEFCubeSceneObject::Impl::ShadowPass: Shadow signature is null.");
+        return;
+    }
+
+    if (!m_pCBV)
+    {
+        LOG_WARNING("KEFCubeSceneObject::Impl::ShadowPass: Common CBV (b0) is null.");
+        return;
+    }
+
+    if (!m_pObject->m_pLightCBV)
+    {
+        LOG_WARNING("KEFCubeSceneObject::Impl::ShadowPass: Light CBV (b1) is null.");
+        return;
+    }
+
+    cmdList->SetPipelineState(m_pShadowPipeline->GetNative());
+    cmdList->SetGraphicsRootSignature(
+        static_cast<ID3D12RootSignature*>(m_pObject->m_pShadowSignature->GetNative()));
+
+    //~ Root 0: b0 CommonCB
+    {
+        const D3D12_GPU_VIRTUAL_ADDRESS addr =
+            static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(m_pCBV->GetGPUVirtualAddress());
+
+        cmdList->SetGraphicsRootConstantBufferView(0u, addr);
+    }
+
+    //~ Root 1: b1 DirectionalLightCB
+    {
+        const D3D12_GPU_VIRTUAL_ADDRESS lightAddr =
+            static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(m_pObject->m_pLightCBV->GetGPUVirtualAddress());
+
+        cmdList->SetGraphicsRootConstantBufferView(1u, lightAddr);
+    }
+
+    //~ VB/IB
+    if (!m_pVertexView || !m_pIndexView)
+        return;
+
+    const D3D12_VERTEX_BUFFER_VIEW vb = m_pVertexView->GetView();
+    const D3D12_INDEX_BUFFER_VIEW  ib = m_pIndexView->GetView();
+
+    cmdList->IASetVertexBuffers(0u, 1u, &vb);
+    cmdList->IASetIndexBuffer(&ib);
+
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    cmdList->DrawIndexedInstanced(
+        m_pIndexView->GetIndexCount(),
+        1u,
+        0u,
+        0u,
+        0u);
 }
 
 _Use_decl_annotations_
@@ -941,6 +1040,11 @@ bool kfe::KEFCubeSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_D
 _Use_decl_annotations_
 bool kfe::KEFCubeSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DESC& desc)
 {
+    if (!m_pObject->InitShadowRootSignature(desc))
+    {
+        LOG_ERROR("Failed to build Shadow Root Signature!");
+        return false;
+    }
     m_pRootSignature = std::make_unique<KFERootSignature>();
 
     //~ SRV descriptor table: t0..tN-1
@@ -978,28 +1082,45 @@ bool kfe::KEFCubeSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
     params[3].Descriptor.RegisterSpace = 0u;
 
     //~ static sampler: s0
-    D3D12_STATIC_SAMPLER_DESC staticSampler{};
-    staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.MipLODBias = 0.0f;
-    staticSampler.MaxAnisotropy = 1;
-    staticSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    staticSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-    staticSampler.MinLOD = 0.0f;
-    staticSampler.MaxLOD = D3D12_FLOAT32_MAX;
-    staticSampler.ShaderRegister = 0u; // s0
-    staticSampler.RegisterSpace = 0u;
-    staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL; // safe
+    D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{};
+
+    //~ s0: regular sampler (wrap)
+    staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    staticSamplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    staticSamplers[0].MipLODBias = 0.0f;
+    staticSamplers[0].MaxAnisotropy = 1;
+    staticSamplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    staticSamplers[0].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    staticSamplers[0].MinLOD = 0.0f;
+    staticSamplers[0].MaxLOD = D3D12_FLOAT32_MAX;
+    staticSamplers[0].ShaderRegister = 0u; //~ s0
+    staticSamplers[0].RegisterSpace = 0u;
+    staticSamplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+    //~ s1: shadow comparison sampler
+    staticSamplers[1].Filter        = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+    staticSamplers[1].AddressU      = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    staticSamplers[1].AddressV      = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    staticSamplers[1].AddressW  = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    staticSamplers[1].MipLODBias    = 0.0f;
+    staticSamplers[1].MaxAnisotropy = 1;
+    staticSamplers[1].ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    staticSamplers[1].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    staticSamplers[1].MinLOD = 0.0f;
+    staticSamplers[1].MaxLOD = D3D12_FLOAT32_MAX;
+    staticSamplers[1].ShaderRegister = 1u; //~ s1
+    staticSamplers[1].RegisterSpace = 0u;
+    staticSamplers[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     KFE_RG_CREATE_DESC root{};
-    root.Device = desc.Device;
-    root.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-    root.NumRootParameters = static_cast<UINT>(_countof(params));
-    root.RootParameters = params;
-    root.NumStaticSamplers = 1u;
-    root.StaticSamplers = &staticSampler;
+    root.Device             = desc.Device;
+    root.Flags              = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    root.NumRootParameters  = static_cast<UINT>(_countof(params));
+    root.RootParameters     = params;
+    root.NumStaticSamplers  = 2u;
+    root.StaticSamplers     = staticSamplers;
 
     if (!m_pRootSignature->Initialize(root))
     {
@@ -1012,8 +1133,93 @@ bool kfe::KEFCubeSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
     return true;
 }
 
+bool kfe::KEFCubeSceneObject::Impl::InitShadowPipeline(KFEDevice* device)
+{
+    if (!device)
+    {
+        LOG_ERROR("Device is null.");
+        return false;
+    }
+
+    if (!m_pObject)
+    {
+        LOG_ERROR("Scene object pointer is null.");
+        return false;
+    }
+
+    if (!m_pObject->m_pShadowSignature)
+    {
+        LOG_ERROR("Shadow signature is null. Call IKFESceneObject::InitShadowPipeline(desc) first.");
+        return false;
+    }
+
+    if (!kfe_helpers::IsFile(shadowVSPath))
+    {
+        LOG_ERROR("Shadow VS Path: '{}', Does not exist!", shadowVSPath);
+        return false;
+    }
+
+    ID3DBlob* vsBlob = shaders::GetOrCompile(shadowVSPath, "main", "vs_5_0");
+    if (!vsBlob)
+    {
+        LOG_ERROR("Failed to load Shadow Vertex Shader: {}", shadowVSPath);
+        return false;
+    }
+
+    if (m_pShadowPipeline)
+        m_pShadowPipeline->Destroy();
+    else
+        m_pShadowPipeline = std::make_unique<KFEPipelineState>();
+
+    auto layout = CubeVertex::GetInputLayout();
+    m_pShadowPipeline->SetInputLayout(layout.data(), layout.size());
+
+    D3D12_SHADER_BYTECODE vs{};
+    vs.BytecodeLength = vsBlob->GetBufferSize();
+    vs.pShaderBytecode = vsBlob->GetBufferPointer();
+    m_pShadowPipeline->SetVS(vs);
+
+    m_pShadowPipeline->SetPS({});
+
+    auto* sig = m_pObject->m_pShadowSignature->GetNative();
+    auto* rs = static_cast<ID3D12RootSignature*>(sig);
+    m_pShadowPipeline->SetRootSignature(rs);
+
+    D3D12_RASTERIZER_DESC raster{};
+    raster.FillMode = D3D12_FILL_MODE_SOLID;
+    raster.CullMode = D3D12_CULL_MODE_BACK;
+    raster.FrontCounterClockwise = FALSE;
+    raster.DepthClipEnable = TRUE;
+    raster.MultisampleEnable = FALSE;
+    raster.AntialiasedLineEnable = FALSE;
+    raster.ForcedSampleCount = 0u;
+    raster.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+    raster.DepthBias = 1000;
+    raster.DepthBiasClamp = 0.0f;
+    raster.SlopeScaledDepthBias = 1.0f;
+
+    m_pShadowPipeline->SetRasterizer(raster);
+    m_pShadowPipeline->SetNumRenderTargets(0u);
+    m_pShadowPipeline->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+
+    if (!m_pShadowPipeline->Build(device))
+    {
+        LOG_ERROR("Failed to build Cube Shadow Pipeline!");
+        return false;
+    }
+
+    LOG_SUCCESS("Cube Shadow Pipeline Created!");
+    return true;
+}
+
 bool kfe::KEFCubeSceneObject::Impl::BuildPipeline(KFEDevice* device)
 {
+    if (!InitShadowPipeline(device)) 
+    {
+        LOG_ERROR("Failed ot Build Shadow Pipeline!");
+        return false;
+    }
     if (!device)
     {
         LOG_ERROR("KEFCubeSceneObject::Impl::BuildPipeline: Device is null.");
@@ -1206,52 +1412,103 @@ bool kfe::KEFCubeSceneObject::Impl::BuildSampler(const KFE_BUILD_OBJECT_DESC& de
 {
     if (!desc.Device)
     {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Device is null. Skipping sampler creation.");
-        return true;
+        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Device is null.");
+        return false;
     }
 
     if (!desc.SamplerHeap)
     {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Sampler is null. Skipping sampler creation.");
-        return true;
-    }
-
-    m_pSampler = std::make_unique<KFESampler>();
-
-    KFE_SAMPLER_CREATE_DESC sdesc{};
-    sdesc.Device = desc.Device;
-    sdesc.Heap = m_pSamplerHeap;
-
-    sdesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    sdesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sdesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sdesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sdesc.MipLODBias = 0.0f;
-    sdesc.MaxAnisotropy = 1u;
-    sdesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    sdesc.BorderColor[0] = 0.0f;
-    sdesc.BorderColor[1] = 0.0f;
-    sdesc.BorderColor[2] = 0.0f;
-    sdesc.BorderColor[3] = 0.0f;
-    sdesc.MinLOD = 0.0f;
-    sdesc.MaxLOD = D3D12_FLOAT32_MAX;
-
-    sdesc.DescriptorIndex = KFE_INVALID_INDEX;
-
-    if (!m_pSampler->Initialize(sdesc))
-    {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Failed to initialize sampler.");
-        m_pSampler.reset();
-        m_samplerIndex = KFE_INVALID_INDEX;
+        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: SamplerHeap is null.");
         return false;
     }
 
-    m_samplerIndex = m_pSampler->GetDescriptorIndex();
+    m_pSamplerHeap = desc.SamplerHeap;
 
-    if (m_samplerIndex == KFE_INVALID_INDEX) THROW_MSG("SAMPLERRR");
+    if (!m_pSampler)
+        m_pSampler = std::make_unique<KFESampler>();
 
-    LOG_SUCCESS("Cube Sampler Created. Index = {}", m_samplerIndex);
+    {
+        KFE_SAMPLER_CREATE_DESC sdesc{};
+        sdesc.Device = desc.Device;
+        sdesc.Heap = m_pSamplerHeap;
 
+        sdesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+        sdesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sdesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sdesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sdesc.MipLODBias = 0.0f;
+        sdesc.MaxAnisotropy = 1u;
+        sdesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+        sdesc.BorderColor[0] = 0.0f;
+        sdesc.BorderColor[1] = 0.0f;
+        sdesc.BorderColor[2] = 0.0f;
+        sdesc.BorderColor[3] = 0.0f;
+        sdesc.MinLOD = 0.0f;
+        sdesc.MaxLOD = D3D12_FLOAT32_MAX;
+
+        sdesc.DescriptorIndex = KFE_INVALID_INDEX;
+
+        if (!m_pSampler->Initialize(sdesc))
+        {
+            LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Failed to initialize regular sampler.");
+            m_pSampler.reset();
+            m_samplerIndex = KFE_INVALID_INDEX;
+            return false;
+        }
+
+        m_samplerIndex = m_pSampler->GetDescriptorIndex();
+        if (m_samplerIndex == KFE_INVALID_INDEX)
+        {
+            LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Regular sampler returned invalid descriptor index.");
+            return false;
+        }
+    }
+
+    //~ Shadow comparison sampler
+    if (!m_pShadowSampler)
+        m_pShadowSampler = std::make_unique<KFESampler>();
+
+    {
+        KFE_SAMPLER_CREATE_DESC sdesc{};
+        sdesc.Device = desc.Device;
+        sdesc.Heap = m_pSamplerHeap;
+
+        //~ Comparison linear
+        sdesc.Filter         = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+        sdesc.AddressU       = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        sdesc.AddressV       = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        sdesc.AddressW       = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        sdesc.MipLODBias     = 0.0f;
+        sdesc.MaxAnisotropy  = 1u;
+        sdesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+        sdesc.BorderColor[0] = 0.0f;
+        sdesc.BorderColor[1] = 0.0f;
+        sdesc.BorderColor[2] = 0.0f;
+        sdesc.BorderColor[3] = 0.0f;
+
+        sdesc.MinLOD = 0.0f;
+        sdesc.MaxLOD = D3D12_FLOAT32_MAX;
+
+        sdesc.DescriptorIndex = KFE_INVALID_INDEX;
+
+        if (!m_pShadowSampler->Initialize(sdesc))
+        {
+            LOG_ERROR("Failed to initialize shadow comparison sampler.");
+            m_pShadowSampler.reset();
+            m_shadowSamplerIndex = KFE_INVALID_INDEX;
+            return false;
+        }
+
+        m_shadowSamplerIndex = m_pShadowSampler->GetDescriptorIndex();
+        if (m_shadowSamplerIndex == KFE_INVALID_INDEX)
+        {
+            LOG_ERROR("Shadow sampler returned invalid descriptor index.");
+            return false;
+        }
+    }
+
+    LOG_SUCCESS("Cube Samplers Created. Regular = {}, ShadowCmp = {}", m_samplerIndex, m_shadowSamplerIndex);
     return true;
 }
 
@@ -1381,8 +1638,6 @@ bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* 
             );
         }
     }
-
-    //~ Clear the global dirty flag
     m_bTextureDirty = false;
     return true;
 }
@@ -1538,6 +1793,34 @@ std::vector<std::uint16_t> kfe::KEFCubeSceneObject::Impl::GetIndices() const noe
     for (uint16_t n = 0; n < 36; ++n)
         i[n] = n;
     return i;
+}
+
+void kfe::KEFCubeSceneObject::Impl::BindShadowMapSRV(KFEResourceHeap* heap,
+    KFEShadowMap* shadowMap) noexcept
+{
+    static bool test = false;
+    if (test) return;
+    if (!heap || !shadowMap)
+        return;
+
+    if (m_baseSrvIndex == KFE_INVALID_INDEX)
+        return;
+
+    const std::uint32_t shadowSlot = m_baseSrvIndex + static_cast<std::uint32_t>(ECubeTextures::ShadowMap);
+    if (!heap->IsValidIndex(shadowSlot))
+        return;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE dstCpu = heap->GetHandle(shadowSlot);
+
+    std::uint32_t handle = shadowMap->GetHandle();
+    D3D12_CPU_DESCRIPTOR_HANDLE srcCpu = heap->GetHandle(handle);
+
+    m_pDevice->GetNative()->CopyDescriptorsSimple(
+        1,
+        dstCpu,
+        srcCpu,
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    test = true;
 }
 
 void kfe::KEFCubeSceneObject::Impl::SetVertexShaderPath(const std::string& path) noexcept

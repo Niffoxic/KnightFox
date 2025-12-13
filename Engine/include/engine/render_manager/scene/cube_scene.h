@@ -30,8 +30,10 @@ namespace kfe
         KEFCubeSceneObject& operator=(KEFCubeSceneObject&&);
 
         // ~ Inherited via IKFESceneObject / IKFEObject
-        std::string GetName() const noexcept override;
+        std::string GetName       () const noexcept override;
         std::string GetDescription() const noexcept override;
+        void ShadowPass           (const KFE_RENDER_OBJECT_DESC& desc) override;
+        bool InitShadowPipeline   (KFEDevice* device) override;
 
         // Json / serialization
         JsonLoader GetJsonData() const override;
@@ -77,6 +79,5 @@ namespace kfe
     private:
         class Impl;
         std::unique_ptr<Impl> m_impl;
-
     };
 } // namespace kfe

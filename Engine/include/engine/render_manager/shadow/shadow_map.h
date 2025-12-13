@@ -18,6 +18,7 @@
 #include <cstdint>
 
 #include "engine/render_manager/api/components/device.h"
+#include "engine/system/common_types.h"
 
 namespace kfe
 {
@@ -54,6 +55,7 @@ namespace kfe
 		NODISCARD ID3D12Resource*			  GetResource() const noexcept;
 		NODISCARD D3D12_CPU_DESCRIPTOR_HANDLE GetDSV	 () const noexcept;
 		NODISCARD D3D12_GPU_DESCRIPTOR_HANDLE GetSRV	 () const noexcept;
+		NODISCARD std::uint32_t GetHandle() const noexcept;
 
 		NODISCARD std::uint32_t GetWidth() const noexcept;
 		NODISCARD std::uint32_t GetHeight() const noexcept;
@@ -72,6 +74,7 @@ namespace kfe
 		KFEDevice* m_pDevice{ nullptr };
 		D3D12_CPU_DESCRIPTOR_HANDLE m_dsv{};
 		D3D12_GPU_DESCRIPTOR_HANDLE m_srv{};
+		std::uint32_t m_handle{ KFE_INVALID_INDEX };
 
 		std::uint32_t m_width = 0u;
 		std::uint32_t m_height = 0u;

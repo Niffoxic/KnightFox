@@ -62,13 +62,15 @@ cbuffer DirectionalLightCB : register(b2)
 };
 
 //~ Textures
-Texture2D gMainTexture  : register(t0);
-Texture2D gDisplacement : register(t1);
-Texture2D gNormalMap    : register(t2);
-Texture2D gSpecularMap  : register(t3);
-Texture2D gHeightMap    : register(t4);
+Texture2D gMainTexture       : register(t0);
+Texture2D gDisplacement      : register(t1);
+Texture2D gNormalMap         : register(t2);
+Texture2D gSpecularMap       : register(t3);
+Texture2D gHeightMap         : register(t4);
+Texture2D<float> gShadowMap  : register(t5);
 
 SamplerState gSampler : register(s0);
+SamplerComparisonState gShadowSampler : register(s1);
 
 struct PSInput
 {
@@ -106,9 +108,57 @@ float3 GetNormalWS(PSInput input)
         nTS = gNormalMap.Sample(gSampler, uv).xyz;
 
     nTS = nTS * 2.0f - 1.0f;
-
     nTS = normalize(lerp(float3(0, 0, 1), nTS, hasNormal * strength));
     return normalize(mul(nTS, TBN));
+}
+
+static float In01(float v)
+{
+    return step(0.0f, v) * step(v, 1.0f);
+}
+
+float ComputeShadowFactor(float3 worldPos, float3 N, float3 L)
+{
+    float4 lightClip = mul(gDirLight_LightViewProj, float4(worldPos, 1.0f));
+    if (lightClip.w <= 0.000001f)
+        return 1.0f;
+
+    float3 ndc = lightClip.xyz / lightClip.w;
+
+    float2 uv = ndc.xy * float2(0.5f, -0.5f) + 0.5f;
+    float  depth = ndc.z;
+
+    if (In01(uv.x) * In01(uv.y) * In01(depth) < 0.5f)
+        return 1.0f;
+
+    float ndotl = saturate(dot(N, L));
+    float normalBias = gDirLight_NormalBias * (1.0f - ndotl);
+
+    float3 biasedPos = worldPos + N * normalBias;
+
+    float4 biasedClip = mul(gDirLight_LightViewProj, float4(biasedPos, 1.0f));
+    float3 biasedNdc  = biasedClip.xyz / max(0.000001f, biasedClip.w);
+
+    float2 uvB = biasedNdc.xy * float2(0.5f, -0.5f) + 0.5f;
+    float  zB  = biasedNdc.z - gDirLight_ShadowBias;
+
+    uvB = saturate(uvB);
+
+    float shadow = gShadowMap.SampleCmpLevelZero(gShadowSampler, uvB, zB);
+
+    {
+        float2 texel = gDirLight_InvShadowMapSize;
+
+        float s0 = gShadowMap.SampleCmpLevelZero(gShadowSampler, uvB + texel * float2(-0.5f, -0.5f), zB);
+        float s1 = gShadowMap.SampleCmpLevelZero(gShadowSampler, uvB + texel * float2( 0.5f, -0.5f), zB);
+        float s2 = gShadowMap.SampleCmpLevelZero(gShadowSampler, uvB + texel * float2(-0.5f,  0.5f), zB);
+        float s3 = gShadowMap.SampleCmpLevelZero(gShadowSampler, uvB + texel * float2( 0.5f,  0.5f), zB);
+
+        shadow = (shadow + s0 + s1 + s2 + s3) * (1.0f / 5.0f);
+    }
+
+    float strength = saturate(gDirLight_ShadowStrength);
+    return lerp(1.0f, shadow, strength);
 }
 
 float4 main(PSInput input) : SV_TARGET
@@ -129,14 +179,17 @@ float4 main(PSInput input) : SV_TARGET
     //~ Normal
     float3 N = GetNormalWS(input);
 
-    //~ Lighting
+    //~ Lighting vectors
     float3 L = normalize(-gDirLight_DirectionWS);
     float  NdotL = saturate(dot(N, L));
 
     float3 lightColor = gDirLight_Color * gDirLight_Intensity;
 
+    //~ Shadow
+    float shadow = ComputeShadowFactor(input.WorldPos, N, L);
+
     float3 ambient = 0.05f * baseColor;
-    float3 diffuse = baseColor * lightColor * NdotL;
+    float3 diffuse = baseColor * lightColor * (NdotL * shadow);
 
     //~ Specular
     float3 V = normalize(gCameraPosition - input.WorldPos);
@@ -156,7 +209,9 @@ float4 main(PSInput input) : SV_TARGET
         specSample = gSpecularMap.Sample(gSampler, uv).rgb;
 
     float3 specColor = lerp(float3(1,1,1), specSample, hasSpec);
-    float3 specular  = specColor * specInt * specTerm * lightColor;
+
+    //~ Shadow spec too
+    float3 specular  = specColor * specInt * specTerm * lightColor * shadow;
 
     float3 finalRgb = ambient + diffuse + specular;
     return float4(finalRgb, alpha);
