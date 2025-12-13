@@ -153,14 +153,26 @@ namespace kfe
         return static_cast<std::uint32_t>(m_submeshes.size());
     }
 
-    void KFEModel::BuildFromShare() noexcept
+    std::string KFEModel::GetSubmeshName(std::uint32_t submeshIndex) const noexcept
+    {
+        if (submeshIndex >= m_submeshes.size())
+            return {};
+
+        const auto& s = m_submeshes[submeshIndex];
+
+        if (!s.Name.empty())
+            return s.Name;
+
+        return "Mesh_" + std::to_string(submeshIndex);
+    }
+
+    void kfe::KFEModel::BuildFromShare() noexcept
     {
         if (!m_pShare || !m_pShare->Entry || !m_pShare->Entry->SceneCPU)
             return;
 
         const import::ImportedScene& scene = *m_pShare->Entry->SceneCPU;
 
-        //~ Build all the submeshes
         const auto meshCount = scene.Meshes.size();
         m_submeshes.resize(meshCount);
 
@@ -168,9 +180,13 @@ namespace kfe
         {
             KFEModelSubmesh& dst = m_submeshes[i];
             dst.CacheMeshIndex = static_cast<std::uint32_t>(i);
+
+            if (!scene.Meshes[i].Name.empty())
+                dst.Name = scene.Meshes[i].Name;
+            else
+                dst.Name = "Mesh_" + std::to_string(i);
         }
 
-        //~ Build node hierarchy
         m_root = std::make_unique<KFEModelNode>();
         BuildNodeRecursive(scene.RootNode, *m_root);
     }
@@ -204,6 +220,15 @@ namespace kfe
             if (meshIndex < m_submeshes.size())
             {
                 dst.MeshIndices.push_back(meshIndex);
+
+                auto& sm = m_submeshes[meshIndex];
+
+                const bool isGeneric =
+                    sm.Name.empty() ||
+                    sm.Name.rfind("Mesh_", 0) == 0;
+
+                if (isGeneric && !src.Name.empty())
+                    sm.Name = src.Name;
             }
             else
             {

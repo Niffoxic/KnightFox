@@ -110,6 +110,11 @@ bool JsonLoader::Contains(const std::string& key) const
     return m_children.find(key) != m_children.end();
 }
 
+bool JsonLoader::Has(const std::string& key) const
+{
+    return Contains(key);
+}
+
 std::string JsonLoader::ToFormattedString(int indent) const
 {
     std::ostringstream oss;

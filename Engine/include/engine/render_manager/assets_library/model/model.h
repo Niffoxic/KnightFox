@@ -325,6 +325,7 @@ namespace kfe
 
     struct KFEModelSubmesh
     {
+        std::string Name{};
         std::uint32_t                      CacheMeshIndex = 0u;
         std::unique_ptr<KFEBuffer>         ConstantBuffer{ nullptr };
         std::unique_ptr<KFEConstantBuffer> CBView        { nullptr };
@@ -636,7 +637,7 @@ namespace kfe
         const KFE_MESH_CACHE_SHARE*         GetCacheShare() const noexcept;
 
         std::uint32_t GetSubmeshCount () const noexcept;
-
+        std::string GetSubmeshName(std::uint32_t submeshIndex) const noexcept;
         std::vector<KFEModelSubmesh>& GetSubmeshesMutable() noexcept { return m_submeshes; }
 
     private:
