@@ -42,7 +42,7 @@ struct PSInput
     float3 WorldPos  : TEXCOORD0;
     float3 Normal    : TEXCOORD1;
     float3 Tangent   : TEXCOORD2;
-    float3 Bitangent : BITANGENT;
+    float3 Bitangent : TEXCOORD3;
     float2 TexCoord  : TEXCOORD4;
     float3 Color     : COLOR0;
 };
@@ -51,16 +51,12 @@ PSInput main(VSInput input)
 {
     PSInput output;
 
-    float3 localPos = input.Position;
-
-    float4 worldPos4 = mul(gWorldMatrix, float4(localPos, 1.0f));
-    float3 worldPos  = worldPos4.xyz;
-
-    float4 viewPos4 = mul(gViewMatrix, worldPos4);
-    float4 clipPos  = mul(gProjectionMatrix, viewPos4);
+    float4 worldPos4 = mul(gWorldMatrix, float4(input.Position, 1.0f));
+    float4 viewPos4  = mul(gViewMatrix, worldPos4);
+    float4 clipPos   = mul(gProjectionMatrix, viewPos4);
 
     output.Position = clipPos;
-    output.WorldPos = worldPos;
+    output.WorldPos = worldPos4.xyz;
 
     float3 worldNormal    = mul(gWorldMatrix, float4(input.Normal,    0.0f)).xyz;
     float3 worldTangent   = mul(gWorldMatrix, float4(input.Tangent,   0.0f)).xyz;

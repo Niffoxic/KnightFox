@@ -534,6 +534,9 @@ bool kfe::KEFCubeSceneObject::Impl::Build(const KFE_BUILD_OBJECT_DESC& desc)
         return false;
     }
 
+    if (!BuildConstantBuffer(desc))
+        return false;
+
     if (!BuildSampler(desc))
         return false;
 
@@ -546,8 +549,6 @@ bool kfe::KEFCubeSceneObject::Impl::Build(const KFE_BUILD_OBJECT_DESC& desc)
     if (!BuildPipeline(desc.Device))
         return false;
 
-    if (!BuildConstantBuffer(desc))
-        return false;
 
     LOG_SUCCESS("Cube Built!");
     return true;
@@ -709,6 +710,15 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
         cmdList->SetGraphicsRootConstantBufferView(2u, metaAddr);
     }
 
+    //~ Bind Light constant buffet at b2
+    if (m_pObject->m_pLightCBV)
+    {
+        const D3D12_GPU_VIRTUAL_ADDRESS lightAddr =
+            static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(m_pObject->m_pLightCBV->GetGPUVirtualAddress());
+
+        cmdList->SetGraphicsRootConstantBufferView(3u, lightAddr);
+    }
+
     //~ Set vertex and index buffers
     auto vertexView = m_pVertexView->GetView();
     auto indexView = m_pIndexView->GetView();
@@ -867,6 +877,8 @@ bool kfe::KEFCubeSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
 _Use_decl_annotations_
 bool kfe::KEFCubeSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_DESC& desc)
 {
+    m_pObject->BuildLightCB(desc);
+
     m_pCBBuffer = std::make_unique<KFEBuffer>();
     m_pMetaCBBuffer = std::make_unique<KFEBuffer>();
 
@@ -931,34 +943,41 @@ bool kfe::KEFCubeSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
 {
     m_pRootSignature = std::make_unique<KFERootSignature>();
 
-    //~ SRV descriptor table: [t0 .. tN-1]
-    D3D12_DESCRIPTOR_RANGE srvRange{};
-    srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    srvRange.NumDescriptors = static_cast<UINT>(ECubeTextures::Count);
-    srvRange.BaseShaderRegister = 0u;    // t0
-    srvRange.RegisterSpace = 0u;
-    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    //~ SRV descriptor table: t0..tN-1
+    D3D12_DESCRIPTOR_RANGE ranges[1]{};
+    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[0].NumDescriptors = static_cast<UINT>(ECubeTextures::Count);
+    ranges[0].BaseShaderRegister = 0u; // t0
+    ranges[0].RegisterSpace = 0u;
+    ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    D3D12_ROOT_PARAMETER params[3]{};
+    D3D12_ROOT_PARAMETER params[4]{};
 
-    //~ b0: per-object/common constant buffer
+    //~ b0: common (VS+PS)
     params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    params[0].Descriptor.ShaderRegister = 0u;  // b0
+    params[0].Descriptor.ShaderRegister = 0u; // b0
     params[0].Descriptor.RegisterSpace = 0u;
 
-    //~ descriptor table for SRVs: t0..t(N-1)
+    //~ SRV table: textures (VS+PS because displacement samples height in VS)
     params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     params[1].DescriptorTable.NumDescriptorRanges = 1u;
-    params[1].DescriptorTable.pDescriptorRanges = &srvRange;
+    params[1].DescriptorTable.pDescriptorRanges = ranges;
 
-    //~ b1: texture meta information constant buffer
+    //~ b1: texture meta (PS for now)
     params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    params[2].Descriptor.ShaderRegister = 1u;  // b1
+    params[2].Descriptor.ShaderRegister = 1u; // b1
     params[2].Descriptor.RegisterSpace = 0u;
 
+    //~ b2: directional light (PS)
+    params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[3].Descriptor.ShaderRegister = 2u; // b2
+    params[3].Descriptor.RegisterSpace = 0u;
+
+    //~ static sampler: s0
     D3D12_STATIC_SAMPLER_DESC staticSampler{};
     staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
     staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -970,14 +989,14 @@ bool kfe::KEFCubeSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
     staticSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
     staticSampler.MinLOD = 0.0f;
     staticSampler.MaxLOD = D3D12_FLOAT32_MAX;
-    staticSampler.ShaderRegister = 0;   // s0
-    staticSampler.RegisterSpace = 0;
-    staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    staticSampler.ShaderRegister = 0u; // s0
+    staticSampler.RegisterSpace = 0u;
+    staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL; // safe
 
     KFE_RG_CREATE_DESC root{};
     root.Device = desc.Device;
     root.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-    root.NumRootParameters = 3u;
+    root.NumRootParameters = static_cast<UINT>(_countof(params));
     root.RootParameters = params;
     root.NumStaticSamplers = 1u;
     root.StaticSamplers = &staticSampler;
@@ -1307,12 +1326,9 @@ bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* 
         const D3D12_CPU_DESCRIPTOR_HANDLE dst =
             m_pResourceHeap->GetHandle(data.ReservedSlot);
 
-        m_pDevice->GetNative()->CopyDescriptorsSimple(
-            1,
-            dst,
-            src,
-            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-        );
+        auto* device = m_pDevice->GetNative();
+        device->CopyDescriptorsSimple(1, dst, src,
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
         LOG_SUCCESS("Bound texture '{}' into ReservedSlot {}",
             data.TexturePath, data.ReservedSlot);

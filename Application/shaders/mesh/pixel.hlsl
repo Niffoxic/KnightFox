@@ -125,6 +125,27 @@ cbuffer TextureMetaCB : register(b1)
     float _PadMeta1;
 };
 
+cbuffer DirectionalLightCB : register(b2)
+{
+    float3 gDirLight_DirectionWS;
+    float  gDirLight_Intensity;
+    float3 gDirLight_Color;           
+    float  gDirLight_ShadowStrength;
+
+    float4x4 gDirLight_LightView;
+    float4x4 gDirLight_LightProj;
+    float4x4 gDirLight_LightViewProj;
+
+    float    gDirLight_ShadowBias;
+    float    gDirLight_NormalBias;
+    float    gDirLight_ShadowDistance;
+    float    gDirLight_OrthoSize;
+
+    float2   gDirLight_InvShadowMapSize;
+    float    gDirLight__PaddingDL0;
+    float    gDirLight__PaddingDL1;
+}
+
 //~ Sampler
 SamplerState gSampler : register(s0);
 
@@ -284,11 +305,11 @@ float4 main(PSInput input) : SV_TARGET
     if (hasNormal > 0.5f)
         N = SampleNormalWS(input, uv0);
 
-    //~ Fake directional light
-    const float3 lightDir = normalize(float3(0.3f, 0.8f, 0.5f));
-    const float3 lightCol = float3(1.0f, 1.0f, 1.0f);
+    //~ Directional light (from CB)
+    float3 L = normalize(-gDirLight_DirectionWS);
+    float3 lightCol = gDirLight_Color * gDirLight_Intensity;
 
-    float NdotL = saturate(dot(N, lightDir));
+    float NdotL = saturate(dot(N, L));
 
     const float ambient = 0.25f;
 
@@ -300,7 +321,7 @@ float4 main(PSInput input) : SV_TARGET
     float rVis = pow(saturate(r), 0.5f);
 
     float3 V = normalize(gCameraPosition - input.WorldPos);
-    float3 H = normalize(lightDir + V);
+    float3 H = normalize(L + V);
 
     float specPower = lerp(128.0f, 4.0f, rVis);
     float spec = pow(saturate(dot(N, H)), specPower);

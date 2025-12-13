@@ -28,31 +28,47 @@ cbuffer CommonCB : register(b0)
 
 cbuffer TextureMetaCB : register(b1)
 {
-    float4 gMainTextureInfo;      //~ IsAttached, LerpToSecondary, UvTilingX, UvTilingY
-    float4 gSecondaryTextureInfo; //~ IsAttached, BlendFactor,   UvTilingX, UvTilingY
-    float4 gNormalTextureInfo;    //~ IsAttached, NormalStrength, UvTilingX, UvTilingY
-    float4 gSpecularTextureInfo;  //~ IsAttached, SpecInt, RoughMul, MetalMul
-    float4 gHeightTextureInfo;    //~ IsAttached, HeightScale, MinLayers, MaxLayers
+    float4 gMainTextureInfo;      // IsAttached, LerpToSecondary, UvTilingX, UvTilingY
+    float4 gSecondaryTextureInfo;
+    float4 gNormalTextureInfo;    // IsAttached, Strength, UvTilingX, UvTilingY
+    float4 gSpecularTextureInfo;  // IsAttached, SpecInt, RoughMul, MetalMul
+    float4 gHeightTextureInfo;
 
-    float  gForceMipLevel;        //~ which mip to use (0 = full res)
-    float  gUseForcedMip;         //~ 0 = off, 1 = force mip for debug
+    float  gForceMipLevel;
+    float  gUseForcedMip;
     float2 _PaddingMip;
 };
 
-//~ Texture layout must match ECubeTextures + root signature:
-//~ MainTexture      -> t0
-//~ SecondaryTexture -> t1
-//~ Normal           -> t2
-//~ Specular         -> t3
-//~ Height           -> t4
+cbuffer DirectionalLightCB : register(b2)
+{
+    float3 gDirLight_DirectionWS;
+    float  gDirLight_Intensity;
 
-Texture2D gMainTexture      : register(t0);
-Texture2D gSecondaryTexture : register(t1);
-Texture2D gNormalMap        : register(t2);
-Texture2D gSpecularMap      : register(t3);
-Texture2D gHeightMap        : register(t4);
+    float3 gDirLight_Color;
+    float  gDirLight_ShadowStrength;
 
-SamplerState gSampler       : register(s0);
+    float4x4 gDirLight_LightView;
+    float4x4 gDirLight_LightProj;
+    float4x4 gDirLight_LightViewProj;
+
+    float    gDirLight_ShadowBias;
+    float    gDirLight_NormalBias;
+    float    gDirLight_ShadowDistance;
+    float    gDirLight_OrthoSize;
+
+    float2   gDirLight_InvShadowMapSize;
+    float    gDirLight__PaddingDL0;
+    float    gDirLight__PaddingDL1;
+};
+
+//~ Textures
+Texture2D gMainTexture  : register(t0);
+Texture2D gDisplacement : register(t1);
+Texture2D gNormalMap    : register(t2);
+Texture2D gSpecularMap  : register(t3);
+Texture2D gHeightMap    : register(t4);
+
+SamplerState gSampler : register(s0);
 
 struct PSInput
 {
@@ -60,115 +76,88 @@ struct PSInput
     float3 WorldPos  : TEXCOORD0;
     float3 Normal    : TEXCOORD1;
     float3 Tangent   : TEXCOORD2;
-    float3 Bitangent : BITANGENT;
+    float3 Bitangent : TEXCOORD3;
     float2 TexCoord  : TEXCOORD4;
     float3 Color     : COLOR0;
 };
 
-float4 GetBaseColor(float2 uv)
+static float Has(float x)
 {
-    float mainAttached = saturate(gMainTextureInfo.x);
-    float secAttached  = saturate(gSecondaryTextureInfo.x);
-
-    float2 mainUV = uv * gMainTextureInfo.zw;
-    float2 secUV  = uv * gSecondaryTextureInfo.zw;
-
-    float4 mainSample;
-    float4 secSample;
-
-    if (gUseForcedMip > 0.5f)
-    {
-        mainSample = gMainTexture.SampleLevel(gSampler,      mainUV, gForceMipLevel);
-        secSample  = gSecondaryTexture.SampleLevel(gSampler, secUV,  gForceMipLevel);
-    }
-    else
-    {
-        mainSample = gMainTexture.Sample(gSampler,      mainUV);
-        secSample  = gSecondaryTexture.Sample(gSampler, secUV);
-    }
-
-    float3 mainRgb = mainSample.rgb;
-    float3 secRgb  = secSample.rgb;
-
-    float hasMain = step(0.5f, mainAttached);
-    float hasSec  = step(0.5f, secAttached);
-
-    float wNone = (1.0f - hasMain) * (1.0f - hasSec);
-    float wMain = hasMain * (1.0f - hasSec);
-    float wSec  = (1.0f - hasMain) * hasSec;
-    float wBoth = hasMain * hasSec;
-
-    float lerpToSecondary = saturate(gMainTextureInfo.y);
-    float secBlendFactor  = saturate(gSecondaryTextureInfo.y);
-
-    //~ first mix main → secondary using secondary blend factor
-    float3 secMix  = lerp(mainRgb,      secRgb,      secBlendFactor);
-    float  secMixA = lerp(mainSample.a, secSample.a, secBlendFactor);
-
-    //~ now main lerps toward that mixed result using LerpToSecondary
-    float3 bothColor = lerp(mainRgb,      secMix,  lerpToSecondary);
-    float  bothAlpha = lerp(mainSample.a, secMixA, lerpToSecondary);
-
-    float3 noneColor = float3(1.0f, 0.0f, 1.0f);
-    float  noneAlpha = 1.0f;
-
-    float3 blendedRgb =
-        wNone * noneColor +
-        wMain * mainRgb +
-        wSec  * secRgb +
-        wBoth * bothColor;
-
-    float blendedAlpha =
-        wNone * noneAlpha +
-        wMain * mainSample.a +
-        wSec  * secSample.a +
-        wBoth * bothAlpha;
-
-    return float4(blendedRgb, blendedAlpha);
+    return step(0.5f, saturate(x));
 }
 
 float3 GetNormalWS(PSInput input)
 {
+    float3 N = normalize(input.Normal);
     float3 T = normalize(input.Tangent);
     float3 B = normalize(input.Bitangent);
-    float3 N = normalize(input.Normal);
 
     float3x3 TBN = float3x3(T, B, N);
 
-    float normalAttached = saturate(gNormalTextureInfo.x);
-    float normalStrength = gNormalTextureInfo.y;
+    float hasNormal = Has(gNormalTextureInfo.x);
+    float strength  = saturate(gNormalTextureInfo.y);
 
-    float2 normalUV = input.TexCoord * gNormalTextureInfo.zw;
+    float2 uv = input.TexCoord * gNormalTextureInfo.zw;
 
     float3 nTS;
     if (gUseForcedMip > 0.5f)
-    {
-        nTS = gNormalMap.SampleLevel(gSampler, normalUV, gForceMipLevel).xyz;
-    }
+        nTS = gNormalMap.SampleLevel(gSampler, uv, gForceMipLevel).xyz;
     else
-    {
-        nTS = gNormalMap.Sample(gSampler, normalUV).xyz;
-    }
+        nTS = gNormalMap.Sample(gSampler, uv).xyz;
 
     nTS = nTS * 2.0f - 1.0f;
 
-    float3 defaultTS = float3(0.0f, 0.0f, 1.0f);
-
-    float strengthFactor = saturate(normalAttached * normalStrength);
-
-    nTS = normalize(lerp(defaultTS, nTS, strengthFactor));
-    float3 nWS = normalize(mul(nTS, TBN));
-
-    return nWS;
+    nTS = normalize(lerp(float3(0, 0, 1), nTS, hasNormal * strength));
+    return normalize(mul(nTS, TBN));
 }
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float4 baseColor = GetBaseColor(input.TexCoord);
-    float3 normalWS  = GetNormalWS(input);
+    //~ Base color
+    float hasBase = Has(gMainTextureInfo.x);
+    float2 uv    = input.TexCoord * gMainTextureInfo.zw;
 
-    float lightFactor = 0.5f + 0.5f * normalWS.z;
-    float3 finalRgb   = baseColor.rgb * lightFactor;
+    float4 baseSample;
+    if (gUseForcedMip > 0.5f)
+        baseSample = gMainTexture.SampleLevel(gSampler, uv, gForceMipLevel);
+    else
+        baseSample = gMainTexture.Sample(gSampler, uv);
 
-    return float4(finalRgb, baseColor.a);
+    float3 baseColor = lerp(input.Color, baseSample.rgb, hasBase);
+    float  alpha     = lerp(1.0f,        baseSample.a,   hasBase);
+
+    //~ Normal
+    float3 N = GetNormalWS(input);
+
+    //~ Lighting
+    float3 L = normalize(-gDirLight_DirectionWS);
+    float  NdotL = saturate(dot(N, L));
+
+    float3 lightColor = gDirLight_Color * gDirLight_Intensity;
+
+    float3 ambient = 0.05f * baseColor;
+    float3 diffuse = baseColor * lightColor * NdotL;
+
+    //~ Specular
+    float3 V = normalize(gCameraPosition - input.WorldPos);
+    float3 H = normalize(L + V);
+
+    float hasSpec = Has(gSpecularTextureInfo.x);
+    float specInt = gSpecularTextureInfo.y;
+    float rough   = max(0.001f, gSpecularTextureInfo.z);
+
+    float shininess = 2.0f / (rough * rough);
+    float specTerm  = pow(saturate(dot(N, H)), shininess);
+
+    float3 specSample;
+    if (gUseForcedMip > 0.5f)
+        specSample = gSpecularMap.SampleLevel(gSampler, uv, gForceMipLevel).rgb;
+    else
+        specSample = gSpecularMap.Sample(gSampler, uv).rgb;
+
+    float3 specColor = lerp(float3(1,1,1), specSample, hasSpec);
+    float3 specular  = specColor * specInt * specTerm * lightColor;
+
+    float3 finalRgb = ambient + diffuse + specular;
+    return float4(finalRgb, alpha);
 }

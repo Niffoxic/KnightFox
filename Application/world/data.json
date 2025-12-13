@@ -567,5 +567,82 @@
 		},
 		"Type": "KFEMeshSceneObject",
 		"Name": "Blacksmith"
+	},
+	"47": {
+		"ID": "47",
+		"Data": {
+			"Transformation": {
+				"Position": {
+					"x": "0.000000",
+					"y": "-1.000000",
+					"z": "0.000000"
+				},
+				"Scale": {
+					"x": "10.000000",
+					"y": "1.000000",
+					"z": "10.000000"
+				},
+				"Orientation": {
+					"x": "0.000000",
+					"y": "0.000000",
+					"z": "0.000000",
+					"w": "1.000000"
+				}
+			},
+			"Properties": {
+				"PixelShader": "shaders/cube/pixel.hlsl",
+				"CullMode": "None",
+				"VertexShader": "shaders/cube/vertex.hlsl",
+				"MainTexturePath": "assets/textures/bricks/base.jpg",
+				"GeometryShader": "",
+				"DomainShader": "",
+				"DrawMode": "Triangle",
+				"HullShader": "",
+				"ComputeShader": "",
+				"SecondaryTexturePath": "",
+				"NormalMapPath": "assets/textures/bricks/normal.jpg",
+				"SpecularMapPath": "",
+				"HeightMapPath": "assets/textures/bricks/displacement.jpg",
+				"TexturePath": "assets/textures/bricks/base.jpg",
+				"TextureMeta": {
+					"Specular": {
+						"IsTextureAttached": "0.000000",
+						"SpecularIntensity": "1.000000",
+						"RoughnessMultiplier": "1.000000",
+						"MetalnessMultiplier": "1.000000"
+					},
+					"Main": {
+						"UvTilingY": "1.000000",
+						"IsTextureAttached": "1.000000",
+						"LerpToSecondary": "0.000000",
+						"UvTilingX": "1.000000"
+					},
+					"Secondary": {
+						"UvTilingY": "1.000000",
+						"IsTextureAttached": "0.000000",
+						"UvTilingX": "1.000000",
+						"BlendFactor": "1.000000"
+					},
+					"Height": {
+						"ParallaxMinLayers": "8.000000",
+						"HeightScale": "0.050000",
+						"IsTextureAttached": "1.000000",
+						"ParallaxMaxLayers": "32.000000"
+					},
+					"Normal": {
+						"UvTilingY": "1.000000",
+						"IsTextureAttached": "1.000000",
+						"UvTilingX": "1.000000",
+						"NormalStrength": "1.000000"
+					},
+					"MipDebug": {
+						"ForcedMipLevel": "0.000000",
+						"UseForcedMip": "0.000000"
+					}
+				}
+			}
+		},
+		"Type": "KEFCubeSceneObject",
+		"Name": "ground"
 	}
 }

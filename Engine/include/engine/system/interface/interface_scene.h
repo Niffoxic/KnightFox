@@ -15,18 +15,31 @@
 #include "engine/utils/json_loader.h"
 
 #include <cstdint>
+#include <memory>
 #include <string_view>
 #include <DirectXMath.h>
 
-struct ID3D12Fence;
+//~ light
+#include "engine/render_manager/light/directional_light.h"
+#include "engine/render_manager/api/buffer/buffer.h"
+#include "engine/render_manager/api/buffer/constant_buffer.h"
+#include "engine/utils/helpers.h"
+#include "engine/render_manager/api/components/device.h"
+#include "engine/render_manager/api/commands/graphics_list.h"
+#include "engine/render_manager/api/queue/graphics_queue.h"
+#include "engine/render_manager/api/heap/heap_cbv_srv_uav.h"
+#include "engine/render_manager/api/heap/heap_sampler.h"
+#include <d3d12.h>
+
+//struct ID3D12Fence;
 
 namespace kfe
 {
-	class KFEDevice;
-	class KFEGraphicsCommandList;
-    class KFEGraphicsCmdQ;
-    class KFEResourceHeap;
-    class KFESamplerHeap;
+	//class KFEDevice;
+	//class KFEGraphicsCommandList;
+ //   class KFEGraphicsCmdQ;
+ //   class KFEResourceHeap;
+ //   class KFESamplerHeap;
 
     typedef struct _KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC
     {
@@ -148,7 +161,14 @@ namespace kfe
     class KFE_API IKFESceneObject : public IKFEObject
     {
     public:
+        IKFESceneObject() = default;
         virtual ~IKFESceneObject() override = default;
+
+        IKFESceneObject(const IKFESceneObject&) = default;
+        IKFESceneObject(IKFESceneObject&&) = default;
+
+        IKFESceneObject& operator=(const IKFESceneObject&) = default;
+        IKFESceneObject& operator=(IKFESceneObject&&)      = default;
 
         // Visibility
         virtual void SetVisible(bool visible);
@@ -159,6 +179,43 @@ namespace kfe
 
         NODISCARD virtual bool Build(_In_ const KFE_BUILD_OBJECT_DESC& desc) = 0;
         NODISCARD virtual bool Destroy() = 0;
+
+        //~ Test
+        bool BuildLightCB(_In_ const KFE_BUILD_OBJECT_DESC& desc)
+        {
+            m_pLightCB = std::make_unique<KFEBuffer>();
+
+            std::uint32_t bytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC));
+            bytes = kfe_helpers::AlignTo256(bytes);
+
+            KFE_CREATE_BUFFER_DESC buffer{};
+            buffer.Device = desc.Device;
+            buffer.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+            buffer.InitialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+            buffer.ResourceFlags = D3D12_RESOURCE_FLAG_NONE;
+            buffer.SizeInBytes = bytes;
+
+            if (!m_pLightCB->Initialize(buffer))
+            {
+                false;
+            }
+
+            m_pLightCBV = std::make_unique<KFEConstantBuffer>();
+
+            KFE_CONSTANT_BUFFER_CREATE_DESC view{};
+            view.Device = desc.Device;
+            view.OffsetInBytes = 0u;
+            view.ResourceBuffer = m_pLightCB.get();
+            view.ResourceHeap = desc.ResourceHeap;
+            view.SizeInBytes = bytes;
+
+            if (!m_pLightCBV->Initialize(view))
+            {
+                return false;
+            }
+
+            return true;
+        }
 
         virtual void Render(_In_ const KFE_RENDER_OBJECT_DESC& desc) = 0;
 
@@ -247,7 +304,19 @@ namespace kfe
         void        SetObjectName(const std::string& typeName) { m_szName = typeName; }
         std::string GetObjectName() const { return m_szName; }
 
-    protected:
+        //~ Add and Remove Lights test only
+        void UpdateDirectionalLight(const KFE_DIRECTIONAL_LIGHT_CB_DESC& desc)
+        {
+            if (!m_pLightCB) return;
+            if (!m_pLightCBV) return;
+
+            auto* dst = static_cast<KFE_DIRECTIONAL_LIGHT_CB_DESC*>(m_pLightCBV->GetMappedData());
+            if (!dst)
+                return;
+
+            *dst = desc;
+        }
+
         DirectX::XMFLOAT3 m_position    { 0.0f, 0.0f, 0.0f };
         DirectX::XMFLOAT4 m_orientation { 0.0f, 0.0f, 0.0f, 1.0f };
         DirectX::XMFLOAT3 m_scale       { 1.0f, 1.0f, 1.0f };
@@ -257,6 +326,11 @@ namespace kfe
         bool m_bInitialized{ false };
 
         std::string m_szName{ "No Name Given" };
+
+        //~ test light Constant buffer
+        std::unique_ptr<KFEBuffer>         m_pLightCB { nullptr };
+        std::unique_ptr<KFEConstantBuffer> m_pLightCBV{ nullptr };
+
 
     private:
         std::string  m_szTypeName{ "Unknown" };

@@ -16,6 +16,9 @@
 #include "engine/system/interface/interface_scene.h"
 #include "engine/render_manager/components/camera.h"
 
+//~ Test Light
+#include "engine/render_manager/light/directional_light.h"
+
 #include <memory>
 
 struct ID3D12Fence;
@@ -73,6 +76,11 @@ namespace kfe
 		void RemoveSceneObject(IKFESceneObject* scene) noexcept;
 		void RemoveSceneObject(const KID id)		   noexcept;
 		void RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept;
+
+		//~ Light Objects
+		void AddDirectionalLight(KFEDirectionalLight* light)			   noexcept;
+		void RemoveDirectionalLight(KFEDirectionalLight* scene)			   noexcept;
+		void RenderShadowPass	(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept;
 
 	private:
 		friend class ISingleton<KFERenderQueue>;

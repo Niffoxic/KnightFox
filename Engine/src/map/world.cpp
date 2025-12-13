@@ -22,6 +22,12 @@
 
 namespace kfe
 {
+    KFEWorld::KFEWorld()
+    {
+        m_directionaLight = std::make_unique<KFEDirectionalLight>();
+        KFERenderQueue::Instance().AddDirectionalLight(m_directionaLight.get());
+    }
+
     bool KFEWorld::Initialize()
     {
         return true;

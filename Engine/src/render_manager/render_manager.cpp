@@ -440,9 +440,9 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		nullptr);
 
 	KFE_RENDER_QUEUE_RENDER_DESC render{};
-	render.FenceValue = m_nFenceValue;
-	render.GraphicsCommandList = m_pGfxList.get();
-	render.pFence = m_pFence.Get();
+	render.FenceValue			= m_nFenceValue;
+	render.GraphicsCommandList	= m_pGfxList.get();
+	render.pFence				= m_pFence.Get();
 	KFERenderQueue::Instance().RenderSceneObject(render);
 
 #ifdef _DEBUG

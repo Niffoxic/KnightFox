@@ -208,6 +208,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="include\engine\render_manager\api\frame_cb.h" />
+    <ClInclude Include="include\engine\render_manager\light\directional_light.h" />
     <ClInclude Include="include\engine\render_manager\scene\cube_scene.h" />
     <ClInclude Include="include\engine\render_manager\scene\model_scene.h" />
     <ClInclude Include="include\engine\system\interface\interface_scene.h" />
@@ -297,6 +298,7 @@
     <ClCompile Include="src\render_manager\assets_library\texture_library.cpp" />
     <ClCompile Include="src\render_manager\components\camera.cpp" />
     <ClCompile Include="src\render_manager\components\render_queue.cpp" />
+    <ClCompile Include="src\render_manager\light\directional_light.cpp" />
     <ClCompile Include="src\render_manager\scene\cube_scene.cpp" />
     <ClCompile Include="src\system\interface\interface_scene.cpp" />
     <ClCompile Include="src\render_manager\scene\model_scene.cpp" />

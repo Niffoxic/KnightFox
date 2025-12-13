@@ -641,6 +641,8 @@ bool kfe::KFEMeshSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
 _Use_decl_annotations_
 bool kfe::KFEMeshSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_DESC& desc)
 {
+    if (!m_pObject->BuildLightCB(desc)) return false;
+
     m_pCBBuffer = std::make_unique<KFEBuffer>();
 
     std::uint32_t bytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC));
@@ -691,25 +693,31 @@ bool kfe::KFEMeshSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
     srvRange.RegisterSpace = 0u;
     srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    D3D12_ROOT_PARAMETER params[3]{};
+    D3D12_ROOT_PARAMETER params[4]{};
 
     //~ b0: per object and common constant buffer
-    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[0].ParameterType             = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[0].ShaderVisibility          = D3D12_SHADER_VISIBILITY_ALL;
     params[0].Descriptor.ShaderRegister = 0u;  //~ b0
-    params[0].Descriptor.RegisterSpace = 0u;
+    params[0].Descriptor.RegisterSpace  = 0u;
 
     //~ SRV descriptor table
-    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[1].ParameterType                       = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[1].ShaderVisibility                    = D3D12_SHADER_VISIBILITY_PIXEL;
     params[1].DescriptorTable.NumDescriptorRanges = 1u;
-    params[1].DescriptorTable.pDescriptorRanges = &srvRange;
+    params[1].DescriptorTable.pDescriptorRanges   = &srvRange;
 
     //~ b1: per submesh meta constant buffer
     params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     params[2].Descriptor.ShaderRegister = 1u;  //~ b1
     params[2].Descriptor.RegisterSpace = 0u;
+
+    //~ b2: directional light constant buffer
+    params[3].ParameterType             = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[3].ShaderVisibility          = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[3].Descriptor.ShaderRegister = 2u;  //~ b2
+    params[3].Descriptor.RegisterSpace  = 0u;
 
     //~ Static sampler s0
     D3D12_STATIC_SAMPLER_DESC staticSampler{};
@@ -730,7 +738,7 @@ bool kfe::KFEMeshSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
     KFE_RG_CREATE_DESC root{};
     root.Device = desc.Device;
     root.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-    root.NumRootParameters = 3u;
+    root.NumRootParameters = 4u;
     root.RootParameters = params;
     root.NumStaticSamplers = 1u;
     root.StaticSamplers = &staticSampler;
@@ -1371,6 +1379,14 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
 
     const XMMATRIX local = node.GetMatrix();
     const XMMATRIX nodeWorld = local * parentWorld;
+
+    if (m_pObject && m_pObject->m_pLightCBV)
+    {
+        cmdList->SetGraphicsRootConstantBufferView(
+            3u,
+            m_pObject->m_pLightCBV->GetGPUVirtualAddress());
+    }
+    else LOG_ERROR("NOPE!");
 
     for (std::uint32_t meshIndex : node.MeshIndices)
     {
