@@ -29,6 +29,7 @@
 #include "engine/render_manager/api/queue/graphics_queue.h"
 #include "engine/render_manager/api/heap/heap_cbv_srv_uav.h"
 #include "engine/render_manager/api/heap/heap_sampler.h"
+#include "engine/render_manager/api/root_signature.h"
 #include <d3d12.h>
 
 //struct ID3D12Fence;
@@ -181,43 +182,11 @@ namespace kfe
         NODISCARD virtual bool Destroy() = 0;
 
         //~ Test
-        bool BuildLightCB(_In_ const KFE_BUILD_OBJECT_DESC& desc)
-        {
-            m_pLightCB = std::make_unique<KFEBuffer>();
+        NODISCARD bool InitShadowRootSignature(_In_ const KFE_BUILD_OBJECT_DESC& desc);
 
-            std::uint32_t bytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC));
-            bytes = kfe_helpers::AlignTo256(bytes);
-
-            KFE_CREATE_BUFFER_DESC buffer{};
-            buffer.Device = desc.Device;
-            buffer.HeapType = D3D12_HEAP_TYPE_UPLOAD;
-            buffer.InitialState = D3D12_RESOURCE_STATE_GENERIC_READ;
-            buffer.ResourceFlags = D3D12_RESOURCE_FLAG_NONE;
-            buffer.SizeInBytes = bytes;
-
-            if (!m_pLightCB->Initialize(buffer))
-            {
-                false;
-            }
-
-            m_pLightCBV = std::make_unique<KFEConstantBuffer>();
-
-            KFE_CONSTANT_BUFFER_CREATE_DESC view{};
-            view.Device = desc.Device;
-            view.OffsetInBytes = 0u;
-            view.ResourceBuffer = m_pLightCB.get();
-            view.ResourceHeap = desc.ResourceHeap;
-            view.SizeInBytes = bytes;
-
-            if (!m_pLightCBV->Initialize(view))
-            {
-                return false;
-            }
-
-            return true;
-        }
-
+        bool        BuildLightCB(_In_ const KFE_BUILD_OBJECT_DESC& desc);
         virtual void Render(_In_ const KFE_RENDER_OBJECT_DESC& desc) = 0;
+        virtual void ShadowPass(_In_ const KFE_RENDER_OBJECT_DESC& desc) = 0;
 
         // Serialization
         virtual JsonLoader GetJsonData() const = 0;
@@ -331,6 +300,7 @@ namespace kfe
         std::unique_ptr<KFEBuffer>         m_pLightCB { nullptr };
         std::unique_ptr<KFEConstantBuffer> m_pLightCBV{ nullptr };
 
+        std::unique_ptr<KFERootSignature> m_pShadowSignature{ nullptr };
 
     private:
         std::string  m_szTypeName{ "Unknown" };

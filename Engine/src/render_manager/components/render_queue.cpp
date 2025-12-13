@@ -56,6 +56,7 @@ public:
 	void RemoveSceneObject(IKFESceneObject* scene) noexcept;
 	void RemoveSceneObject(const KID id)		   noexcept;
 	void RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept;
+	void RenderShadowSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept;
 
 	//~ Light Objects
 	void AddDirectionalLight	(KFEDirectionalLight* light) noexcept;
@@ -142,6 +143,11 @@ void kfe::KFERenderQueue::RemoveSceneObject(const KID id) noexcept
 void kfe::KFERenderQueue::RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept
 {
 	m_impl->RenderSceneObject(desc);
+}
+
+void kfe::KFERenderQueue::RenderShadowSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept
+{
+	m_impl->RenderShadowSceneObject(desc);
 }
 
 void kfe::KFERenderQueue::AddDirectionalLight(KFEDirectionalLight* light) noexcept
@@ -354,6 +360,20 @@ void kfe::KFERenderQueue::Impl::RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_
 	{
 		if (!scene || !scene->IsInitialized()) continue;
 		scene->Render(renderInfo);
+	}
+}
+
+void kfe::KFERenderQueue::Impl::RenderShadowSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept
+{
+	KFE_RENDER_OBJECT_DESC renderInfo{};
+	renderInfo.CommandList	= desc.GraphicsCommandList;
+	renderInfo.Fence		= desc.pFence;
+	renderInfo.FenceValue	= desc.FenceValue;
+
+	for (auto& [id, scene] : m_sceneObjects)
+	{
+		if (!scene || !scene->IsInitialized()) continue;
+		scene->ShadowPass(renderInfo);
 	}
 }
 

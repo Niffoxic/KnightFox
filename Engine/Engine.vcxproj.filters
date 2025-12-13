@@ -291,6 +291,9 @@
     <ClInclude Include="include\engine\render_manager\light\directional_light.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\engine\render_manager\shadow\shadow_map.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -534,6 +537,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\render_manager\light\directional_light.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\shadow\shadow_map.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

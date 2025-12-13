@@ -1,6 +1,6 @@
 {
-	"46": {
-		"ID": "46",
+	"47": {
+		"ID": "47",
 		"Data": {
 			"Transformation": {
 				"Position": {
@@ -568,8 +568,8 @@
 		"Type": "KFEMeshSceneObject",
 		"Name": "Blacksmith"
 	},
-	"47": {
-		"ID": "47",
+	"48": {
+		"ID": "48",
 		"Data": {
 			"Transformation": {
 				"Position": {

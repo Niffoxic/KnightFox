@@ -193,11 +193,11 @@ public:
     void ImguiView(float deltaTime);
 
 private:
-    bool BuildGeometry(_In_ const KFE_BUILD_OBJECT_DESC& desc);
+    bool BuildGeometry      (_In_ const KFE_BUILD_OBJECT_DESC& desc);
     bool BuildConstantBuffer(_In_ const KFE_BUILD_OBJECT_DESC& desc);
-    bool BuildRootSignature(_In_ const KFE_BUILD_OBJECT_DESC& desc);
-    bool BuildPipeline(KFEDevice* device);
-    bool BuildSampler(_In_ const KFE_BUILD_OBJECT_DESC& desc);
+    bool BuildRootSignature (_In_ const KFE_BUILD_OBJECT_DESC& desc);
+    bool BuildPipeline      (KFEDevice* device);
+    bool BuildSampler       (_In_ const KFE_BUILD_OBJECT_DESC& desc);
     bool BindTextureFromPath(KFEGraphicsCommandList* cmdList);
 
     void UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc);

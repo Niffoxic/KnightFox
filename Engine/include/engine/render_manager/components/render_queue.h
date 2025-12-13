@@ -76,6 +76,8 @@ namespace kfe
 		void RemoveSceneObject(IKFESceneObject* scene) noexcept;
 		void RemoveSceneObject(const KID id)		   noexcept;
 		void RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept;
+		
+		void RenderShadowSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept;
 
 		//~ Light Objects
 		void AddDirectionalLight(KFEDirectionalLight* light)			   noexcept;

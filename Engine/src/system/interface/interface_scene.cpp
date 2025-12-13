@@ -10,6 +10,7 @@
  */
 #include "pch.h"
 #include "engine/system/interface/interface_scene.h"
+#include "engine/utils/logger.h"
 
 #include "imgui/imgui.h"
 #include <DirectXMath.h>
@@ -321,4 +322,89 @@ void kfe::IKFESceneObject::ImguiTransformView(float)
     }
 
     ImGui::TextDisabled("Tip: Rotation is edited as a normalized quaternion.");
+}
+
+_Use_decl_annotations_
+bool kfe::IKFESceneObject::InitShadowRootSignature(const KFE_BUILD_OBJECT_DESC& desc)
+{
+    if (!desc.Device)
+    {
+        LOG_ERROR("IKFESceneObject::InitShadowPipeline: Device is null.");
+        return false;
+    }
+
+    if (m_pShadowSignature)
+        return true;
+
+    m_pShadowSignature = std::make_unique<KFERootSignature>();
+
+    D3D12_ROOT_PARAMETER params[2]{};
+
+    //~ b0: CommonCB
+    params[0].ParameterType             = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[0].ShaderVisibility          = D3D12_SHADER_VISIBILITY_VERTEX;
+    params[0].Descriptor.ShaderRegister = 0u; //~ b0
+    params[0].Descriptor.RegisterSpace  = 0u;
+
+    //~ b1: DirectionalLightCB
+    params[1].ParameterType             = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[1].ShaderVisibility          = D3D12_SHADER_VISIBILITY_VERTEX;
+    params[1].Descriptor.ShaderRegister = 1u; //~ b1
+    params[1].Descriptor.RegisterSpace  = 0u;
+
+    KFE_RG_CREATE_DESC root{};
+    root.Device             = desc.Device;
+    root.Flags              = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    root.NumRootParameters  = static_cast<UINT>(_countof(params));
+    root.RootParameters     = params;
+    root.NumStaticSamplers  = 0u;
+    root.StaticSamplers     = nullptr;
+
+    if (!m_pShadowSignature->Initialize(root))
+    {
+        LOG_ERROR("Failed to create shadow root signature.");
+        m_pShadowSignature.reset();
+        return false;
+    }
+
+    m_pShadowSignature->SetDebugName(L"KFE Common Shadow Root Signature");
+    LOG_SUCCESS("Common Shadow Root Signature Created!");
+    return true;
+}
+
+_Use_decl_annotations_
+bool kfe::IKFESceneObject::BuildLightCB(const KFE_BUILD_OBJECT_DESC& desc)
+{
+    m_pLightCB = std::make_unique<KFEBuffer>();
+
+    std::uint32_t bytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC));
+    bytes = kfe_helpers::AlignTo256(bytes);
+
+    KFE_CREATE_BUFFER_DESC buffer{};
+    buffer.Device = desc.Device;
+    buffer.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+    buffer.InitialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+    buffer.ResourceFlags = D3D12_RESOURCE_FLAG_NONE;
+    buffer.SizeInBytes = bytes;
+
+    if (!m_pLightCB->Initialize(buffer))
+    {
+        false;
+    }
+
+    m_pLightCBV = std::make_unique<KFEConstantBuffer>();
+
+    KFE_CONSTANT_BUFFER_CREATE_DESC view{};
+    view.Device = desc.Device;
+    view.OffsetInBytes = 0u;
+    view.ResourceBuffer = m_pLightCB.get();
+    view.ResourceHeap = desc.ResourceHeap;
+    view.SizeInBytes = bytes;
+
+    if (!m_pLightCBV->Initialize(view))
+    {
+        return false;
+    }
+
+    return true;
 }
