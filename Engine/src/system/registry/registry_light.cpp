@@ -10,15 +10,16 @@
  */
 
 #include "pch.h"
-#include "engine/system/registry/registry_scene.h"
-#include "engine/render_manager/scene/cube_scene.h"
-#include "engine/render_manager/scene/model_scene.h"
+#include "engine/system/registry/registry_light.h"
+#include "engine/render_manager/light/directional_light.h"
+#include "engine/render_manager/light/point_light.h"
+#include "engine/render_manager/light/spot_light.h"
 
 namespace
 {
-    using CreateFunctor = kfe::RegistrySceneObject::CreateFunctor;
-    using RegistryMap = std::unordered_map<std::string, CreateFunctor>;
-    using NameList = std::vector<std::string>;
+    using CreateFunctor = kfe::RegistryLights::CreateFunctor;
+    using RegistryMap   = std::unordered_map<std::string, CreateFunctor>;
+    using NameList      = std::vector<std::string>;
 
     RegistryMap& GetRegistry()
     {
@@ -35,7 +36,7 @@ namespace
 
 namespace kfe
 {
-    void RegistrySceneObject::Register(const std::string& name, CreateFunctor fn)
+    void RegistryLights::Register(const std::string& name, CreateFunctor fn)
     {
         if (!fn)
         {
@@ -56,8 +57,8 @@ namespace kfe
     }
 
     _Use_decl_annotations_
-        std::unique_ptr<IKFESceneObject>
-        RegistrySceneObject::Create(const std::string& name)
+        std::unique_ptr<IKFELight>
+        RegistryLights::Create(const std::string& name)
     {
         auto& registry = ::GetRegistry();
 
@@ -72,15 +73,19 @@ namespace kfe
 
     _Use_decl_annotations_
         const std::vector<std::string>&
-        RegistrySceneObject::GetRegisteredNames()
+        RegistryLights::GetRegisteredNames()
     {
         return ::GetNameList();
     }
 
-    //~ Define Objects
-    using KEFCubeSceneObject = kfe::KEFCubeSceneObject;
-    KFE_REGISTER_SCENE_OBJECT(KEFCubeSceneObject);
-    
-    using KFEMeshSceneObject = kfe::KFEMeshSceneObject;
-    KFE_REGISTER_SCENE_OBJECT(KFEMeshSceneObject);
+    //~ Define Lights
+    using KFEDirectionalLight = kfe::KFEDirectionalLight;
+    KFE_REGISTER_LIGHT(KFEDirectionalLight);
+
+    using KFESpotLight        = kfe::KFESpotLight;
+    KFE_REGISTER_LIGHT(KFESpotLight);
+
+    using KFEPointLight       = kfe::KFEPointLight;
+    KFE_REGISTER_LIGHT(KFEPointLight);
+
 } // namespace kfe

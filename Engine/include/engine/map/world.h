@@ -14,9 +14,8 @@
 #include "engine/core.h"
 
 #include "engine/system/interface/interface_scene.h"
+#include "engine/system/interface/interface_light.h"
 #include "engine/utils/json_loader.h"
-
-#include "engine/render_manager/light/directional_light.h"
 
 #include <memory>
 #include <vector>
@@ -43,7 +42,7 @@ namespace kfe
 
         void Update(float deltaTime);
 
-        // Add an already-created scene object (any IKFESceneObject-derived type)
+        //~ Scene Object
         void AddSceneObject(std::unique_ptr<IKFESceneObject> scene);
         void AddSceneObject(const std::string& sceneName);
         std::unique_ptr<IKFESceneObject> RemoveSceneObject(IKFESceneObject* scene);
@@ -53,8 +52,16 @@ namespace kfe
         void       LoadSceneData(const JsonLoader& loader);
         JsonLoader GetSceneData() const;
 
-        //~ Get Light
-        KFEDirectionalLight* GetDirectionalLight() const { return m_directionaLight.get(); }
+        //~ Light Objects
+        void AddLight(std::unique_ptr<IKFELight> light);
+        void AddLight(const std::string& lightName);
+
+        std::unique_ptr<IKFELight>      RemoveLight(IKFELight* light);
+        std::unique_ptr<IKFELight>      RemoveLight(const KID id);
+        const std::vector<IKFELight*>&  GetAllLights();
+
+        void       LoadLightData(const JsonLoader& loader);
+        JsonLoader GetLightData () const;
 
     private:
         //~ Scene Object Infos
@@ -63,6 +70,8 @@ namespace kfe
         bool                                                      m_sceneViewDirty{ true };
     
         //~ Lights
-        std::unique_ptr<KFEDirectionalLight> m_directionaLight;
+        std::unordered_map<KID, std::unique_ptr<IKFELight>> m_lights;
+        std::vector<IKFELight*>                             m_lightView;
+        bool                                                m_lightViewDirty{ true };
     };
 } // namespace kfe
