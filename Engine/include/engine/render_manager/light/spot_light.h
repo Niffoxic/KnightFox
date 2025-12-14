@@ -26,13 +26,14 @@ namespace kfe
         std::string GetName() const noexcept override;
         std::string GetDescription() const noexcept override;
 
-        void UpdateLight(const KFECamera* camera) override;
-
         bool CanCullByDistance() const override;
         void ImguiView(float deltaTime) override;
 
         void LoadFromJson(const JsonLoader& loader) override;
         JsonLoader GetJsonData() const override;
         void ResetToDefaults() override;
+
+    private:
+        void UpdateLight(const KFECamera* camera) override;
     };
 } // namespace kfe

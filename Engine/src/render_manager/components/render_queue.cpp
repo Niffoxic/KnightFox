@@ -51,26 +51,29 @@ public:
 
 	void Update(float deltaTime);
 
+	//~ Passes
+	void RenderShadowPass(const KFE_RENDER_QUEUE_SHADOW_PASS_DESC& desc) noexcept;
+	void RenderMainPass  (const KFE_RENDER_QUEUE_MAIN_PASS_DESC& desc) noexcept;
+
 	//~ Scene Objects
 	void AddSceneObject	  (IKFESceneObject* scene) noexcept;
 	void RemoveSceneObject(IKFESceneObject* scene) noexcept;
 	void RemoveSceneObject(const KID id)		   noexcept;
-	void RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept;
-	void RenderShadowSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept;
 
 	//~ Light Objects
-	void AddDirectionalLight	(KFEDirectionalLight* light) noexcept;
-	void RemoveDirectionalLight	(KFEDirectionalLight* scene)	 noexcept;
-	void RenderShadowPass		(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept;
+	void AddLight	(IKFELight* scene) noexcept;
+	void RemoveLight(IKFELight* scene) noexcept;
+	void RemoveLight(const KID id)	   noexcept;
 
 private:
-	//~ Updater Scene Objects
-	void BuildSceneObjects();
-	void UpdateSceneObjects(float deltaTime);
+	//~ Scene Objects
+	void Build_SceneObjects();
+	void Update_SceneObjects   (float deltaTime);
+	void MainPass_SceneObject  (const KFE_RENDER_QUEUE_MAIN_PASS_DESC& desc) noexcept;
+	void ShadowPass_SceneObject(const KFE_RENDER_QUEUE_SHADOW_PASS_DESC& desc) noexcept;
 
-	//~ Update Lights
-	void BuildDirectionalLight();
-	void UpdateDirectionalLight(float deltaTime);
+	//~ Lights
+	void Update_Lights(float deltaTime);
 
 private:
 	//~ Cache Builder Informations
@@ -95,7 +98,7 @@ private:
 	std::vector<KID> m_sceneObjectToBuild{};
 
 	//~ Lights
-	std::unordered_map<KFEDirectionalLight*, KFEDirectionalLight*> m_directionalLights{};
+	std::unordered_map<KID, IKFELight*> m_lights{};
 };
 #pragma endregion
 
@@ -124,6 +127,17 @@ void kfe::KFERenderQueue::Update(float deltaTime)
 	m_impl->Update(deltaTime);
 }
 
+void kfe::KFERenderQueue::RenderShadowPass(const KFE_RENDER_QUEUE_SHADOW_PASS_DESC& desc)
+{
+	m_impl->RenderShadowPass(desc);
+}
+
+void kfe::KFERenderQueue::RenderMainPass(const KFE_RENDER_QUEUE_MAIN_PASS_DESC& desc)
+{
+	m_impl->RenderMainPass(desc);
+}
+
+//~ Scene Object
 void kfe::KFERenderQueue::AddSceneObject(IKFESceneObject* scene) noexcept
 {
 	m_impl->AddSceneObject(scene);
@@ -140,30 +154,22 @@ void kfe::KFERenderQueue::RemoveSceneObject(const KID id) noexcept
 	m_impl->RemoveSceneObject(id);
 }
 
-void kfe::KFERenderQueue::RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept
+//~ Light Objects
+void kfe::KFERenderQueue::AddLight(IKFELight* light) noexcept
 {
-	m_impl->RenderSceneObject(desc);
+	m_impl->AddLight(light);
 }
 
-void kfe::KFERenderQueue::RenderShadowSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept
+void kfe::KFERenderQueue::RemoveLight(IKFELight* light) noexcept
 {
-	m_impl->RenderShadowSceneObject(desc);
+	m_impl->RemoveLight(light);
 }
 
-void kfe::KFERenderQueue::AddDirectionalLight(KFEDirectionalLight* light) noexcept
+void kfe::KFERenderQueue::RemoveLight(const KID id) noexcept 
 {
-	m_impl->AddDirectionalLight(light);
+	m_impl->RemoveLight(id);
 }
 
-void kfe::KFERenderQueue::RemoveDirectionalLight(KFEDirectionalLight* scene) noexcept
-{
-	m_impl->RemoveDirectionalLight(scene);
-}
-
-void kfe::KFERenderQueue::RenderShadowPass(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept
-{
-	m_impl->RenderShadowPass(desc);
-}
 #pragma endregion
 
 #pragma region Impl_Body
@@ -223,12 +229,23 @@ bool kfe::KFERenderQueue::Impl::Destroy() noexcept
 	return true;
 }
 
-void kfe::KFERenderQueue::Impl::Update(float deltaTime)
+void kfe::KFERenderQueue::Impl::RenderShadowPass(const KFE_RENDER_QUEUE_SHADOW_PASS_DESC& desc) noexcept
 {
-	UpdateSceneObjects(deltaTime);
-	UpdateDirectionalLight(deltaTime);
+	ShadowPass_SceneObject(desc);
 }
 
+void kfe::KFERenderQueue::Impl::RenderMainPass(const KFE_RENDER_QUEUE_MAIN_PASS_DESC& desc) noexcept
+{
+	MainPass_SceneObject(desc);
+}
+
+void kfe::KFERenderQueue::Impl::Update(float deltaTime)
+{
+	Update_Lights	   (deltaTime);
+	Update_SceneObjects(deltaTime);
+}
+
+//~ Scene Objects
 void kfe::KFERenderQueue::Impl::AddSceneObject(IKFESceneObject* scene) noexcept
 {
 	if (!scene) return;
@@ -259,7 +276,7 @@ void kfe::KFERenderQueue::Impl::RemoveSceneObject(const KID id) noexcept
 	}
 }
 
-void kfe::KFERenderQueue::Impl::BuildSceneObjects()
+void kfe::KFERenderQueue::Impl::Build_SceneObjects()
 {
 	if (m_sceneObjectToBuild.empty()) return;
 
@@ -313,9 +330,9 @@ void kfe::KFERenderQueue::Impl::BuildSceneObjects()
 	m_sceneObjectToBuild.clear();
 }
 
-void kfe::KFERenderQueue::Impl::UpdateSceneObjects(float deltaTime)
+void kfe::KFERenderQueue::Impl::Update_SceneObjects(float deltaTime)
 {
-	BuildSceneObjects();
+	Build_SceneObjects();
 
 	//~ Update
 	KFE_UPDATE_OBJECT_DESC updatter{};
@@ -340,17 +357,17 @@ void kfe::KFERenderQueue::Impl::UpdateSceneObjects(float deltaTime)
 	{
 		if (!scene || !scene->IsInitialized()) continue;
 
-		for (auto& [id, light] : m_directionalLights)
+		//~ TODO: Add Light Manager on each scene objects and attach lights
+		for (auto& [lid, light] : m_lights)
 		{
 			if (!light) continue;
-			auto info = light->GetCBDesc();
-			scene->UpdateDirectionalLight(info);
+			scene->AttachLight(light);
 		}
 		scene->Update(updatter);
 	}
 }
 
-void kfe::KFERenderQueue::Impl::RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept
+void kfe::KFERenderQueue::Impl::MainPass_SceneObject(const KFE_RENDER_QUEUE_MAIN_PASS_DESC& desc) noexcept
 {
 	KFE_RENDER_OBJECT_DESC renderInfo{};
 	renderInfo.CommandList	= desc.GraphicsCommandList;
@@ -365,7 +382,7 @@ void kfe::KFERenderQueue::Impl::RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_
 	}
 }
 
-void kfe::KFERenderQueue::Impl::RenderShadowSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept
+void kfe::KFERenderQueue::Impl::ShadowPass_SceneObject(const KFE_RENDER_QUEUE_SHADOW_PASS_DESC& desc) noexcept
 {
 	KFE_RENDER_OBJECT_DESC renderInfo{};
 	renderInfo.CommandList	= desc.GraphicsCommandList;
@@ -379,40 +396,40 @@ void kfe::KFERenderQueue::Impl::RenderShadowSceneObject(const KFE_RENDER_QUEUE_R
 	}
 }
 
-void kfe::KFERenderQueue::Impl::BuildDirectionalLight()
+//~ Light Objects
+void kfe::KFERenderQueue::Impl::AddLight(IKFELight* light) noexcept
 {
+	if (!light) return;
+	KID id = light->GetAssignedKey();
+	if (m_lights.contains(id)) return;
+	m_lights[id] = light;
 }
 
-void kfe::KFERenderQueue::Impl::UpdateDirectionalLight(float deltaTime)
+void kfe::KFERenderQueue::Impl::RemoveLight(IKFELight* light) noexcept
 {
-	BuildDirectionalLight();
+	if (!light) return;
+	KID id = light->GetAssignedKey();
+	RemoveLight(id);
+}
 
-	const DirectX::XMVECTOR camPos = DirectX::XMLoadFloat3(&m_pCamera->GetPosition());
-	const DirectX::XMVECTOR camForward = m_pCamera->GetForwardVector();
-
-	for (auto& [id, light] : m_directionalLights)
+void kfe::KFERenderQueue::Impl::RemoveLight(const KID id) noexcept
+{
+	if (!m_lights.contains(id)) return;
+	
+	for (auto& [sid, scene]: m_sceneObjects)
 	{
-		light->UpdateMatrices(camPos, camForward);
+		m_sceneObjects->DetachLight(id);
 	}
+	m_lights.erase(id);
 }
 
-void kfe::KFERenderQueue::Impl::AddDirectionalLight(KFEDirectionalLight * light) noexcept
+void kfe::KFERenderQueue::Impl::Update_Lights(float deltaTime)
 {
-	if (!light) return;
-	LOG_SUCCESS("ADDED LIGHT");
-	if (m_directionalLights.contains(light)) return;
-	m_directionalLights[light] = light;
-}
-
-void kfe::KFERenderQueue::Impl::RemoveDirectionalLight(KFEDirectionalLight* light) noexcept
-{
-	if (!light) return;
-	if (m_directionalLights.contains(light)) m_directionalLights.erase(light);
-}
-
-
-void kfe::KFERenderQueue::Impl::RenderShadowPass(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept
-{
+	for (auto& [id, light] : m_lights)
+	{
+		if (!light) continue;
+		light->Update(m_pCamera);
+	}
 }
 
 #pragma endregion

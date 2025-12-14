@@ -96,7 +96,6 @@ namespace kfe
 
         //~ update
         void Update(const KFECamera* camera);
-        virtual void UpdateLight(const KFECamera* camera) = 0;
 
         //~ gpu data
         NODISCARD KFE_LIGHT_DATA_DESC GetLightData() const;
@@ -190,6 +189,7 @@ namespace kfe
         std::string GetLightName() const;
 
     protected:
+        virtual void UpdateLight(const KFECamera* camera) = 0;
         static DirectX::XMVECTOR NormalizeSafe(DirectX::FXMVECTOR v) noexcept;
         static DirectX::XMVECTOR ChooseUpVector(DirectX::FXMVECTOR dir) noexcept;
 
