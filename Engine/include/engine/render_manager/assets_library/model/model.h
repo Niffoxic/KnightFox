@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <d3d12.h>
 
 #include "engine/render_manager/api/buffer/buffer.h"
 #include "engine/render_manager/api/buffer/constant_buffer.h"
@@ -415,7 +416,7 @@ namespace kfe
             m_bTextureDirty = false;
         }
 
-        bool BindTextureFromPath(KFEGraphicsCommandList* cmdList,
+        bool BindTextureFromPath(ID3D12GraphicsCommandList* cmdList,
             KFEDevice* device,
             KFEResourceHeap* heap) noexcept
         {
@@ -626,7 +627,7 @@ namespace kfe
         NODISCARD
         bool Initialize(const std::string&      path,
                         KFEDevice*              device,
-                        KFEGraphicsCommandList* cmdList,
+                        ID3D12GraphicsCommandList* cmdList,
                         KFEResourceHeap* heap) noexcept;
 
         void Reset  ()       noexcept;

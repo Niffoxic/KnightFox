@@ -55,22 +55,21 @@ PSInput main(VSInput input)
     PSInput output;
 
     float4 localPos  = float4(input.Position, 1.0f);
-    float4 worldPos4 = mul(gWorldMatrix, localPos);
-    float4 viewPos4  = mul(gViewMatrix, worldPos4);
-    float4 clipPos   = mul(gProjectionMatrix, viewPos4);
 
-    output.Position = clipPos;
+    float4 worldPos4 = mul(localPos,  gWorldMatrix);
+    float4 viewPos4  = mul(worldPos4, gViewMatrix);
+    float4 clipPos4  = mul(viewPos4,  gProjectionMatrix);
+
+    output.Position = clipPos4;
     output.WorldPos = worldPos4.xyz;
 
-    float3 N = mul(gWorldMatrix, float4(input.Normal,    0.0f)).xyz;
-    float3 T = mul(gWorldMatrix, float4(input.Tangent,   0.0f)).xyz;
-    float3 B = mul(gWorldMatrix, float4(input.Bitangent, 0.0f)).xyz;
+    float3x3 W = (float3x3)gWorldMatrix;
 
-    N = normalize(N);
+    float3 N = normalize(mul(input.Normal,  W));
+    float3 T = normalize(mul(input.Tangent, W));
 
-    T = normalize(T - N * dot(N, T));
-
-    B = normalize(cross(N, T));
+    T = normalize(T - N * dot(T, N));
+    float3 B = normalize(cross(N, T));
 
     output.WorldNormal  = N;
     output.WorldTangent = T;

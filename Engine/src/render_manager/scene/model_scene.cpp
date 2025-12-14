@@ -538,10 +538,10 @@ void kfe::KFEMeshSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
     }
 
     auto* cmdListObj = desc.CommandList;
-    if (!cmdListObj || !cmdListObj->GetNative())
+    if (!cmdListObj)
         return;
 
-    ID3D12GraphicsCommandList* cmdList = cmdListObj->GetNative();
+    ID3D12GraphicsCommandList* cmdList = cmdListObj;
 
     cmdList->SetPipelineState(m_pPipeline->GetNative());
     cmdList->SetGraphicsRootSignature(m_pPipeline->GetRootSignature());
@@ -1260,7 +1260,7 @@ void kfe::KFEMeshSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT
     auto* cv = static_cast<KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC*>(m_pCBV->GetMappedData());
     if (!cv) return;
 
-    cv->WorldMatrix = m_pObject->GetWorldMatrix();
+    cv->WorldMatrix = DirectX::XMMatrixTranspose(m_pObject->GetWorldMatrix());
     cv->ViewMatrix = desc.ViewMatrix;
     cv->ProjectionMatrix = desc.PerpectiveMatrix;
     cv->OrthogonalMatrix = desc.OrthographicMatrix;
@@ -1424,7 +1424,7 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
 
             if (auto* cv = static_cast<KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC*>(sm.CBView->GetMappedData()))
             {
-                cv->WorldMatrix = finalWorld;
+                cv->WorldMatrix = DirectX::XMMatrixTranspose(finalWorld);
             }
 
             cmdList->SetGraphicsRootConstantBufferView(

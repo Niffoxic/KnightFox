@@ -76,7 +76,7 @@ namespace kfe
     _Use_decl_annotations_
         bool KFEModel::Initialize(const std::string& path,
             KFEDevice* device,
-            KFEGraphicsCommandList* cmdList,
+            ID3D12GraphicsCommandList* cmdList,
             KFEResourceHeap* heap) noexcept
     {
         Reset();

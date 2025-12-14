@@ -120,7 +120,7 @@ bool KFEImagePool::IsInitialized() const noexcept
 _Use_decl_annotations_
 KFETextureSRV* KFEImagePool::GetImageSrv(
     const std::string& path,
-    KFEGraphicsCommandList* cmdList)
+    ID3D12GraphicsCommandList* cmdList)
 {
     if (!m_bInitialized)
     {
@@ -134,7 +134,7 @@ KFETextureSRV* KFEImagePool::GetImageSrv(
         return nullptr;
     }
 
-    if (!cmdList || !cmdList->GetNative())
+    if (!cmdList)
     {
         LOG_ERROR("KFEImagePool::GetImageSrv: Command list is null or has no native pointer.");
         return nullptr;
@@ -185,7 +185,7 @@ KFETexture* KFEImagePool::GetTexture(const std::string& path) noexcept
 }
 
 _Use_decl_annotations_
-bool KFEImagePool::Reload(const std::string& path, KFEGraphicsCommandList* cmdList)
+bool KFEImagePool::Reload(const std::string& path, ID3D12GraphicsCommandList* cmdList)
 {
     if (!m_bInitialized)
     {
@@ -193,7 +193,7 @@ bool KFEImagePool::Reload(const std::string& path, KFEGraphicsCommandList* cmdLi
         return false;
     }
 
-    if (!cmdList || !cmdList->GetNative())
+    if (!cmdList)
     {
         LOG_ERROR("KFEImagePool::Reload: Command list is null or has no native pointer.");
         return false;
@@ -265,7 +265,7 @@ std::size_t KFEImagePool::GetTextureCount() const noexcept
 _Use_decl_annotations_
 bool KFEImagePool::LoadTextureInternal(
     const std::string& path,
-    KFEGraphicsCommandList* cmdList,
+    ID3D12GraphicsCommandList* cmdList,
     TextureData& outData)
 {
     if (!m_pDevice || !m_pDevice->GetNative())
@@ -280,7 +280,7 @@ bool KFEImagePool::LoadTextureInternal(
         return false;
     }
 
-    if (!cmdList || !cmdList->GetNative())
+    if (!cmdList)
     {
         LOG_ERROR("KFEImagePool::LoadTextureInternal: Command list is null.");
         return false;
@@ -331,7 +331,7 @@ bool KFEImagePool::LoadTextureInternal(
 
     stbi_image_free(pixels);
 
-    ID3D12GraphicsCommandList* nativeCmd = cmdList->GetNative();
+    ID3D12GraphicsCommandList* nativeCmd = cmdList;
     if (!staging->RecordUploadToTexture(nativeCmd))
     {
         LOG_ERROR("KFEImagePool::LoadTextureInternal: RecordUploadToTexture failed for '{}'.", path);
@@ -517,7 +517,7 @@ bool KFEImagePool::GenerateMips(
     KFETexture* texture,
     std::uint32_t width,
     std::uint32_t height,
-    KFEGraphicsCommandList* cmdList)
+    ID3D12GraphicsCommandList* cmdList)
 {
     if (!texture || !texture->GetNative())
     {
@@ -525,7 +525,7 @@ bool KFEImagePool::GenerateMips(
         return false;
     }
 
-    if (!cmdList || !cmdList->GetNative())
+    if (!cmdList)
     {
         LOG_ERROR("KFEImagePool::GenerateMips: Command list is null.");
         return false;
@@ -551,7 +551,7 @@ bool KFEImagePool::GenerateMips(
         return true;
     }
 
-    ID3D12GraphicsCommandList* nativeCmd = cmdList->GetNative();
+    ID3D12GraphicsCommandList* nativeCmd = cmdList;
 
     // Bind descriptor heap
     ID3D12DescriptorHeap* heaps[] =

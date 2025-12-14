@@ -82,14 +82,14 @@ namespace kfe
 
     bool KFEMeshCache::BuildEntryGPU(
         KFEDevice* device,
-        KFEGraphicsCommandList* cmdList,
+        ID3D12GraphicsCommandList* cmdList,
         KFEResourceHeap* resourceHeap,
         const std::string& path,
         KFE_MESH_CACHE_ENTRY& entry) noexcept
     {
         (void)resourceHeap;
 
-        if (!device || !cmdList || !cmdList->GetNative())
+        if (!device || !cmdList)
         {
             LOG_ERROR("Invalid device/cmdList for '{}'", path);
             return false;
@@ -144,7 +144,7 @@ namespace kfe
         bool KFEMeshCache::GetOrCreate(
             const std::string& path,
             KFEDevice* device,
-            KFEGraphicsCommandList* cmdList,
+            ID3D12GraphicsCommandList* cmdList,
             KFEResourceHeap* resourceHeap,
             KFE_MESH_CACHE_SHARE*& outShare) noexcept
     {

@@ -290,7 +290,7 @@ void kfe::KFERenderQueue::Impl::BuildSceneObjects()
 
 		KFE_BUILD_OBJECT_DESC builder{};
 		builder.ComandQueue  = m_pCopyCommandQ.get();
-		builder.CommandList  = m_pCopyCommandList.get();
+		builder.CommandList  = m_pCopyCommandList->GetNative();
 		builder.Device		 = m_pDevice;
 		builder.Fence		 = m_pFence.Get();
 		builder.FenceValue   = m_nCopyFenceValue;
@@ -322,9 +322,9 @@ void kfe::KFERenderQueue::Impl::UpdateSceneObjects(float deltaTime)
 	updatter.CameraPosition		= m_pCamera->GetPosition();
 	updatter.ZFar				= m_pCamera->GetFarZ();
 	updatter.ZNear				= m_pCamera->GetNearZ();
-	updatter.OrthographicMatrix = m_pCamera->GetOrthographicMatrix();
-	updatter.PerpectiveMatrix	= m_pCamera->GetPerspectiveMatrix();
-	updatter.ViewMatrix			= m_pCamera->GetViewMatrix();
+	updatter.OrthographicMatrix = DirectX::XMMatrixTranspose(m_pCamera->GetOrthographicMatrix());
+	updatter.PerpectiveMatrix	= DirectX::XMMatrixTranspose(m_pCamera->GetPerspectiveMatrix());
+	updatter.ViewMatrix			= DirectX::XMMatrixTranspose(m_pCamera->GetViewMatrix());
 
 	updatter.deltaTime = deltaTime;
 

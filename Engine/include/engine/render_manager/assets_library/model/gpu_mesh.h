@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <d3d12.h>
 
 namespace kfe
 {
@@ -31,7 +32,7 @@ namespace kfe
     struct KFE_GPU_MESH_BUILD_DESC
     {
         KFEDevice* Device = nullptr;
-        KFEGraphicsCommandList* CommandList = nullptr;
+        ID3D12GraphicsCommandList* CommandList = nullptr;
         const KFEMeshGeometry* Geometry = nullptr;
         const char* DebugName = nullptr;
     };

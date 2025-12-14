@@ -176,7 +176,6 @@ public:
     void Render    (_In_ const KFE_RENDER_OBJECT_DESC& desc);
     void ShadowPass(_In_ const KFE_RENDER_OBJECT_DESC& desc);
 
-
     // Shader path setters
     void SetVertexShaderPath(const std::string& path) noexcept;
     void SetPixelShaderPath(const std::string& path) noexcept;
@@ -204,7 +203,7 @@ private:
     bool BuildRootSignature (_In_ const KFE_BUILD_OBJECT_DESC& desc);
     bool BuildPipeline      (KFEDevice* device);
     bool BuildSampler       (_In_ const KFE_BUILD_OBJECT_DESC& desc);
-    bool BindTextureFromPath(KFEGraphicsCommandList* cmdList);
+    bool BindTextureFromPath(ID3D12GraphicsCommandList* cmdList);
 
     void UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc);
 
@@ -672,10 +671,10 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
     }
 
     auto* cmdListObj = desc.CommandList;
-    if (!cmdListObj || !cmdListObj->GetNative())
+    if (!cmdListObj)
         return;
 
-    ID3D12GraphicsCommandList* cmdList = cmdListObj->GetNative();
+    ID3D12GraphicsCommandList* cmdList = cmdListObj;
 
     cmdList->SetPipelineState(m_pPipeline->GetNative());
     cmdList->SetGraphicsRootSignature(m_pPipeline->GetRootSignature());
@@ -778,10 +777,10 @@ _Use_decl_annotations_
 void kfe::KEFCubeSceneObject::Impl::ShadowPass(const KFE_RENDER_OBJECT_DESC& desc)
 {
     auto* cmdListObj = desc.CommandList;
-    if (!cmdListObj || !cmdListObj->GetNative())
+    if (!cmdListObj)
         return;
 
-    ID3D12GraphicsCommandList* cmdList = cmdListObj->GetNative();
+    ID3D12GraphicsCommandList* cmdList = cmdListObj;
 
     if (!m_pShadowPipeline || !m_pShadowPipeline->GetNative())
     {
@@ -875,7 +874,7 @@ bool kfe::KEFCubeSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
     }
 
     if (!m_pVBStaging->RecordUploadToDefault(
-        desc.CommandList->GetNative(),
+        desc.CommandList,
         vbSize, 0u, 0u))
     {
         LOG_ERROR("Failed to Record: Vertex Stagging Buffer!");
@@ -901,7 +900,7 @@ bool kfe::KEFCubeSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
     }
 
     if (!m_pIBStaging->RecordUploadToDefault(
-        desc.CommandList->GetNative(),
+        desc.CommandList,
         ibSize, 0u, 0u))
     {
         LOG_ERROR("Failed to Record: Index Stagging Buffer!");
@@ -938,7 +937,7 @@ bool kfe::KEFCubeSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
     barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
     barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_INDEX_BUFFER;
 
-    auto* cmdList = desc.CommandList->GetNative();
+    auto* cmdList = desc.CommandList;
     cmdList->ResourceBarrier(2u, barriers);
 
     m_pVertexView = std::make_unique<KFEVertexBuffer>();
@@ -1512,7 +1511,7 @@ bool kfe::KEFCubeSceneObject::Impl::BuildSampler(const KFE_BUILD_OBJECT_DESC& de
     return true;
 }
 
-bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(KFEGraphicsCommandList* cmdList)
+bool kfe::KEFCubeSceneObject::Impl::BindTextureFromPath(ID3D12GraphicsCommandList* cmdList)
 {
     //~ No textures need updating
     if (!m_bTextureDirty)
@@ -1647,7 +1646,7 @@ void kfe::KEFCubeSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT
     auto* cv = static_cast<KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC*>(m_pCBV->GetMappedData());
     if (!cv) return;
 
-    cv->WorldMatrix = m_pObject->GetWorldMatrix();
+    cv->WorldMatrix = DirectX::XMMatrixTranspose(m_pObject->GetWorldMatrix());
     cv->ViewMatrix = desc.ViewMatrix;
     cv->ProjectionMatrix = desc.PerpectiveMatrix;
     cv->OrthogonalMatrix = desc.OrthographicMatrix;
@@ -1798,8 +1797,6 @@ std::vector<std::uint16_t> kfe::KEFCubeSceneObject::Impl::GetIndices() const noe
 void kfe::KEFCubeSceneObject::Impl::BindShadowMapSRV(KFEResourceHeap* heap,
     KFEShadowMap* shadowMap) noexcept
 {
-    static bool test = false;
-    if (test) return;
     if (!heap || !shadowMap)
         return;
 
@@ -1820,7 +1817,6 @@ void kfe::KEFCubeSceneObject::Impl::BindShadowMapSRV(KFEResourceHeap* heap,
         dstCpu,
         srcCpu,
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    test = true;
 }
 
 void kfe::KEFCubeSceneObject::Impl::SetVertexShaderPath(const std::string& path) noexcept

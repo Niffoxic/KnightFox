@@ -22,6 +22,7 @@
 #include <memory>
 
 struct ID3D12Fence;
+struct ID3D12GraphicsCommandList;
 
 namespace kfe 
 {
@@ -52,7 +53,7 @@ namespace kfe
 	{
 		ID3D12Fence*			pFence;
 		std::uint64_t			FenceValue;
-		KFEGraphicsCommandList* GraphicsCommandList;
+		ID3D12GraphicsCommandList* GraphicsCommandList;
 		KFEShadowMap*			ShadowMap;
 	} KFE_RENDER_QUEUE_RENDER_DESC;
 

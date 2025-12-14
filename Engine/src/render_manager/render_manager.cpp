@@ -465,7 +465,7 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 
 	KFE_RENDER_QUEUE_RENDER_DESC render{};
 	render.FenceValue			= m_nFenceValue;
-	render.GraphicsCommandList	= m_pGfxList.get();
+	render.GraphicsCommandList	= cmdList;
 	render.pFence				= m_pFence.Get();
 	render.ShadowMap			= m_pShadowMap.get();
 	KFERenderQueue::Instance().RenderSceneObject(render);
@@ -937,7 +937,7 @@ void kfe::KFERenderManager::Impl::RenderShadowPass(ID3D12GraphicsCommandList* cm
 
 	KFE_RENDER_QUEUE_RENDER_DESC shadow{};
 	shadow.FenceValue			= m_nFenceValue;
-	shadow.GraphicsCommandList	= m_pGfxList.get();
+	shadow.GraphicsCommandList	= cmdList;
 	shadow.pFence				= m_pFence.Get();
 	shadow.ShadowMap			= nullptr;
 

@@ -49,25 +49,30 @@ struct PSInput
 
 PSInput main(VSInput input)
 {
-    PSInput output;
+    PSInput o;
 
-    float4 worldPos4 = mul(gWorldMatrix, float4(input.Position, 1.0f));
-    float4 viewPos4  = mul(gViewMatrix, worldPos4);
-    float4 clipPos   = mul(gProjectionMatrix, viewPos4);
+    float4 localPos  = float4(input.Position, 1.0f);
 
-    output.Position = clipPos;
-    output.WorldPos = worldPos4.xyz;
+    float4 worldPos4 = mul(localPos, gWorldMatrix);
+    o.WorldPos = worldPos4.xyz;
 
-    float3 worldNormal    = mul(gWorldMatrix, float4(input.Normal,    0.0f)).xyz;
-    float3 worldTangent   = mul(gWorldMatrix, float4(input.Tangent,   0.0f)).xyz;
-    float3 worldBitangent = mul(gWorldMatrix, float4(input.Bitangent, 0.0f)).xyz;
+    float4 viewPos4  = mul(worldPos4, gViewMatrix);
+    o.Position        = mul(viewPos4, gProjectionMatrix);
 
-    output.Normal    = normalize(worldNormal);
-    output.Tangent   = normalize(worldTangent);
-    output.Bitangent = normalize(worldBitangent);
+    float3x3 W = (float3x3)gWorldMatrix;
 
-    output.TexCoord = input.TexCoord;
-    output.Color    = input.Color;
+    float3 N = normalize(mul(input.Normal,  W));
+    float3 T = normalize(mul(input.Tangent, W));
 
-    return output;
+    T = normalize(T - N * dot(T, N));
+    float3 B = normalize(cross(N, T));
+
+    o.Normal    = N;
+    o.Tangent   = T;
+    o.Bitangent = B;
+
+    o.TexCoord = input.TexCoord;
+    o.Color    = input.Color;
+
+    return o;
 }

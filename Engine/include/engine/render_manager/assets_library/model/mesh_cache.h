@@ -21,7 +21,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
+#include <d3d12.h>
 namespace kfe
 {
     class KFEDevice;
@@ -77,7 +77,7 @@ namespace kfe
         _Use_decl_annotations_
         bool GetOrCreate(const std::string& path,
             KFEDevice* device,
-            KFEGraphicsCommandList* cmdList,
+            ID3D12GraphicsCommandList* cmdList,
             KFEResourceHeap* resourceHeap,
             KFE_MESH_CACHE_SHARE*& outShare) noexcept;
 
@@ -89,7 +89,7 @@ namespace kfe
             KFE_MESH_CACHE_ENTRY& entry) noexcept;
 
         bool BuildEntryGPU(KFEDevice* device,
-            KFEGraphicsCommandList* cmdList,
+            ID3D12GraphicsCommandList* cmdList,
             KFEResourceHeap* resourceHeap,
             const std::string& path,
             KFE_MESH_CACHE_ENTRY& entry) noexcept;

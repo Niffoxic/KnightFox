@@ -121,7 +121,7 @@ namespace kfe
         const std::uint32_t ibSize =
             static_cast<std::uint32_t>(indices.size() * sizeof(std::uint32_t));
 
-        auto* cmdListNative = desc.CommandList->GetNative();
+        auto* cmdListNative = desc.CommandList;
         if (!cmdListNative)
         {
             LOG_ERROR("KFEGpuMesh::Build: CommandList native pointer is null");

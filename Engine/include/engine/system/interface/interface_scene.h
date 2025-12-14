@@ -76,14 +76,14 @@ namespace kfe
         ID3D12Fence*            Fence;
         std::uint64_t           FenceValue;
         KFEGraphicsCmdQ*        ComandQueue;
-        KFEGraphicsCommandList* CommandList;
+        ID3D12GraphicsCommandList* CommandList;
         KFEResourceHeap*        ResourceHeap;
         KFESamplerHeap*         SamplerHeap;
     } KFE_BUILD_OBJECT_DESC;
 
     typedef struct _KFE_RENDER_OBJECT_DESC
     {
-        KFEGraphicsCommandList* CommandList;
+        ID3D12GraphicsCommandList* CommandList;
         ID3D12Fence*            Fence;
         std::uint64_t           FenceValue;
         KFEShadowMap*           ShadowMap;

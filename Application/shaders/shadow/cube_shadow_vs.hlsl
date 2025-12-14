@@ -66,7 +66,7 @@ VSOutput main(VSInput input)
 {
     VSOutput o;
 
-    float4 worldPos = mul(float4(input.Position, 1.0f), gWorldMatrix);
-    o.Position      = mul(worldPos, gDirLight_LightViewProj);
+    float4 worldPos = mul(gWorldMatrix, float4(input.Position, 1.0f));
+    o.Position      = mul(gDirLight_LightViewProj, worldPos);
     return o;
 }

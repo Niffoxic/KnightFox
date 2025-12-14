@@ -17,6 +17,7 @@
 
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
+struct ID3D12GraphicsCommandList;
 
 namespace kfe
 {
@@ -59,14 +60,14 @@ namespace kfe
 
         NODISCARD KFETextureSRV* GetImageSrv(
             _In_ const std::string& path,
-            _In_ KFEGraphicsCommandList* cmdList);
+            _In_ ID3D12GraphicsCommandList* cmdList);
 
         NODISCARD KFETexture* GetTexture(
             _In_ const std::string& path) noexcept;
 
         NODISCARD bool Reload(
             _In_ const std::string& path,
-            _In_ KFEGraphicsCommandList* cmdList);
+            _In_ ID3D12GraphicsCommandList* cmdList);
 
         void Clear() noexcept;
         NODISCARD std::size_t GetTextureCount() const noexcept;
@@ -74,7 +75,7 @@ namespace kfe
     private:
         bool LoadTextureInternal(
             _In_ const std::string& path,
-            _In_ KFEGraphicsCommandList* cmdList,
+            _In_ ID3D12GraphicsCommandList* cmdList,
             _Inout_ TextureData& outData);
 
         // Mip generation
@@ -83,7 +84,7 @@ namespace kfe
             _In_ KFETexture* texture,
             _In_ std::uint32_t width,
             _In_ std::uint32_t height,
-            _In_ KFEGraphicsCommandList* cmdList);
+            _In_ ID3D12GraphicsCommandList* cmdList);
 
     private:
         std::unordered_map<std::string, TextureData> m_imagePool{};

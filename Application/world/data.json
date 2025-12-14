@@ -4,9 +4,9 @@
 		"Data": {
 			"Transformation": {
 				"Position": {
-					"x": "1.600000",
-					"y": "0.000000",
-					"z": "0.000000"
+					"x": "-2.600000",
+					"y": "0.900000",
+					"z": "-1.000000"
 				},
 				"Scale": {
 					"x": "1.000000",
@@ -17,7 +17,7 @@
 					"x": "0.000000",
 					"y": "0.000000",
 					"z": "0.000000",
-					"w": "1.000000"
+					"w": "0.000000"
 				}
 			},
 			"Properties": {
@@ -81,9 +81,9 @@
 		"Data": {
 			"Transformation": {
 				"Position": {
-					"x": "0.000000",
+					"x": "-4.100000",
 					"y": "0.000000",
-					"z": "0.000000"
+					"z": "-3.800000"
 				},
 				"Scale": {
 					"x": "1.000000",
@@ -650,9 +650,9 @@
 		"Data": {
 			"Transformation": {
 				"Position": {
-					"x": "0.000000",
+					"x": "-3.200000",
 					"y": "-1.000000",
-					"z": "0.000000"
+					"z": "-2.800000"
 				},
 				"Scale": {
 					"x": "10.000000",
@@ -721,5 +721,82 @@
 		},
 		"Type": "KEFCubeSceneObject",
 		"Name": "ground"
+	},
+	"50": {
+		"ID": "50",
+		"Data": {
+			"Transformation": {
+				"Position": {
+					"x": "-2.200000",
+					"y": "0.000000",
+					"z": "-4.700000"
+				},
+				"Scale": {
+					"x": "1.000000",
+					"y": "1.000000",
+					"z": "1.000000"
+				},
+				"Orientation": {
+					"x": "0.009647",
+					"y": "0.000000",
+					"z": "-0.263341",
+					"w": "0.964655"
+				}
+			},
+			"Properties": {
+				"PixelShader": "shaders/cube/pixel.hlsl",
+				"CullMode": "None",
+				"VertexShader": "shaders/cube/vertex.hlsl",
+				"MainTexturePath": "",
+				"GeometryShader": "",
+				"DomainShader": "",
+				"DrawMode": "Triangle",
+				"HullShader": "",
+				"ComputeShader": "",
+				"SecondaryTexturePath": "",
+				"NormalMapPath": "",
+				"SpecularMapPath": "",
+				"HeightMapPath": "",
+				"TexturePath": "",
+				"TextureMeta": {
+					"Specular": {
+						"IsTextureAttached": "0.000000",
+						"SpecularIntensity": "1.000000",
+						"RoughnessMultiplier": "1.000000",
+						"MetalnessMultiplier": "1.000000"
+					},
+					"Main": {
+						"UvTilingY": "1.000000",
+						"IsTextureAttached": "0.000000",
+						"LerpToSecondary": "0.000000",
+						"UvTilingX": "1.000000"
+					},
+					"Secondary": {
+						"UvTilingY": "1.000000",
+						"IsTextureAttached": "0.000000",
+						"UvTilingX": "1.000000",
+						"BlendFactor": "1.000000"
+					},
+					"Height": {
+						"ParallaxMinLayers": "8.000000",
+						"HeightScale": "0.050000",
+						"IsTextureAttached": "0.000000",
+						"ParallaxMaxLayers": "32.000000"
+					},
+					"Normal": {
+						"UvTilingY": "1.000000",
+						"IsTextureAttached": "0.000000",
+						"UvTilingX": "1.000000",
+						"NormalStrength": "1.000000"
+					},
+					"MipDebug": {
+						"ForcedMipLevel": "0.000000",
+						"UseForcedMip": "0.000000"
+					}
+				}
+			}
+		},
+		"Type": "KEFCubeSceneObject",
+		"Name": "No Name Given"
 	}
 }

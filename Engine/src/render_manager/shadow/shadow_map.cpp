@@ -98,14 +98,14 @@ namespace kfe
         tex.Height = m_height;
         tex.DepthOrArraySize = 1;
         tex.MipLevels = 1;
-        tex.Format = m_depthFormat; //~ DXGI_FORMAT_D32_FLOAT
+        tex.Format = DXGI_FORMAT_R32_TYPELESS;
         tex.SampleDesc.Count = 1;
         tex.SampleDesc.Quality = 0;
         tex.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         tex.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
         D3D12_CLEAR_VALUE clear{};
-        clear.Format = m_depthFormat;
+        clear.Format = DXGI_FORMAT_D32_FLOAT;
         clear.DepthStencil.Depth = 1.0f;
         clear.DepthStencil.Stencil = 0;
 
@@ -149,7 +149,7 @@ namespace kfe
         }
 
         D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
-        dsvDesc.Format = m_depthFormat; //~ DXGI_FORMAT_D32_FLOAT
+        dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
         dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
         dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
         dsvDesc.Texture2D.MipSlice = 0;
@@ -174,7 +174,7 @@ namespace kfe
         }
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-        srvDesc.Format = m_srvFormat; //~ DXGI_FORMAT_R32_FLOAT
+        srvDesc.Format = DXGI_FORMAT_R32_FLOAT; 
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
         srvDesc.Texture2D.MostDetailedMip = 0;
