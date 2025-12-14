@@ -79,6 +79,14 @@ namespace kfe
             std::uint64_t                   srcOffsetBytes = 0u,
             std::uint64_t                   dstOffsetBytes = 0u) const noexcept;
 
+        NODISCARD bool RecordUploadToDefaultWithBarriers(
+            ID3D12GraphicsCommandList* cmdList,
+            std::uint64_t numBytes,
+            std::uint64_t srcOffsetBytes,
+            std::uint64_t dstOffsetBytes,
+            D3D12_RESOURCE_STATES before,
+            D3D12_RESOURCE_STATES after) const noexcept;
+
     private:
         class Impl;
         std::unique_ptr<Impl> m_impl;
