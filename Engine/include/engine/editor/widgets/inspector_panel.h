@@ -22,6 +22,7 @@ namespace kfe
 {
     class KFEWorld;
     class IKFESceneObject;
+    class IKFELight;
 
     class KFE_API KFEInspectorPanel
     {
@@ -54,12 +55,15 @@ namespace kfe
 
     private:
         void SyncSelection(const std::vector<IKFESceneObject*>& objects);
+        void SyncLightSelection(const std::vector<IKFELight*>& lights);
         void DrawScenesSection(float deltaTime, const std::vector<IKFESceneObject*>& objects);
         void DrawScenesObjectList(const std::vector<IKFESceneObject*>& objects);
         void DrawSelectedObjectInspector(float deltaTime);
-        void DrawLightsSection();
+        void DrawLightsSection(float deltaTime, const std::vector<IKFELight*>& lights);
         void DrawPostProcessingSection();
-
+        std::string BuildLightLabel(
+            IKFELight* light,
+            std::size_t index);
         static std::string BuildObjectLabel(IKFESceneObject* obj, std::size_t index);
 
     private:
@@ -67,5 +71,6 @@ namespace kfe
         bool             m_visible  { false };
         KFEWorld*        m_pWorld   { nullptr };
         IKFESceneObject* m_pSelected{ nullptr };
+        IKFELight*       m_pSelectedLight = nullptr;
     };
 } // namespace kfe

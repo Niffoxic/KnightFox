@@ -403,6 +403,7 @@ void kfe::KFERenderQueue::Impl::AddLight(IKFELight* light) noexcept
 	KID id = light->GetAssignedKey();
 	if (m_lights.contains(id)) return;
 	m_lights[id] = light;
+	LOG_INFO("Lighted Added to the render queue");
 }
 
 void kfe::KFERenderQueue::Impl::RemoveLight(IKFELight* light) noexcept

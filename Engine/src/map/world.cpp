@@ -178,8 +178,10 @@ namespace kfe
 
         KFERenderQueue::Instance().AddLight(light.get());
 
+        std::string type = light->GetLightTypeName();
         m_lights[id] = std::move(light);
         m_lightViewDirty = true;
+        LOG_INFO("Added Light: {}, type=", id, type);
     }
 
     void KFEWorld::AddLight(const std::string& lightName)

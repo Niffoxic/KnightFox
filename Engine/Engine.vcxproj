@@ -213,6 +213,7 @@
     <ClInclude Include="include\engine\render_manager\light\point_light.h" />
     <ClInclude Include="include\engine\render_manager\light\spot_light.h" />
     <ClInclude Include="include\engine\render_manager\scene\cube_scene.h" />
+    <ClInclude Include="include\engine\render_manager\scene\model_scene.h" />
     <ClInclude Include="include\engine\render_manager\scene\scene_types.h" />
     <ClInclude Include="include\engine\render_manager\shadow\shadow_map.h" />
     <ClInclude Include="include\engine\system\interface\interface_light.h" />
@@ -309,6 +310,7 @@
     <ClCompile Include="src\render_manager\light\point_light.cpp" />
     <ClCompile Include="src\render_manager\light\spot_light.cpp" />
     <ClCompile Include="src\render_manager\scene\cube_scene.cpp" />
+    <ClCompile Include="src\render_manager\scene\model_scene.cpp" />
     <ClCompile Include="src\render_manager\shadow\shadow_map.cpp" />
     <ClCompile Include="src\system\interface\interface_light.cpp" />
     <ClCompile Include="src\system\interface\interface_scene.cpp" />

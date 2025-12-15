@@ -31,6 +31,7 @@
 #include "engine/render_manager/api/texture/texture_srv.h"
 #include "engine/render_manager/assets_library/texture_library.h"
 #include "engine/utils/helpers.h"
+#include "engine/render_manager/api/frame_cb.h"
 
 namespace kfe
 {
@@ -354,13 +355,11 @@ namespace kfe
 
     struct KFEModelSubmesh
     {
-        std::string Name{};
-        std::uint32_t                      CacheMeshIndex = 0u;
-        std::unique_ptr<KFEBuffer>         ConstantBuffer{ nullptr };
-        std::unique_ptr<KFEConstantBuffer> CBView{ nullptr };
+        std::string   Name{};
+        std::uint32_t CacheMeshIndex = 0u;
 
-        std::unique_ptr<KFEBuffer>         MetaCB{ nullptr };
-        std::unique_ptr<KFEConstantBuffer> MetaCBView{ nullptr };
+        KFEFrameConstantBuffer ConstantBuffer    {};
+        KFEFrameConstantBuffer MetaConstantBuffer{};
         bool m_bMetaDirty{ true };
 
         ModelTextureMetaInformation m_textureMetaInformation{};
@@ -430,7 +429,7 @@ namespace kfe
             {
                 if (d.ReservedSlot != KFE_INVALID_INDEX)
                 {
-                    heap->Free(d.ReservedSlot);
+                    (void)heap->Free(d.ReservedSlot);
                     d.ReservedSlot = KFE_INVALID_INDEX;
                 }
 

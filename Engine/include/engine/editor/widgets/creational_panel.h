@@ -42,12 +42,6 @@ namespace kfe
 
         struct Config
         {
-            // Keys:
-            //  - "icon.object"
-            //  - "icon.favorite_on"
-            //  - "icon.favorite_off"
-            //  - "icon.create"
-            //  - "icon.clear"
             std::unordered_map<std::string, ImTextureID> icons;
         };
 
@@ -79,6 +73,7 @@ namespace kfe
 
         struct Icons
         {
+            ImTextureID light{};
             ImTextureID object{ 0ull };
             ImTextureID favOn{ 0ull };
             ImTextureID favOff{ 0ull };

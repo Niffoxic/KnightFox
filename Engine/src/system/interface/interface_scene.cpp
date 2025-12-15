@@ -580,7 +580,25 @@ bool kfe::IKFESceneObject::InitMainPipeline(KFEDevice* device)
     D3D12_RASTERIZER_DESC raster{};
     raster.FillMode = D3D12_FILL_MODE_SOLID;
 
-    raster.CullMode = static_cast<D3D12_CULL_MODE>(Draw.CullMode);
+    switch (Draw.CullMode)
+    {
+    case ECullMode::None:
+        raster.CullMode = D3D12_CULL_MODE_NONE;
+        break;
+
+    case ECullMode::Front:
+        raster.CullMode = D3D12_CULL_MODE_FRONT;
+        break;
+
+    case ECullMode::Back:
+        raster.CullMode = D3D12_CULL_MODE_BACK;
+        break;
+
+    default:
+        raster.CullMode = D3D12_CULL_MODE_BACK;
+        break;
+    }
+
     raster.FrontCounterClockwise = FALSE;
     raster.DepthClipEnable = TRUE;
     raster.MultisampleEnable = FALSE;

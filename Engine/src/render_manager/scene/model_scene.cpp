@@ -48,13 +48,15 @@
 #include <unordered_set>
 #include <array>
 
+#include "engine/render_manager/api/frame_cb.h"
+#include "engine/render_manager/shadow/shadow_map.h"
 
 static void UpdateMetaCB(_Inout_ kfe::KFEModelSubmesh& sm) noexcept
 {
-    if (!sm.MetaCBView)
+    if (!sm.MetaConstantBuffer.IsInitialized())
         return;
 
-    auto* dst = static_cast<kfe::ModelTextureMetaInformation*>(sm.MetaCBView->GetMappedData());
+    auto* dst = static_cast<kfe::ModelTextureMetaInformation*>(sm.MetaConstantBuffer.GetMappedData());
     if (!dst)
         return;
 
@@ -90,13 +92,13 @@ public:
     void       LoadChildMetaInformation(const JsonLoader& loader) noexcept;
     void       LoadChildTextureInformation(const JsonLoader& loader) noexcept;
 
+    void ImguiViewHeader(float deltaTime);
     void ImguiView                (float deltaTime);
     void ImguiChildTransformation (float deltaTime);
     void ImguiTextureMetaConfig   (float deltaTime);
 
 private:
     bool BuildGeometry      (_In_ const KFE_BUILD_OBJECT_DESC& desc);
-    bool BuildConstantBuffer(_In_ const KFE_BUILD_OBJECT_DESC& desc);
 
     //~ Build Constant buffer for submeshes
     void ApplyChildTransformationsFromCache() noexcept;
@@ -107,7 +109,6 @@ private:
     void CacheNodeMeshesRecursive(const KFEModelNode& node) noexcept;
 
     //~ Constant buffer updates
-    void UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc);
     void UpdateSubmeshConstantBuffers(const KFE_UPDATE_OBJECT_DESC& desc);
     void UpdateCBDataForNodeMeshes(const KFEModelNode& node) noexcept;
 
@@ -118,33 +119,26 @@ private:
         const DirectX::XMMATRIX& parentWorld);
 
 public:
-
-    bool      m_bPipelineDirty  { false };
-    bool      m_bTextureDirty   { true };
-    bool      m_bModelDirty     { true };
-    bool      m_bMetaDirty      { true };
+    bool      m_bTextureDirty{ true };
+    bool      m_bModelDirty  { true };
+    bool      m_bMetaDirty   { true };
 
 private:
     KFEMeshSceneObject* m_pObject{ nullptr };
     float               m_nTimeLived{ 0.0f };
     bool                m_bBuild{ false };
 
-    //~ Shaders
-
     //~ Constant buffers
-    std::unique_ptr<KFEBuffer>         m_pCBBuffer{ nullptr };
-    std::unique_ptr<KFEConstantBuffer> m_pCBV     { nullptr };
-
-    std::unique_ptr<KFEBuffer>         m_pMetaBuffer{ nullptr };
-    std::unique_ptr<KFEConstantBuffer> m_pMetaCBV{ nullptr };
+    KFEFrameConstantBuffer m_metaFrameCB{};
 
     //~ Pipeline
-    KFEDevice*                        m_pDevice  { nullptr };
+    KFEDevice*       m_pDevice      { nullptr };
+    KFEResourceHeap* m_pResourceHeap{ nullptr };
 
     //~ Model
     KFEModel    m_mesh     {};
-    std::string m_modelPath{ "assets/3d/blacksmith/source/BS_Final_Apose_Sketchfab.fbx" };
-    std::unordered_map<std::uint32_t, KFE_COMMON_CB_GPU> m_cbData     {};
+    std::string m_modelPath{ "" };
+    std::unordered_map<std::uint32_t, KFE_COMMON_CB_GPU>                   m_cbData{};
     std::unordered_map<std::uint32_t, DirectX::XMFLOAT4X4>                 m_cbTransLazy{};
     std::unordered_map<std::uint32_t, ModelTextureMetaInformation>         m_cbMetaLazy{};
     std::unordered_map<std::uint32_t, std::array<std::string, (size_t)EModelTextureSlot::Count>> m_cbTexLazy;
@@ -169,9 +163,6 @@ kfe::KFEMeshSceneObject::KFEMeshSceneObject()
 
 kfe::KFEMeshSceneObject::~KFEMeshSceneObject() = default;
 
-kfe::KFEMeshSceneObject::KFEMeshSceneObject(KFEMeshSceneObject&&) = default;
-kfe::KFEMeshSceneObject& kfe::KFEMeshSceneObject::operator=(KFEMeshSceneObject&&) = default;
-
 std::string kfe::KFEMeshSceneObject::GetName() const noexcept
 {
     return "KFEMeshSceneObject";
@@ -182,34 +173,36 @@ std::string kfe::KFEMeshSceneObject::GetDescription() const noexcept
     return "A Mesh Object that can be used for rendering debug cube for colliders";
 }
 
-void kfe::KFEMeshSceneObject::Update(const KFE_UPDATE_OBJECT_DESC& desc)
+void kfe::KFEMeshSceneObject::ChildMainPass(const KFE_RENDER_OBJECT_DESC& desc)
+{
+    m_impl->Render(desc);
+}
+
+void kfe::KFEMeshSceneObject::ChildShadowPass(const KFE_RENDER_OBJECT_DESC& desc)
+{
+}
+
+void kfe::KFEMeshSceneObject::ChildUpdate(const KFE_UPDATE_OBJECT_DESC& desc)
 {
     m_impl->Update(desc);
 }
 
 _Use_decl_annotations_
-bool kfe::KFEMeshSceneObject::BuildChild(const KFE_BUILD_OBJECT_DESC& desc)
+bool kfe::KFEMeshSceneObject::ChildBuild(const KFE_BUILD_OBJECT_DESC& desc)
 {
     if (m_impl->Build(desc))
     {
-        m_bInitialized = true;
         return true;
     }
     return false;
 }
 
-bool kfe::KFEMeshSceneObject::Destroy()
+bool kfe::KFEMeshSceneObject::ChildDestroy()
 {
     return m_impl->Destroy();
 }
 
-_Use_decl_annotations_
-void kfe::KFEMeshSceneObject::Render(const KFE_RENDER_OBJECT_DESC& desc)
-{
-    m_impl->Render(desc);
-}
-
-void kfe::KFEMeshSceneObject::ImguiView(float deltaTime)
+void kfe::KFEMeshSceneObject::ChildImguiViewHeader(float deltaTime)
 {
     if (ImGui::CollapsingHeader("Object", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -225,144 +218,24 @@ void kfe::KFEMeshSceneObject::ImguiView(float deltaTime)
         {
             SetObjectName(std::string{ nameBuf });
         }
-    }
 
+        m_impl->ImguiViewHeader(deltaTime);
+    }
+}
+
+void kfe::KFEMeshSceneObject::ChildImguiViewBody(float deltaTime)
+{
     m_impl->ImguiView(deltaTime);
-    ImguiTransformView(deltaTime);
 }
 
-void kfe::KFEMeshSceneObject::SetCullMode(const ECullMode mode)
+JsonLoader kfe::KFEMeshSceneObject::ChildGetJsonData() const
 {
-    if (!m_impl) return;
-    m_impl->m_cullMode = mode;
-    m_impl->m_bPipelineDirty = true;
+    return m_impl->GetJsonData();
 }
 
-void kfe::KFEMeshSceneObject::SetCullMode(const std::string& mode)
+void kfe::KFEMeshSceneObject::ChildLoadFromJson(const JsonLoader& loader)
 {
-    if (!m_impl) return;
-    m_impl->m_cullMode = FromStringToCull(mode);
-    m_impl->m_bPipelineDirty = true;
-}
-
-void kfe::KFEMeshSceneObject::SetDrawMode(const EDrawMode mode)
-{
-    if (!m_impl) return;
-    m_impl->m_drawMode = mode;
-    m_impl->m_bPipelineDirty = true;
-}
-
-void kfe::KFEMeshSceneObject::SetDrawMode(const std::string& mode)
-{
-    if (!m_impl) return;
-    m_impl->m_drawMode = FromStringToDraw(mode);
-    m_impl->m_bPipelineDirty = true;
-}
-
-kfe::ECullMode kfe::KFEMeshSceneObject::GetCullMode() const
-{
-    return m_impl ? m_impl->m_cullMode : ECullMode::Back;
-}
-
-std::string kfe::KFEMeshSceneObject::GetCullModeString() const
-{
-    return m_impl ? ToString(m_impl->m_cullMode) : "Back";
-}
-
-kfe::EDrawMode kfe::KFEMeshSceneObject::GetDrawMode() const
-{
-    return m_impl ? m_impl->m_drawMode : EDrawMode::Triangle;
-}
-
-std::string kfe::KFEMeshSceneObject::GetDrawModeString() const
-{
-    return m_impl ? ToString(m_impl->m_drawMode) : "Triangle";
-}
-
-void kfe::KFEMeshSceneObject::SetVertexShader(const std::string& path)
-{
-    if (!m_impl) return;
-    m_impl->SetVertexShaderPath(path);
-}
-
-std::string kfe::KFEMeshSceneObject::VertexShader() const
-{
-    return m_impl ? m_impl->GetVertexShaderPath() : std::string{};
-}
-
-void kfe::KFEMeshSceneObject::SetPixelShader(const std::string& path)
-{
-    if (!m_impl) return;
-    m_impl->SetPixelShaderPath(path);
-}
-
-std::string kfe::KFEMeshSceneObject::PixelShader() const
-{
-    return m_impl ? m_impl->GetPixelShaderPath() : std::string{};
-}
-
-void kfe::KFEMeshSceneObject::SetGeometryShader(const std::string& path)
-{
-    if (!m_impl) return;
-    m_impl->SetGeometryShaderPath(path);
-}
-
-std::string kfe::KFEMeshSceneObject::GeometryShader() const
-{
-    return m_impl ? m_impl->GetGeometryShaderPath() : std::string{};
-}
-
-void kfe::KFEMeshSceneObject::SetHullShader(const std::string& path)
-{
-    if (!m_impl) return;
-    m_impl->SetHullShaderPath(path);
-}
-
-std::string kfe::KFEMeshSceneObject::HullShader() const
-{
-    return m_impl ? m_impl->GetHullShaderPath() : std::string{};
-}
-
-void kfe::KFEMeshSceneObject::SetDomainShader(const std::string& path)
-{
-    if (!m_impl) return;
-    m_impl->SetDomainShaderPath(path);
-}
-
-std::string kfe::KFEMeshSceneObject::DomainShader() const
-{
-    return m_impl ? m_impl->GetDomainShaderPath() : std::string{};
-}
-
-void kfe::KFEMeshSceneObject::SetComputeShader(const std::string& path)
-{
-    if (!m_impl) return;
-    m_impl->SetComputeShaderPath(path);
-}
-
-std::string kfe::KFEMeshSceneObject::ComputeShader() const
-{
-    return m_impl ? m_impl->GetComputeShaderPath() : std::string{};
-}
-
-JsonLoader kfe::KFEMeshSceneObject::GetJsonData() const
-{
-    JsonLoader root{};
-    root["Transformation"] = GetTransformJsonData();
-    root["Properties"] = m_impl->GetJsonData();
-    return root;
-}
-
-void kfe::KFEMeshSceneObject::LoadFromJson(const JsonLoader& loader)
-{
-    if (loader.Contains("Transformation"))
-    {
-        LoadTransformFromJson(loader["Transformation"]);
-    }
-    if (loader.Contains("Properties"))
-    {
-        m_impl->LoadFromJson(loader["Properties"]);
-    }
+    m_impl->LoadFromJson(loader);
 }
 
 #pragma endregion
@@ -372,36 +245,22 @@ void kfe::KFEMeshSceneObject::LoadFromJson(const JsonLoader& loader)
 void kfe::KFEMeshSceneObject::Impl::Update(const KFE_UPDATE_OBJECT_DESC& desc)
 {
     m_nTimeLived += desc.DeltaTime;
-    UpdateConstantBuffer(desc);
     UpdateSubmeshConstantBuffers(desc);
 }
 
 _Use_decl_annotations_
 bool kfe::KFEMeshSceneObject::Impl::Build(const KFE_BUILD_OBJECT_DESC& desc)
 {
-    m_pDevice = desc.Device;
+    m_pDevice       = desc.Device;
     m_pResourceHeap = desc.ResourceHeap;
-    m_pSamplerHeap = desc.SamplerHeap;
 
-    if (!m_pDevice || !m_pResourceHeap || !m_pSamplerHeap)
+    if (!m_pDevice || !m_pResourceHeap)
     {
-        LOG_ERROR("KFEMeshSceneObject::Impl::Build - One or more required pointers are null.");
+        LOG_ERROR("One or more required pointers are null.");
         return false;
     }
 
-    if (!BuildSampler(desc))
-        return false;
-
     if (!BuildGeometry(desc))
-        return false;
-
-    if (!BuildRootSignature(desc))
-        return false;
-
-    if (!BuildPipeline(desc.Device))
-        return false;
-
-    if (!BuildConstantBuffer(desc))
         return false;
 
     LOG_SUCCESS("Mesh Built!");
@@ -414,50 +273,12 @@ bool kfe::KFEMeshSceneObject::Impl::Destroy()
     //~ Guard
     if (!m_bBuild)
         return true;
-
-    //~ Destroy constant buffers
-    if (m_pCBV)      m_pCBV->Destroy();
-    if (m_pCBBuffer) m_pCBBuffer->Destroy();
-
-    if (m_pMetaCBV)      m_pMetaCBV->Destroy();
-    if (m_pMetaBuffer)   m_pMetaBuffer->Destroy();
-
-    //~ Destroy pipeline & root signature
-    if (m_pPipeline)      m_pPipeline->Destroy();
-    if (m_pRootSignature) m_pRootSignature->Destroy();
-
-    //~ Destroy sampler
-    if (m_pSampler)       m_pSampler->Destroy();
-
-    //~ Reset smart pointers
-    m_pCBV.reset();
-    m_pCBBuffer.reset();
-    m_pMetaCBV.reset();
-    m_pMetaBuffer.reset();
-
-    m_pPipeline.reset();
-    m_pRootSignature.reset();
-    m_pSampler.reset();
-
-    //~ Free sampler heap slot
-    if (m_pSamplerHeap && m_samplerIndex != KFE_INVALID_INDEX)
+    auto& subs = m_mesh.GetSubmeshesMutable();
+    for (auto& sm : subs)
     {
-        m_pSamplerHeap->Free(m_samplerIndex);
-        m_samplerIndex = KFE_INVALID_INDEX;
+        sm.FreeReserveSlot(m_pResourceHeap);
     }
-
-    //~ Reset model + submesh state
     m_mesh.Reset();
-
-    m_bTextureDirty = true;
-    m_bModelDirty = false;
-    m_bBuild = false;
-
-    //~ Null references
-    m_pResourceHeap = nullptr;
-    m_pSamplerHeap = nullptr;
-    m_pDevice = nullptr;
-
     return true;
 }
 
@@ -465,21 +286,6 @@ void kfe::KFEMeshSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
 {
     if (!m_bBuild) return;
     if (!m_mesh.IsValid()) return;
-
-    if (m_bPipelineDirty)
-    {
-        if (!m_pDevice)
-        {
-            LOG_ERROR("Cannot rebuild pipeline, device is null.");
-            return;
-        }
-
-        if (!BuildPipeline(m_pDevice))
-        {
-            LOG_ERROR("Failed to rebuild pipeline.");
-            return;
-        }
-    }
 
     if (m_bModelDirty)
     {
@@ -507,36 +313,19 @@ void kfe::KFEMeshSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
 
     ID3D12GraphicsCommandList* cmdList = cmdListObj;
 
-    cmdList->SetPipelineState(m_pPipeline->GetNative());
-    cmdList->SetGraphicsRootSignature(m_pPipeline->GetRootSignature());
-
     if (m_pResourceHeap)
     {
-        if (m_pSamplerHeap)
-        {
-            ID3D12DescriptorHeap* heaps[2] =
-            {
-                m_pResourceHeap->GetNative(),
-                m_pSamplerHeap->GetNative()
-            };
-            cmdList->SetDescriptorHeaps(2u, heaps);
-        }
-        else
-        {
-            ID3D12DescriptorHeap* heaps[1] =
-            {
-                m_pResourceHeap->GetNative()
-            };
-            cmdList->SetDescriptorHeaps(1u, heaps);
-        }
-
         auto& subs = m_mesh.GetSubmeshesMutable();
         for (auto& sm : subs)
         {
             sm.BindTextureFromPath(desc.CommandList, m_pDevice, m_pResourceHeap);
         }
     }
-    else return;
+    else 
+    {
+        LOG_ERROR("There's no resource heap allocated for model!");
+        return;
+    }
 
     const KFEModelNode* root = m_mesh.GetRootNode();
     if (!root)
@@ -570,6 +359,12 @@ bool kfe::KFEMeshSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
         return false;
     }
 
+    //~ Free Resources
+    auto& subs = m_mesh.GetSubmeshesMutable();
+    for (auto& sm : subs)
+    {
+        sm.FreeReserveSlot(m_pResourceHeap);
+    }
     m_mesh.Reset();
 
     if (!m_mesh.Initialize(m_modelPath, desc.Device, desc.CommandList, desc.ResourceHeap))
@@ -590,374 +385,13 @@ bool kfe::KFEMeshSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
     ApplyChildMetaInformationFromCache();
     ApplyChildTextureInformationFromCache();
 
-    auto& subs = m_mesh.GetSubmeshesMutable();
-
     for (auto& sm : subs)
     {
-        if (!sm.AllocateReserveSolt(desc.ResourceHeap))
+        if (!sm.AllocateReserveSlot(desc.ResourceHeap))
         {
             return false;
         }
     }
-    return true;
-}
-
-_Use_decl_annotations_
-bool kfe::KFEMeshSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_DESC& desc)
-{
-    if (!m_pObject->BuildLightCB(desc)) return false;
-
-    m_pCBBuffer = std::make_unique<KFEBuffer>();
-
-    std::uint32_t bytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_CB_GPU));
-    bytes = kfe_helpers::AlignTo256(bytes);
-
-    KFE_CREATE_BUFFER_DESC buffer{};
-    buffer.Device           = desc.Device;
-    buffer.HeapType         = D3D12_HEAP_TYPE_UPLOAD;
-    buffer.InitialState     = D3D12_RESOURCE_STATE_GENERIC_READ;
-    buffer.ResourceFlags    = D3D12_RESOURCE_FLAG_NONE;
-    buffer.SizeInBytes      = bytes;
-
-    if (!m_pCBBuffer->Initialize(buffer))
-    {
-        LOG_ERROR("Failed to build constant buffer!");
-        return false;
-    }
-
-    m_pCBV = std::make_unique<KFEConstantBuffer>();
-
-    KFE_CONSTANT_BUFFER_CREATE_DESC view{};
-    view.Device         = desc.Device;
-    view.OffsetInBytes  = 0u;
-    view.ResourceBuffer = m_pCBBuffer.get();
-    view.ResourceHeap   = desc.ResourceHeap;
-    view.SizeInBytes    = bytes;
-
-    if (!m_pCBV->Initialize(view))
-    {
-        LOG_ERROR("Failed to build constant buffer View!");
-        return false;
-    }
-
-    LOG_SUCCESS("Cube Constant Buffer Created!");
-    return true;
-}
-
-_Use_decl_annotations_
-bool kfe::KFEMeshSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DESC& desc)
-{
-    m_pRootSignature = std::make_unique<KFERootSignature>();
-
-    //~ SRV descriptor table
-    D3D12_DESCRIPTOR_RANGE srvRange{};
-    srvRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    srvRange.NumDescriptors     = static_cast<UINT>(EModelTextureSlot::Count);
-    srvRange.BaseShaderRegister = 0u;    //~ t0
-    srvRange.RegisterSpace      = 0u;
-    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    D3D12_ROOT_PARAMETER params[4]{};
-
-    //~ b0: per object and common constant buffer
-    params[0].ParameterType             = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    params[0].ShaderVisibility          = D3D12_SHADER_VISIBILITY_ALL;
-    params[0].Descriptor.ShaderRegister = 0u;  //~ b0
-    params[0].Descriptor.RegisterSpace  = 0u;
-
-    //~ SRV descriptor table
-    params[1].ParameterType                       = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    params[1].ShaderVisibility                    = D3D12_SHADER_VISIBILITY_PIXEL;
-    params[1].DescriptorTable.NumDescriptorRanges = 1u;
-    params[1].DescriptorTable.pDescriptorRanges   = &srvRange;
-
-    //~ b1: per submesh meta constant buffer
-    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    params[2].Descriptor.ShaderRegister = 1u;  //~ b1
-    params[2].Descriptor.RegisterSpace = 0u;
-
-    //~ b2: directional light constant buffer
-    params[3].ParameterType             = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    params[3].ShaderVisibility          = D3D12_SHADER_VISIBILITY_PIXEL;
-    params[3].Descriptor.ShaderRegister = 2u;  //~ b2
-    params[3].Descriptor.RegisterSpace  = 0u;
-
-    //~ Static sampler s0
-    D3D12_STATIC_SAMPLER_DESC staticSampler{};
-    staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    staticSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    staticSampler.MipLODBias = 0.0f;
-    staticSampler.MaxAnisotropy = 1;
-    staticSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    staticSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-    staticSampler.MinLOD = 0.0f;
-    staticSampler.MaxLOD = D3D12_FLOAT32_MAX;
-    staticSampler.ShaderRegister = 0u;   //~ s0
-    staticSampler.RegisterSpace = 0u;
-    staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
-    KFE_RG_CREATE_DESC root{};
-    root.Device = desc.Device;
-    root.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-    root.NumRootParameters = 4u;
-    root.RootParameters = params;
-    root.NumStaticSamplers = 1u;
-    root.StaticSamplers = &staticSampler;
-
-    if (!m_pRootSignature->Initialize(root))
-    {
-        LOG_ERROR("Failed to Create Root Signature!");
-        return false;
-    }
-
-    m_pRootSignature->SetDebugName(L"Mesh Scene Signature");
-    LOG_SUCCESS("Mesh Root Signature Created!");
-    return true;
-}
-
-bool kfe::KFEMeshSceneObject::Impl::BuildPipeline(KFEDevice* device)
-{
-    if (!device)
-    {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildPipeline: Device is null.");
-        return false;
-    }
-
-    if (!kfe_helpers::IsFile(m_vertexShaderPath))
-    {
-        LOG_ERROR("Vertex Shader Path: '{}', Does not exist!", m_vertexShaderPath);
-        return false;
-    }
-
-    if (!kfe_helpers::IsFile(m_pixelShaderPath))
-    {
-        LOG_ERROR("Pixel Shader Path: '{}', Does Not Exist!", m_pixelShaderPath);
-        return false;
-    }
-
-    if (!m_geometryShaderPath.empty() && !kfe_helpers::IsFile(m_geometryShaderPath))
-    {
-        LOG_ERROR("Geometry Shader Path: '{}', Does Not Exist!", m_geometryShaderPath);
-        m_geometryShaderPath.clear();
-    }
-
-    if (!m_hullShaderPath.empty() && !kfe_helpers::IsFile(m_hullShaderPath))
-    {
-        LOG_ERROR("Hull Shader Path: '{}', Does Not Exist!", m_hullShaderPath);
-        m_hullShaderPath.clear();
-    }
-
-    if (!m_domainShaderPath.empty() && !kfe_helpers::IsFile(m_domainShaderPath))
-    {
-        LOG_ERROR("Domain Shader Path: '{}', Does Not Exist!", m_domainShaderPath);
-        m_domainShaderPath.clear();
-    }
-
-    ID3DBlob* vertexBlob = shaders::GetOrCompile(
-        m_vertexShaderPath, "main", "vs_5_0");
-    ID3DBlob* pixelBlob = shaders::GetOrCompile(
-        m_pixelShaderPath, "main", "ps_5_0");
-
-    ID3DBlob* geometryBlob = nullptr;
-    ID3DBlob* hullBlob = nullptr;
-    ID3DBlob* domainBlob = nullptr;
-
-    if (!vertexBlob)
-    {
-        LOG_ERROR("Failed to load Vertex Shader: {}", m_vertexShaderPath);
-        return false;
-    }
-
-    if (!pixelBlob)
-    {
-        LOG_ERROR("Failed to load Pixel Shader: {}", m_pixelShaderPath);
-        return false;
-    }
-
-    if (!m_geometryShaderPath.empty())
-    {
-        geometryBlob = shaders::GetOrCompile(
-            m_geometryShaderPath, "main", "gs_5_0");
-        if (!geometryBlob)
-        {
-            LOG_ERROR("Failed to load Geometry Shader: {}", m_geometryShaderPath);
-            m_geometryShaderPath.clear();
-        }
-    }
-
-    if (!m_hullShaderPath.empty())
-    {
-        hullBlob = shaders::GetOrCompile(
-            m_hullShaderPath, "main", "hs_5_0");
-        if (!hullBlob)
-        {
-            LOG_ERROR("Failed to load Hull Shader: {}", m_hullShaderPath);
-            m_hullShaderPath.clear();
-        }
-    }
-
-    if (!m_domainShaderPath.empty())
-    {
-        domainBlob = shaders::GetOrCompile(
-            m_domainShaderPath, "main", "ds_5_0");
-        if (!domainBlob)
-        {
-            LOG_ERROR("Failed to load Domain Shader: {}", m_domainShaderPath);
-            m_domainShaderPath.clear();
-        }
-    }
-
-    if (m_pPipeline)
-    {
-        m_pPipeline->Destroy();
-    }
-    else
-    {
-        m_pPipeline = std::make_unique<KFEPipelineState>();
-    }
-
-    auto layout = KFEMeshGeometry::GetInputLayout();
-    m_pPipeline->SetInputLayout(layout.data(), layout.size());
-
-    D3D12_SHADER_BYTECODE vertexCode{};
-    vertexCode.BytecodeLength = vertexBlob->GetBufferSize();
-    vertexCode.pShaderBytecode = vertexBlob->GetBufferPointer();
-    m_pPipeline->SetVS(vertexCode);
-
-    D3D12_SHADER_BYTECODE pixelCode{};
-    pixelCode.BytecodeLength = pixelBlob->GetBufferSize();
-    pixelCode.pShaderBytecode = pixelBlob->GetBufferPointer();
-    m_pPipeline->SetPS(pixelCode);
-
-    if (geometryBlob)
-    {
-        D3D12_SHADER_BYTECODE code{};
-        code.BytecodeLength = geometryBlob->GetBufferSize();
-        code.pShaderBytecode = geometryBlob->GetBufferPointer();
-        m_pPipeline->SetGS(code);
-    }
-
-    if (hullBlob)
-    {
-        D3D12_SHADER_BYTECODE code{};
-        code.BytecodeLength = hullBlob->GetBufferSize();
-        code.pShaderBytecode = hullBlob->GetBufferPointer();
-        m_pPipeline->SetHS(code);
-    }
-
-    if (domainBlob)
-    {
-        D3D12_SHADER_BYTECODE code{};
-        code.BytecodeLength = domainBlob->GetBufferSize();
-        code.pShaderBytecode = domainBlob->GetBufferPointer();
-        m_pPipeline->SetDS(code);
-    }
-
-    auto* rs = static_cast<ID3D12RootSignature*>(m_pRootSignature->GetNative());
-    m_pPipeline->SetRootSignature(rs);
-
-    D3D12_RASTERIZER_DESC raster{};
-    raster.FillMode =
-        (m_drawMode == EDrawMode::WireFrame) ? D3D12_FILL_MODE_WIREFRAME
-        : D3D12_FILL_MODE_SOLID;
-
-    switch (m_cullMode)
-    {
-    case ECullMode::Front: raster.CullMode = D3D12_CULL_MODE_FRONT; break;
-    case ECullMode::Back:  raster.CullMode = D3D12_CULL_MODE_BACK;  break;
-    case ECullMode::None:  raster.CullMode = D3D12_CULL_MODE_NONE;  break;
-    }
-
-    raster.FrontCounterClockwise    = FALSE;
-    raster.DepthBias                = D3D12_DEFAULT_DEPTH_BIAS;
-    raster.DepthBiasClamp           = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-    raster.SlopeScaledDepthBias     = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-    raster.DepthClipEnable          = TRUE;
-    raster.MultisampleEnable        = FALSE;
-    raster.AntialiasedLineEnable    = FALSE;
-    raster.ForcedSampleCount        = 0u;
-    raster.ConservativeRaster       = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-
-    m_pPipeline->SetRasterizer(raster);
-
-    switch (m_drawMode)
-    {
-    case EDrawMode::Triangle:
-    case EDrawMode::WireFrame:
-        m_pPipeline->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-        break;
-
-    case EDrawMode::Point:
-        m_pPipeline->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
-        break;
-    }
-
-    if (!m_pPipeline->Build(device))
-    {
-        LOG_ERROR("Failed to build Cube Scene Pipeline!");
-        return false;
-    }
-
-    m_bPipelineDirty = false;
-
-    LOG_SUCCESS("Cube Pipeline Created!");
-    return true;
-}
-
-_Use_decl_annotations_
-bool kfe::KFEMeshSceneObject::Impl::BuildSampler(const KFE_BUILD_OBJECT_DESC& desc)
-{
-    if (!desc.Device)
-    {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Device is null. Skipping sampler creation.");
-        return true;
-    }
-
-    if (!desc.SamplerHeap)
-    {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Sampler is null. Skipping sampler creation.");
-        return true;
-    }
-
-    m_pSampler = std::make_unique<KFESampler>();
-
-    KFE_SAMPLER_CREATE_DESC sdesc{};
-    sdesc.Device = desc.Device;
-    sdesc.Heap = m_pSamplerHeap;
-
-    sdesc.Filter         = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    sdesc.AddressU       = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sdesc.AddressV       = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sdesc.AddressW       = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sdesc.MipLODBias     = 0.0f;
-    sdesc.MaxAnisotropy  = 1u;
-    sdesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    sdesc.BorderColor[0] = 0.0f;
-    sdesc.BorderColor[1] = 0.0f;
-    sdesc.BorderColor[2] = 0.0f;
-    sdesc.BorderColor[3] = 0.0f;
-    sdesc.MinLOD = 0.0f;
-    sdesc.MaxLOD = D3D12_FLOAT32_MAX;
-
-    sdesc.DescriptorIndex = KFE_INVALID_INDEX;
-
-    if (!m_pSampler->Initialize(sdesc))
-    {
-        LOG_ERROR("KEFCubeSceneObject::Impl::BuildSampler: Failed to initialize sampler.");
-        m_pSampler.reset();
-        m_samplerIndex = KFE_INVALID_INDEX;
-        return false;
-    }
-
-    m_samplerIndex = m_pSampler->GetDescriptorIndex();
-
-    if (m_samplerIndex == KFE_INVALID_INDEX) THROW_MSG("SAMPLERRR");
-
-    LOG_SUCCESS("Cube Sampler Created. Index = {}", m_samplerIndex);
-
     return true;
 }
 
@@ -1043,6 +477,7 @@ void kfe::KFEMeshSceneObject::Impl::ApplyChildTextureInformationFromCache() noex
     }
 
     const std::uint32_t subCount = static_cast<std::uint32_t>(subs.size());
+    const std::size_t   slotCount = static_cast<std::size_t>(EModelTextureSlot::Count);
 
     for (const auto& kv : m_cbTexLazy)
     {
@@ -1051,20 +486,36 @@ void kfe::KFEMeshSceneObject::Impl::ApplyChildTextureInformationFromCache() noex
             continue;
 
         const auto& slots = kv.second;
+
+        if (slots.size() < slotCount)
+        {
+            LOG_WARNING(
+                "Submesh {} cache has {} slots, expected {}. Skipping.",
+                idx, slots.size(), slotCount);
+            continue;
+        }
+
         auto& sm = subs[idx];
 
-        sm.SetBaseColor(slots[(size_t)EModelTextureSlot::BaseColor]);
-        sm.SetNormal(slots[(size_t)EModelTextureSlot::Normal]);
-        sm.SetORM(slots[(size_t)EModelTextureSlot::ORM]);
-        sm.SetEmissive(slots[(size_t)EModelTextureSlot::Emissive]);
-        sm.SetOpacity(slots[(size_t)EModelTextureSlot::Opacity]);
-        sm.SetHeight(slots[(size_t)EModelTextureSlot::Height]);
+        sm.SetBaseColor(slots[static_cast<std::size_t>(EModelTextureSlot::BaseColor)]);
+        sm.SetNormal(slots[static_cast<std::size_t>(EModelTextureSlot::Normal)]);
+        sm.SetORM(slots[static_cast<std::size_t>(EModelTextureSlot::ORM)]);
+        sm.SetEmissive(slots[static_cast<std::size_t>(EModelTextureSlot::Emissive)]);
 
-        sm.SetOcclusion(slots[(size_t)EModelTextureSlot::Occlusion]);
-        sm.SetRoughness(slots[(size_t)EModelTextureSlot::Roughness]);
-        sm.SetMetallic(slots[(size_t)EModelTextureSlot::Metallic]);
+        sm.SetRoughness(slots[static_cast<std::size_t>(EModelTextureSlot::Roughness)]);
+        sm.SetMetallic(slots[static_cast<std::size_t>(EModelTextureSlot::Metallic)]);
+        sm.SetOcclusion(slots[static_cast<std::size_t>(EModelTextureSlot::Occlusion)]);
 
-        sm.SetDyeMask(slots[(size_t)EModelTextureSlot::DyeMask]);
+        sm.SetOpacity(slots[static_cast<std::size_t>(EModelTextureSlot::Opacity)]);
+
+        sm.SetHeight(slots[static_cast<std::size_t>(EModelTextureSlot::Height)]);
+        sm.SetDisplacement(slots[static_cast<std::size_t>(EModelTextureSlot::Displacement)]);
+
+        sm.SetSpecular(slots[static_cast<std::size_t>(EModelTextureSlot::Specular)]);
+        sm.SetGlossiness(slots[static_cast<std::size_t>(EModelTextureSlot::Glossiness)]);
+
+        sm.SetDetailNormal(slots[static_cast<std::size_t>(EModelTextureSlot::DetailNormal)]);
+        sm.SetShadowMap(slots[static_cast<std::size_t>(EModelTextureSlot::ShadowMap)]);
 
         sm.m_bTextureDirty = true;
     }
@@ -1093,70 +544,31 @@ bool kfe::KFEMeshSceneObject::Impl::BuildSubmeshConstantBuffers(const KFE_BUILD_
         return false;
     }
 
-    std::uint32_t cbBytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_CB_GPU));
-    cbBytes               = kfe_helpers::AlignTo256(cbBytes);
-
-    std::uint32_t metaBytes = static_cast<std::uint32_t>(sizeof(ModelTextureMetaInformation));
-    metaBytes               = kfe_helpers::AlignTo256(metaBytes);
-
-    KFE_CREATE_BUFFER_DESC buffer{};
-    buffer.Device        = desc.Device;
-    buffer.HeapType      = D3D12_HEAP_TYPE_UPLOAD;
-    buffer.InitialState  = D3D12_RESOURCE_STATE_GENERIC_READ;
-    buffer.ResourceFlags = D3D12_RESOURCE_FLAG_NONE;
+    KFE_FRAME_CONSTANT_BUFFER_DESC buffer{};
+    buffer.Device       = desc.Device;
+    buffer.FrameCount   = 3u;
+    buffer.ResourceHeap = desc.ResourceHeap;
+    buffer.SizeInBytes  = sizeof(KFE_COMMON_CB_GPU);
 
     for (std::size_t i = 0; i < submeshes.size(); ++i)
     {
         auto& sm = submeshes[i];
-
-        sm.ConstantBuffer = std::make_unique<KFEBuffer>();
-
-        buffer.SizeInBytes = cbBytes;
-
-        if (!sm.ConstantBuffer->Initialize(buffer))
+        buffer.SizeInBytes = sizeof(KFE_COMMON_CB_GPU);
+        if (!sm.ConstantBuffer.Initialize(buffer))
         {
             LOG_ERROR("Failed to build submesh CB buffer (i={})", i);
             return false;
         }
 
-        sm.CBView = std::make_unique<KFEConstantBuffer>();
-
-        KFE_CONSTANT_BUFFER_CREATE_DESC view{};
-        view.Device         = desc.Device;
-        view.OffsetInBytes  = 0u;
-        view.ResourceBuffer = sm.ConstantBuffer.get();
-        view.ResourceHeap   = desc.ResourceHeap;
-        view.SizeInBytes    = cbBytes;
-
-        if (!sm.CBView->Initialize(view))
-        {
-            LOG_ERROR("Failed to build submesh CBV (i={})", i);
-            return false;
-        }
-
-        sm.MetaCB = std::make_unique<KFEBuffer>();
-
-        buffer.SizeInBytes = metaBytes;
-
-        if (!sm.MetaCB->Initialize(buffer))
+        buffer.SizeInBytes = sizeof(ModelTextureMetaInformation);
+        if (!sm.MetaConstantBuffer.Initialize(buffer))
         {
             LOG_ERROR("Failed to build submesh Meta CB buffer (i={})", i);
             return false;
         }
-
-        sm.MetaCBView = std::make_unique<KFEConstantBuffer>();
-
-        view.ResourceBuffer = sm.MetaCB.get();
-        view.SizeInBytes = metaBytes;
-
-        if (!sm.MetaCBView->Initialize(view))
-        {
-            LOG_ERROR("Failed to build submesh Meta CBV (i={})", i);
-            return false;
-        }
     }
 
-    LOG_SUCCESS("Per-submesh constant buffers created! Count={}", static_cast<std::uint32_t>(submeshes.size()));
+    LOG_SUCCESS("Per submesh constant buffers created! Count={}", static_cast<std::uint32_t>(submeshes.size()));
     return true;
 }
 
@@ -1191,7 +603,6 @@ void kfe::KFEMeshSceneObject::Impl::BuildSubmeshCBDataCacheFromModel() noexcept
     XMStoreFloat4x4(&init.ViewProjT, I);
 
     XMStoreFloat4x4(&init.OrthoT, I);
-    XMStoreFloat4x4(&init.PrevViewProjT, I);
 
     // Camera
     init.CameraPosWS = { 0.0f, 0.0f, 0.0f };
@@ -1201,48 +612,39 @@ void kfe::KFEMeshSceneObject::Impl::BuildSubmeshCBDataCacheFromModel() noexcept
     init.CameraFar = 1000.0f;
 
     init.CameraRightWS = { 1.0f, 0.0f, 0.0f };
-    init._PadCam0 = 0.0f;
+    init._PadCamRight = 0.0f;
 
     init.CameraUpWS = { 0.0f, 1.0f, 0.0f };
-    init._PadCam1 = 0.0f;
+    init._PadCamUp = 0.0f;
 
-    // Object-ish
+    // Object
     init.ObjectPosWS = { 0.0f, 0.0f, 0.0f };
-    init.ObjectID = 0u;
+    init._PadObjPos = 0.0f;
 
     init.PlayerPosWS = { 0.0f, 0.0f, 0.0f };
-    init._PadObj0 = 0.0f;
+    init._PadPlayerPos = 0.0f;
 
-    // Render target / viewport
+    // Render target
     init.Resolution = { 1.0f, 1.0f };
     init.InvResolution = { 1.0f, 1.0f };
 
     init.MousePosPixels = { 0.0f, 0.0f };
     init.MousePosNDC = { 0.0f, 0.0f };
 
-    // Time / frame
+    // Time
     init.Time = 0.0f;
     init.DeltaTime = 0.0f;
-    init.FrameIndex = 0u;
     init._PadTime0 = 0.0f;
+    init._PadTime1 = 0.0f;
 
     // Lights / flags
-    init.NumTotalLights = 0u;
-    init.NumPointLights = 0u;
-    init.NumSpotLights = 0u;
+    init.NumTotalLights = m_pObject->m_lightManager.GetPackedCount();
     init.RenderFlags = 0u;
-
-    // Misc knobs
-    init.Exposure = 1.0f;
-    init.Gamma = 2.2f;
-    init.FogDensity = 0.0f;
-    init.FogStart = 0.0f;
+    init._PadFlags0 = 0u;
+    init._PadFlags1 = 0u;
 
     for (std::uint32_t i = 0u; i < submeshCount; ++i)
-    {
-        if (m_cbData.find(i) == m_cbData.end())
-            m_cbData.emplace(i, init);
-    }
+        m_cbData.emplace(i, init);
 }
 
 void kfe::KFEMeshSceneObject::Impl::CacheNodeMeshesRecursive(const KFEModelNode& node) noexcept
@@ -1265,7 +667,7 @@ void kfe::KFEMeshSceneObject::Impl::CacheNodeMeshesRecursive(const KFEModelNode&
             // Matrices
             XMStoreFloat4x4(&cb.WorldT, nodeLocalT);
 
-            // World inverse transpose
+            // World inverse transpose (already transposed for *_T fields)
             {
                 const XMMATRIX Winv = XMMatrixInverse(nullptr, nodeLocal);
                 const XMMATRIX WIT = XMMatrixTranspose(Winv);
@@ -1276,42 +678,44 @@ void kfe::KFEMeshSceneObject::Impl::CacheNodeMeshesRecursive(const KFEModelNode&
             XMStoreFloat4x4(&cb.ProjT, I);
             XMStoreFloat4x4(&cb.ViewProjT, I);
             XMStoreFloat4x4(&cb.OrthoT, I);
-            XMStoreFloat4x4(&cb.PrevViewProjT, I);
 
+            // Camera
             cb.CameraPosWS = { 0.0f, 0.0f, 0.0f };
             cb.CameraNear = 0.1f;
+
             cb.CameraForwardWS = { 0.0f, 0.0f, 1.0f };
             cb.CameraFar = 1000.0f;
-            cb.CameraRightWS = { 1.0f, 0.0f, 0.0f };
-            cb._PadCam0 = 0.0f;
-            cb.CameraUpWS = { 0.0f, 1.0f, 0.0f };
-            cb._PadCam1 = 0.0f;
 
+            cb.CameraRightWS = { 1.0f, 0.0f, 0.0f };
+            cb._PadCamRight = 0.0f;
+
+            cb.CameraUpWS = { 0.0f, 1.0f, 0.0f };
+            cb._PadCamUp = 0.0f;
+
+            // Object / player
             cb.ObjectPosWS = { 0.0f, 0.0f, 0.0f };
-            cb.ObjectID = 0u;
+            cb._PadObjPos = 0.0f;
 
             cb.PlayerPosWS = { 0.0f, 0.0f, 0.0f };
-            cb._PadObj0 = 0.0f;
+            cb._PadPlayerPos = 0.0f;
 
+            // Render target / viewport
             cb.Resolution = { 1.0f, 1.0f };
             cb.InvResolution = { 1.0f, 1.0f };
             cb.MousePosPixels = { 0.0f, 0.0f };
             cb.MousePosNDC = { 0.0f, 0.0f };
 
+            // Time
             cb.Time = 0.0f;
             cb.DeltaTime = 0.0f;
-            cb.FrameIndex = 0u;
             cb._PadTime0 = 0.0f;
+            cb._PadTime1 = 0.0f;
 
+            // Lights / flags
             cb.NumTotalLights = 0u;
-            cb.NumPointLights = 0u;
-            cb.NumSpotLights = 0u;
             cb.RenderFlags = 0u;
-
-            cb.Exposure = 1.0f;
-            cb.Gamma = 2.2f;
-            cb.FogDensity = 0.0f;
-            cb.FogStart = 0.0f;
+            cb._PadFlags0 = 0u;
+            cb._PadFlags1 = 0u;
 
             m_cbData.emplace(meshIndex, cb);
         }
@@ -1334,146 +738,57 @@ void kfe::KFEMeshSceneObject::Impl::CacheNodeMeshesRecursive(const KFEModelNode&
     }
 }
 
-void kfe::KFEMeshSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc)
-{
-    if (!m_bBuild) return;
-
-    auto* cv = static_cast<KFE_COMMON_CB_GPU*>(m_pCBV->GetMappedData());
-    if (!cv) return;
-
-    using namespace DirectX;
-
-    const XMMATRIX W = m_pObject->GetWorldMatrix();
-    const XMMATRIX WT = XMMatrixTranspose(W);
-
-    XMStoreFloat4x4(&cv->WorldT, WT);
-
-    // World inverse transpose
-    {
-        const XMMATRIX Winv = XMMatrixInverse(nullptr, W);
-        const XMMATRIX WIT = XMMatrixTranspose(Winv);
-        XMStoreFloat4x4(&cv->WorldInvTransposeT, WIT);
-    }
-
-    XMStoreFloat4x4(&cv->ViewT, desc.ViewMatrixT);
-    XMStoreFloat4x4(&cv->ProjT, desc.PerpectiveMatrixT);
-
-    // ViewProjT
-    {
-        const XMMATRIX V = XMMatrixTranspose(desc.ViewMatrixT);
-        const XMMATRIX P = XMMatrixTranspose(desc.PerpectiveMatrixT);
-        const XMMATRIX VP = XMMatrixMultiply(V, P);
-        XMStoreFloat4x4(&cv->ViewProjT, XMMatrixTranspose(VP));
-    }
-
-    XMStoreFloat4x4(&cv->OrthoT, desc.OrthographicMatrixT);
-
-    cv->PrevViewProjT = cv->ViewProjT;
-
-    // Camera
-    cv->CameraPosWS = desc.CameraPosition;
-    cv->CameraNear = desc.ZNear;
-
-    cv->CameraForwardWS = desc.CameraForwardWS;
-    cv->CameraFar = desc.ZFar;
-
-    cv->CameraRightWS = desc.CameraRightWS;
-    cv->_PadCam0 = 0.0f;
-
-    cv->CameraUpWS = desc.CameraUpWS;
-    cv->_PadCam1 = 0.0f;
-    cv->ObjectPosWS = desc.ObjectPosition;
-    cv->ObjectID = desc.ObjectID;
-
-    cv->PlayerPosWS = desc.PlayerPosition;
-    cv->_PadObj0 = 0.0f;
-
-    // Render target
-    cv->Resolution = desc.Resolution;
-    cv->InvResolution =
-    {
-        (desc.Resolution.x != 0.0f) ? (1.0f / desc.Resolution.x) : 0.0f,
-        (desc.Resolution.y != 0.0f) ? (1.0f / desc.Resolution.y) : 0.0f
-    };
-
-    cv->MousePosPixels = desc.MousePosition;
-
-    // Pixels 
-    cv->MousePosNDC =
-    {
-        (desc.Resolution.x != 0.0f) ? ((desc.MousePosition.x / desc.Resolution.x) * 2.0f - 1.0f) : 0.0f,
-        (desc.Resolution.y != 0.0f) ? (1.0f - (desc.MousePosition.y / desc.Resolution.y) * 2.0f) : 0.0f
-    };
-
-    // Time
-    cv->Time = desc.Time;
-    cv->DeltaTime = desc.DeltaTime;
-    cv->FrameIndex = desc.FrameIndex;
-    cv->_PadTime0 = 0.0f;
-
-    // Lights / flags
-    cv->NumTotalLights = m_pObject->m_lightManager.GetPackedCount();
-    cv->NumPointLights = 0u;
-    cv->NumSpotLights = 0u;
-    cv->RenderFlags = 0u;
-    cv->Exposure = 1.0f;
-    cv->Gamma = 2.2f;
-    cv->FogDensity = 0.0f;
-    cv->FogStart = 0.0f;
-}
-
 void kfe::KFEMeshSceneObject::Impl::UpdateSubmeshConstantBuffers(const KFE_UPDATE_OBJECT_DESC& desc)
 {
-    if (!m_bBuild) return;
+    if (!m_bBuild)       return;
     if (!m_mesh.IsValid()) return;
 
     using namespace DirectX;
 
     const auto& submeshes = m_mesh.GetSubmeshes();
 
-    for (std::size_t i = 0; i < submeshes.size(); ++i)
+    for (const auto& sm : submeshes)
     {
-        const auto& sm = submeshes[i];
-
-        if (!sm.CBView)
+        if (!sm.ConstantBuffer.IsInitialized())
             continue;
 
-        auto* cv = static_cast<KFE_COMMON_CB_GPU*>(sm.CBView->GetMappedData());
+        auto* cv = static_cast<KFE_COMMON_CB_GPU*>(sm.ConstantBuffer.GetMappedData());
         if (!cv)
             continue;
 
-        // Matrices
         XMStoreFloat4x4(&cv->ViewT, desc.ViewMatrixT);
         XMStoreFloat4x4(&cv->ProjT, desc.PerpectiveMatrixT);
         XMStoreFloat4x4(&cv->OrthoT, desc.OrthographicMatrixT);
 
-        // ViewProjT
+        // ViewProjT = ViewT * ProjT
         {
-            const XMMATRIX V = XMMatrixTranspose(desc.ViewMatrixT);
-            const XMMATRIX P = XMMatrixTranspose(desc.PerpectiveMatrixT);
-            const XMMATRIX VP = XMMatrixMultiply(V, P);
-            XMStoreFloat4x4(&cv->ViewProjT, XMMatrixTranspose(VP));
+            const XMMATRIX VP_T = XMMatrixMultiply(desc.ViewMatrixT, desc.PerpectiveMatrixT);
+            XMStoreFloat4x4(&cv->ViewProjT, VP_T);
         }
 
-        cv->PrevViewProjT = cv->ViewProjT;
-
+        // World + WorldInvTranspose
         if (m_pObject)
         {
             const XMMATRIX W = m_pObject->GetWorldMatrix();
-            XMStoreFloat4x4(&cv->WorldT, XMMatrixTranspose(W));
+            const XMMATRIX WT = XMMatrixTranspose(W);
+            XMStoreFloat4x4(&cv->WorldT, WT);
 
+            // WorldInvTransposeT
             const XMMATRIX Winv = XMMatrixInverse(nullptr, W);
             const XMMATRIX WIT = XMMatrixTranspose(Winv);
             XMStoreFloat4x4(&cv->WorldInvTransposeT, WIT);
 
-            cv->ObjectPosWS = m_pObject->GetPosition();
+            cv->ObjectPosWS = m_pObject->Transform.Position;
+            cv->_PadObjPos = 0.0f;
         }
         else
         {
             const XMMATRIX I = XMMatrixIdentity();
             XMStoreFloat4x4(&cv->WorldT, I);
             XMStoreFloat4x4(&cv->WorldInvTransposeT, I);
+
             cv->ObjectPosWS = { 0.0f, 0.0f, 0.0f };
+            cv->_PadObjPos = 0.0f;
         }
 
         // Camera
@@ -1484,15 +799,14 @@ void kfe::KFEMeshSceneObject::Impl::UpdateSubmeshConstantBuffers(const KFE_UPDAT
         cv->CameraFar = desc.ZFar;
 
         cv->CameraRightWS = desc.CameraRightWS;
-        cv->_PadCam0 = 0.0f;
+        cv->_PadCamRight = 0.0f;
 
         cv->CameraUpWS = desc.CameraUpWS;
-        cv->_PadCam1 = 0.0f;
+        cv->_PadCamUp = 0.0f;
 
+        // Player
         cv->PlayerPosWS = desc.PlayerPosition;
-        cv->_PadObj0 = 0.0f;
-
-        cv->ObjectID = desc.ObjectID;
+        cv->_PadPlayerPos = 0.0f;
 
         // Render target / viewport
         cv->Resolution = desc.Resolution;
@@ -1503,7 +817,6 @@ void kfe::KFEMeshSceneObject::Impl::UpdateSubmeshConstantBuffers(const KFE_UPDAT
         };
 
         cv->MousePosPixels = desc.MousePosition;
-
         cv->MousePosNDC =
         {
             (desc.Resolution.x != 0.0f) ? ((desc.MousePosition.x / desc.Resolution.x) * 2.0f - 1.0f) : 0.0f,
@@ -1513,18 +826,17 @@ void kfe::KFEMeshSceneObject::Impl::UpdateSubmeshConstantBuffers(const KFE_UPDAT
         // Time
         cv->Time = desc.Time;
         cv->DeltaTime = desc.DeltaTime;
-        cv->FrameIndex = desc.FrameIndex;
         cv->_PadTime0 = 0.0f;
+        cv->_PadTime1 = 0.0f;
 
-        cv->NumTotalLights = m_pObject->m_lightManager.GetPackedCount();
-        cv->NumPointLights = 0u;
-        cv->NumSpotLights = 0u;
+        // Lights / flags
+        const std::uint32_t packedLights =
+            (m_pObject) ? m_pObject->m_lightManager.GetPackedCount() : 0u;
+
+        cv->NumTotalLights = packedLights;
         cv->RenderFlags = 0u;
-
-        cv->Exposure = 1.0f;
-        cv->Gamma = 2.2f;
-        cv->FogDensity = 0.0f;
-        cv->FogStart = 0.0f;
+        cv->_PadFlags0 = 0u;
+        cv->_PadFlags1 = 0u;
     }
 }
 
@@ -1559,53 +871,54 @@ void kfe::KFEMeshSceneObject::Impl::UpdateCBDataForNodeMeshes(const KFEModelNode
             XMStoreFloat4x4(&cb.ProjT, I);
             XMStoreFloat4x4(&cb.ViewProjT, I);
             XMStoreFloat4x4(&cb.OrthoT, I);
-            XMStoreFloat4x4(&cb.PrevViewProjT, I);
 
-            // Safe defaults
+            // Camera defaults
             cb.CameraPosWS = { 0.0f, 0.0f, 0.0f };
             cb.CameraNear = 0.1f;
+
             cb.CameraForwardWS = { 0.0f, 0.0f, 1.0f };
             cb.CameraFar = 1000.0f;
-            cb.CameraRightWS = { 1.0f, 0.0f, 0.0f };
-            cb._PadCam0 = 0.0f;
-            cb.CameraUpWS = { 0.0f, 1.0f, 0.0f };
-            cb._PadCam1 = 0.0f;
 
+            cb.CameraRightWS = { 1.0f, 0.0f, 0.0f };
+            cb._PadCamRight = 0.0f;
+
+            cb.CameraUpWS = { 0.0f, 1.0f, 0.0f };
+            cb._PadCamUp = 0.0f;
+
+            // Object
             cb.ObjectPosWS = { 0.0f, 0.0f, 0.0f };
-            cb.ObjectID = 0u;
+            cb._PadObjPos = 0.0f;
 
             cb.PlayerPosWS = { 0.0f, 0.0f, 0.0f };
-            cb._PadObj0 = 0.0f;
+            cb._PadPlayerPos = 0.0f;
 
+            // Render target
             cb.Resolution = { 1.0f, 1.0f };
             cb.InvResolution = { 1.0f, 1.0f };
             cb.MousePosPixels = { 0.0f, 0.0f };
             cb.MousePosNDC = { 0.0f, 0.0f };
 
+            // Time defaults
             cb.Time = 0.0f;
             cb.DeltaTime = 0.0f;
-            cb.FrameIndex = 0u;
             cb._PadTime0 = 0.0f;
+            cb._PadTime1 = 0.0f;
 
-            cb.NumTotalLights = 0u;
-            cb.NumPointLights = 0u;
-            cb.NumSpotLights = 0u;
-            cb.RenderFlags = 0u;
-
-            cb.Exposure = 1.0f;
-            cb.Gamma = 2.2f;
-            cb.FogDensity = 0.0f;
-            cb.FogStart = 0.0f;
+            // Lights
+            cb.NumTotalLights = m_pObject->m_lightManager.GetPackedCount();
+            cb.RenderFlags    = 0u;
+            cb._PadFlags0     = 0u;
+            cb._PadFlags1     = 0u;
 
             m_cbData.emplace(meshIndex, cb);
         }
         else
         {
-            // Update world
+            // Update world derived data only
             XMStoreFloat4x4(&it->second.WorldT, localT);
 
             const XMMATRIX Linv = XMMatrixInverse(nullptr, local);
-            const XMMATRIX LIT = XMMatrixTranspose(Linv);
+            const XMMATRIX LIT  = XMMatrixTranspose(Linv);
             XMStoreFloat4x4(&it->second.WorldInvTransposeT, LIT);
         }
     }
@@ -1633,20 +946,8 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
     const auto& meshesGPU = share->Entry->MeshesGPU;
 
     // Node hierarchy world (CPU-space, NOT transposed)
-    const XMMATRIX local = node.GetMatrix();
+    const XMMATRIX local     = node.GetMatrix();
     const XMMATRIX nodeWorld = local * parentWorld;
-
-    // Light CB (keep as you had it)
-    if (m_pObject && m_pObject->m_pLightCBV)
-    {
-        cmdList->SetGraphicsRootConstantBufferView(
-            3u,
-            m_pObject->m_pLightCBV->GetGPUVirtualAddress());
-    }
-    else
-    {
-        LOG_ERROR("KFEMeshSceneObject::RenderNodeRecursive: No Light CBV bound.");
-    }
 
     for (std::uint32_t meshIndex : node.MeshIndices)
     {
@@ -1672,7 +973,7 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
         auto& sm = const_cast<KFEModelSubmesh&>(sub);
 
         // Per submesh b0
-        if (sm.CBView)
+        if (sm.ConstantBuffer.IsInitialized())
         {
             XMMATRIX cachedLocal = XMMatrixIdentity();
 
@@ -1685,7 +986,7 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
 
             const XMMATRIX finalWorld = cachedLocal * nodeWorld;
 
-            if (auto* cv = static_cast<KFE_COMMON_CB_GPU*>(sm.CBView->GetMappedData()))
+            if (auto* cv = static_cast<KFE_COMMON_CB_GPU*>(sm.ConstantBuffer.GetMappedData()))
             {
                 // Store transposed for GPU
                 XMStoreFloat4x4(&cv->WorldT, XMMatrixTranspose(finalWorld));
@@ -1695,13 +996,12 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
                 const XMMATRIX WIT = XMMatrixTranspose(Winv);
                 XMStoreFloat4x4(&cv->WorldInvTransposeT, WIT);
 
-                cv->ObjectPosWS = m_pObject ? m_pObject->GetPosition() : XMFLOAT3{ 0.0f, 0.0f, 0.0f };
-                cv->ObjectID = m_pObject->GetAssignedKey();
+                cv->ObjectPosWS = m_pObject->Transform.Position;
             }
 
             cmdList->SetGraphicsRootConstantBufferView(
                 0u,
-                sm.CBView->GetGPUVirtualAddress());
+                sm.ConstantBuffer.GetView()->GetGPUVirtualAddress());
         }
 
         //SRV table update
@@ -1715,13 +1015,13 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
         }
 
         // b1 (meta) update + bind CBV
-        if (sm.MetaCBView)
+        if (sm.MetaConstantBuffer.IsInitialized())
         {
             UpdateMetaCB(sm);
 
             cmdList->SetGraphicsRootConstantBufferView(
                 2u,
-                sm.MetaCBView->GetGPUVirtualAddress());
+                sm.MetaConstantBuffer.GetView()->GetGPUVirtualAddress());
         }
 
         const D3D12_VERTEX_BUFFER_VIEW vb = vbView->GetView();
@@ -1729,11 +1029,6 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
 
         cmdList->IASetVertexBuffers(0u, 1u, &vb);
         cmdList->IASetIndexBuffer(&ib);
-
-        cmdList->IASetPrimitiveTopology(
-            m_drawMode == EDrawMode::Point
-            ? D3D_PRIMITIVE_TOPOLOGY_POINTLIST
-            : D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         cmdList->DrawIndexedInstanced(
             gpuMesh.GetIndexCount(),
@@ -1750,78 +1045,14 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
     }
 }
 
-void kfe::KFEMeshSceneObject::Impl::SetVertexShaderPath(const std::string& path) noexcept
-{
-    if (m_vertexShaderPath == path)
-        return;
-
-    m_vertexShaderPath = path;
-    m_bPipelineDirty = true;
-}
-
-void kfe::KFEMeshSceneObject::Impl::SetPixelShaderPath(const std::string& path) noexcept
-{
-    if (m_pixelShaderPath == path)
-        return;
-
-    m_pixelShaderPath = path;
-    m_bPipelineDirty = true;
-}
-
-void kfe::KFEMeshSceneObject::Impl::SetGeometryShaderPath(const std::string& path) noexcept
-{
-    if (m_geometryShaderPath == path)
-        return;
-
-    m_geometryShaderPath = path;
-    m_bPipelineDirty = true;
-}
-
-void kfe::KFEMeshSceneObject::Impl::SetHullShaderPath(const std::string& path) noexcept
-{
-    if (m_hullShaderPath == path)
-        return;
-
-    m_hullShaderPath = path;
-    m_bPipelineDirty = true;
-}
-
-void kfe::KFEMeshSceneObject::Impl::SetDomainShaderPath(const std::string& path) noexcept
-{
-    if (m_domainShaderPath == path)
-        return;
-
-    m_domainShaderPath = path;
-    m_bPipelineDirty = true;
-}
-
-void kfe::KFEMeshSceneObject::Impl::SetComputeShaderPath(const std::string& path) noexcept
-{
-    if (m_computeShaderPath == path)
-        return;
-
-    m_computeShaderPath = path;
-    m_bPipelineDirty = true;
-}
-
 JsonLoader kfe::KFEMeshSceneObject::Impl::GetJsonData() const noexcept
 {
     JsonLoader root{};
-
     // Basic properties
-    root["CullMode"]        = ToString(m_cullMode);
-    root["DrawMode"]        = ToString(m_drawMode);
-
-    root["VertexShader"]        = m_vertexShaderPath;
-    root["PixelShader"]         = m_pixelShaderPath;
-    root["GeometryShader"]      = m_geometryShaderPath;
-    root["HullShader"]          = m_hullShaderPath;
-    root["DomainShader"]        = m_domainShaderPath;
-    root["ComputeShader"]       = m_computeShaderPath;
-    root["ModelPath"]           = m_modelPath;
-    root["Submesh"]             = GetChildTransformation();
-    root["MetaInformation"]     = GetChildMetaInformation();
-    root["TextureInformation"]  = GetChildTextureInformation();
+    root["ModelPath"]          = m_modelPath;
+    root["Submesh"]            = GetChildTransformation();
+    root["MetaInformation"]    = GetChildMetaInformation();
+    root["TextureInformation"] = GetChildTextureInformation();
     return root;
 }
 
@@ -1884,13 +1115,6 @@ JsonLoader kfe::KFEMeshSceneObject::Impl::GetChildMetaInformation() const noexce
     if (subs.empty())
         return out;
 
-    auto WriteFloat3 = [](JsonLoader& j, const char* key, const float v[3]) noexcept
-        {
-            j[key]["x"] = v[0];
-            j[key]["y"] = v[1];
-            j[key]["z"] = v[2];
-        };
-
     auto WriteMeta = [&](JsonLoader& dst, const ModelTextureMetaInformation& meta) noexcept
         {
             //~ BaseColor
@@ -1928,6 +1152,30 @@ JsonLoader kfe::KFEMeshSceneObject::Impl::GetChildMetaInformation() const noexce
             dst["Height"]["ParallaxMinLayers"] = meta.Height.ParallaxMinLayers;
             dst["Height"]["ParallaxMaxLayers"] = meta.Height.ParallaxMaxLayers;
 
+            //~ Displacement
+            dst["Displacement"]["IsTextureAttached"] = meta.Displacement.IsTextureAttached;
+            dst["Displacement"]["DisplacementScale"] = meta.Displacement.DisplacementScale;
+            dst["Displacement"]["UvTilingX"] = meta.Displacement.UvTilingX;
+            dst["Displacement"]["UvTilingY"] = meta.Displacement.UvTilingY;
+
+            //~ Specular
+            dst["Specular"]["IsTextureAttached"] = meta.Specular.IsTextureAttached;
+            dst["Specular"]["Strength"] = meta.Specular.Strength;
+            dst["Specular"]["UvTilingX"] = meta.Specular.UvTilingX;
+            dst["Specular"]["UvTilingY"] = meta.Specular.UvTilingY;
+
+            //~ Glossiness
+            dst["Glossiness"]["IsTextureAttached"] = meta.Glossiness.IsTextureAttached;
+            dst["Glossiness"]["Strength"] = meta.Glossiness.Strength;
+            dst["Glossiness"]["UvTilingX"] = meta.Glossiness.UvTilingX;
+            dst["Glossiness"]["UvTilingY"] = meta.Glossiness.UvTilingY;
+
+            //~ DetailNormal
+            dst["DetailNormal"]["IsTextureAttached"] = meta.DetailNormal.IsTextureAttached;
+            dst["DetailNormal"]["NormalStrength"] = meta.DetailNormal.NormalStrength;
+            dst["DetailNormal"]["UvTilingX"] = meta.DetailNormal.UvTilingX;
+            dst["DetailNormal"]["UvTilingY"] = meta.DetailNormal.UvTilingY;
+
             //~ Singular (Occlusion/Roughness/Metallic)
             dst["Singular"]["IsOcclusionAttached"] = meta.Singular.IsOcclusionAttached;
             dst["Singular"]["IsRoughnessAttached"] = meta.Singular.IsRoughnessAttached;
@@ -1944,11 +1192,6 @@ JsonLoader kfe::KFEMeshSceneObject::Impl::GetChildMetaInformation() const noexce
 
             dst["Singular"]["MetallicTilingX"] = meta.Singular.MetallicTilingX;
             dst["Singular"]["MetallicTilingY"] = meta.Singular.MetallicTilingY;
-
-            //~ Dye
-            dst["Dye"]["IsEnabled"] = meta.Dye.IsEnabled;
-            dst["Dye"]["Strength"] = meta.Dye.Strength;
-            WriteFloat3(dst["Dye"], "Color", meta.Dye.Color);
 
             //~ Global
             dst["Global"]["ForcedMipLevel"] = meta.ForcedMipLevel;
@@ -1979,9 +1222,9 @@ JsonLoader kfe::KFEMeshSceneObject::Impl::GetChildTextureInformation() const noe
         return out;
 
     auto WritePath = [](JsonLoader& j, const char* key, const std::string& path) noexcept
-    {
-        j[key] = path;
-    };
+        {
+            j[key] = path;
+        };
 
     auto WriteSubmeshTextures = [&](JsonLoader& dst, const KFEModelSubmesh& sm) noexcept
         {
@@ -1989,14 +1232,21 @@ JsonLoader kfe::KFEMeshSceneObject::Impl::GetChildTextureInformation() const noe
             WritePath(dst, "Normal", sm.GetNormalPath());
             WritePath(dst, "ORM", sm.GetORMPath());
             WritePath(dst, "Emissive", sm.GetEmissivePath());
-            WritePath(dst, "Opacity", sm.GetOpacityPath());
-            WritePath(dst, "Height", sm.GetHeightPath());
 
-            WritePath(dst, "Occlusion", sm.GetOcclusionPath());
             WritePath(dst, "Roughness", sm.GetRoughnessPath());
             WritePath(dst, "Metallic", sm.GetMetallicPath());
+            WritePath(dst, "Occlusion", sm.GetOcclusionPath());
 
-            WritePath(dst, "DyeMask", sm.GetDyeMaskPath());
+            WritePath(dst, "Opacity", sm.GetOpacityPath());
+
+            WritePath(dst, "Height", sm.GetHeightPath());
+            WritePath(dst, "Displacement", sm.GetDisplacementPath());
+
+            WritePath(dst, "Specular", sm.GetSpecularPath());
+            WritePath(dst, "Glossiness", sm.GetGlossinessPath());
+
+            WritePath(dst, "DetailNormal", sm.GetDetailNormalPath());
+            WritePath(dst, "ShadowMap", sm.GetShadowMapPath());
         };
 
     for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(subs.size()); ++i)
@@ -2016,53 +1266,6 @@ JsonLoader kfe::KFEMeshSceneObject::Impl::GetChildTextureInformation() const noe
 
 void kfe::KFEMeshSceneObject::Impl::LoadFromJson(const JsonLoader& loader) noexcept
 {
-    if (loader.Contains("CullMode"))
-    {
-        m_cullMode = FromStringToCull(loader["CullMode"].GetValue());
-        m_bPipelineDirty = true;
-    }
-
-    if (loader.Contains("DrawMode"))
-    {
-        m_drawMode = FromStringToDraw(loader["DrawMode"].GetValue());
-        m_bPipelineDirty = true;
-    }
-
-    if (loader.Contains("VertexShader"))
-    {
-        m_vertexShaderPath = loader["VertexShader"].GetValue();
-        m_bPipelineDirty = true;
-    }
-
-    if (loader.Contains("PixelShader"))
-    {
-        m_pixelShaderPath = loader["PixelShader"].GetValue();
-        m_bPipelineDirty = true;
-    }
-
-    if (loader.Contains("GeometryShader"))
-    {
-        m_geometryShaderPath = loader["GeometryShader"].GetValue();
-        m_bPipelineDirty = true;
-    }
-
-    if (loader.Contains("HullShader"))
-    {
-        m_hullShaderPath = loader["HullShader"].GetValue();
-        m_bPipelineDirty = true;
-    }
-
-    if (loader.Contains("DomainShader"))
-    {
-        m_domainShaderPath = loader["DomainShader"].GetValue();
-        m_bPipelineDirty = true;
-    }
-
-    if (loader.Contains("ComputeShader"))
-    {
-        m_computeShaderPath = loader["ComputeShader"].GetValue();
-        m_bPipelineDirty = true;
-    }
 
     if (loader.Contains("ModelPath"))
     {
@@ -2156,17 +1359,6 @@ void kfe::KFEMeshSceneObject::Impl::LoadChildMetaInformation(const JsonLoader& l
             return j[key].AsFloat();
         };
 
-    auto ReadFloat3 = [&](const JsonLoader& j, const char* key, float out3[3]) noexcept
-        {
-            if (!j.Has(key))
-                return;
-
-            const JsonLoader& v = j[key];
-            out3[0] = ReadFloat(v, "x", out3[0]);
-            out3[1] = ReadFloat(v, "y", out3[1]);
-            out3[2] = ReadFloat(v, "z", out3[2]);
-        };
-
     auto ReadMeta = [&](const JsonLoader& src, ModelTextureMetaInformation& meta) noexcept
         {
             //~ BaseColor
@@ -2228,7 +1420,47 @@ void kfe::KFEMeshSceneObject::Impl::LoadChildMetaInformation(const JsonLoader& l
                 meta.Height.ParallaxMaxLayers = ReadFloat(h, "ParallaxMaxLayers", meta.Height.ParallaxMaxLayers);
             }
 
-            //~ Singular
+            //~ Displacement
+            if (src.Has("Displacement"))
+            {
+                const auto& d = src["Displacement"];
+                meta.Displacement.IsTextureAttached = ReadFloat(d, "IsTextureAttached", meta.Displacement.IsTextureAttached);
+                meta.Displacement.DisplacementScale = ReadFloat(d, "DisplacementScale", meta.Displacement.DisplacementScale);
+                meta.Displacement.UvTilingX = ReadFloat(d, "UvTilingX", meta.Displacement.UvTilingX);
+                meta.Displacement.UvTilingY = ReadFloat(d, "UvTilingY", meta.Displacement.UvTilingY);
+            }
+
+            //~ Specular
+            if (src.Has("Specular"))
+            {
+                const auto& s = src["Specular"];
+                meta.Specular.IsTextureAttached = ReadFloat(s, "IsTextureAttached", meta.Specular.IsTextureAttached);
+                meta.Specular.Strength = ReadFloat(s, "Strength", meta.Specular.Strength);
+                meta.Specular.UvTilingX = ReadFloat(s, "UvTilingX", meta.Specular.UvTilingX);
+                meta.Specular.UvTilingY = ReadFloat(s, "UvTilingY", meta.Specular.UvTilingY);
+            }
+
+            //~ Glossiness
+            if (src.Has("Glossiness"))
+            {
+                const auto& g = src["Glossiness"];
+                meta.Glossiness.IsTextureAttached = ReadFloat(g, "IsTextureAttached", meta.Glossiness.IsTextureAttached);
+                meta.Glossiness.Strength = ReadFloat(g, "Strength", meta.Glossiness.Strength);
+                meta.Glossiness.UvTilingX = ReadFloat(g, "UvTilingX", meta.Glossiness.UvTilingX);
+                meta.Glossiness.UvTilingY = ReadFloat(g, "UvTilingY", meta.Glossiness.UvTilingY);
+            }
+
+            //~ DetailNormal
+            if (src.Has("DetailNormal"))
+            {
+                const auto& dn = src["DetailNormal"];
+                meta.DetailNormal.IsTextureAttached = ReadFloat(dn, "IsTextureAttached", meta.DetailNormal.IsTextureAttached);
+                meta.DetailNormal.NormalStrength = ReadFloat(dn, "NormalStrength", meta.DetailNormal.NormalStrength);
+                meta.DetailNormal.UvTilingX = ReadFloat(dn, "UvTilingX", meta.DetailNormal.UvTilingX);
+                meta.DetailNormal.UvTilingY = ReadFloat(dn, "UvTilingY", meta.DetailNormal.UvTilingY);
+            }
+
+            //~ Singular (Occlusion/Roughness/Metallic)
             if (src.Has("Singular"))
             {
                 const auto& s = src["Singular"];
@@ -2248,15 +1480,6 @@ void kfe::KFEMeshSceneObject::Impl::LoadChildMetaInformation(const JsonLoader& l
                 meta.Singular.MetallicTilingY = ReadFloat(s, "MetallicTilingY", meta.Singular.MetallicTilingY);
             }
 
-            //~ Dye
-            if (src.Has("Dye"))
-            {
-                const auto& d = src["Dye"];
-                meta.Dye.IsEnabled = ReadFloat(d, "IsEnabled", meta.Dye.IsEnabled);
-                meta.Dye.Strength = ReadFloat(d, "Strength", meta.Dye.Strength);
-                ReadFloat3(d, "Color", meta.Dye.Color);
-            }
-
             //~ Global
             if (src.Has("Global"))
             {
@@ -2266,7 +1489,6 @@ void kfe::KFEMeshSceneObject::Impl::LoadChildMetaInformation(const JsonLoader& l
             }
         };
 
-    //~ Saved as MetaInformation["0"],
     for (std::uint32_t i = 0;; ++i)
     {
         const std::string idx = std::to_string(i);
@@ -2275,7 +1497,7 @@ void kfe::KFEMeshSceneObject::Impl::LoadChildMetaInformation(const JsonLoader& l
 
         const JsonLoader& entry = (*metaRoot)[idx];
 
-        if (!entry.Contains("Meta"))
+        if (!entry.Has("Meta"))
             continue;
 
         ModelTextureMetaInformation meta{};
@@ -2303,25 +1525,32 @@ void kfe::KFEMeshSceneObject::Impl::LoadChildTextureInformation(const JsonLoader
         };
 
     auto FillSlots = [&](const JsonLoader& texNode,
-        std::array<std::string, (size_t)EModelTextureSlot::Count>& slots) noexcept
+        std::array<std::string, static_cast<std::size_t>(EModelTextureSlot::Count)>& slots) noexcept
         {
             slots.fill(std::string{});
 
-            ReadPath(texNode, "BaseColor", slots[(size_t)EModelTextureSlot::BaseColor]);
-            ReadPath(texNode, "Normal", slots[(size_t)EModelTextureSlot::Normal]);
-            ReadPath(texNode, "ORM", slots[(size_t)EModelTextureSlot::ORM]);
-            ReadPath(texNode, "Emissive", slots[(size_t)EModelTextureSlot::Emissive]);
-            ReadPath(texNode, "Opacity", slots[(size_t)EModelTextureSlot::Opacity]);
-            ReadPath(texNode, "Height", slots[(size_t)EModelTextureSlot::Height]);
+            ReadPath(texNode, "BaseColor", slots[static_cast<std::size_t>(EModelTextureSlot::BaseColor)]);
+            ReadPath(texNode, "Normal", slots[static_cast<std::size_t>(EModelTextureSlot::Normal)]);
+            ReadPath(texNode, "ORM", slots[static_cast<std::size_t>(EModelTextureSlot::ORM)]);
+            ReadPath(texNode, "Emissive", slots[static_cast<std::size_t>(EModelTextureSlot::Emissive)]);
 
-            ReadPath(texNode, "Occlusion", slots[(size_t)EModelTextureSlot::Occlusion]);
-            ReadPath(texNode, "Roughness", slots[(size_t)EModelTextureSlot::Roughness]);
-            ReadPath(texNode, "Metallic", slots[(size_t)EModelTextureSlot::Metallic]);
+            ReadPath(texNode, "Roughness", slots[static_cast<std::size_t>(EModelTextureSlot::Roughness)]);
+            ReadPath(texNode, "Metallic", slots[static_cast<std::size_t>(EModelTextureSlot::Metallic)]);
+            ReadPath(texNode, "Occlusion", slots[static_cast<std::size_t>(EModelTextureSlot::Occlusion)]);
 
-            ReadPath(texNode, "DyeMask", slots[(size_t)EModelTextureSlot::DyeMask]);
+            ReadPath(texNode, "Opacity", slots[static_cast<std::size_t>(EModelTextureSlot::Opacity)]);
+
+            ReadPath(texNode, "Height", slots[static_cast<std::size_t>(EModelTextureSlot::Height)]);
+            ReadPath(texNode, "Displacement", slots[static_cast<std::size_t>(EModelTextureSlot::Displacement)]);
+
+            ReadPath(texNode, "Specular", slots[static_cast<std::size_t>(EModelTextureSlot::Specular)]);
+            ReadPath(texNode, "Glossiness", slots[static_cast<std::size_t>(EModelTextureSlot::Glossiness)]);
+
+            ReadPath(texNode, "DetailNormal", slots[static_cast<std::size_t>(EModelTextureSlot::DetailNormal)]);
+            ReadPath(texNode, "ShadowMap", slots[static_cast<std::size_t>(EModelTextureSlot::ShadowMap)]);
         };
 
-    //~ If mesh isn't built yet: cache lazily
+    // If mesh isn't built yet: cache lazily
     if (!m_mesh.IsValid())
     {
         for (std::uint32_t i = 0;; ++i)
@@ -2334,7 +1563,7 @@ void kfe::KFEMeshSceneObject::Impl::LoadChildTextureInformation(const JsonLoader
             if (!entry.Has("Textures"))
                 continue;
 
-            std::array<std::string, (size_t)EModelTextureSlot::Count> slots{};
+            std::array<std::string, static_cast<std::size_t>(EModelTextureSlot::Count)> slots{};
             FillSlots(entry["Textures"], slots);
 
             m_cbTexLazy[i] = std::move(slots);
@@ -2358,126 +1587,101 @@ void kfe::KFEMeshSceneObject::Impl::LoadChildTextureInformation(const JsonLoader
         if (!entry.Has("Textures"))
             continue;
 
-        std::array<std::string, (size_t)EModelTextureSlot::Count> slots{};
+        std::array<std::string, static_cast<std::size_t>(EModelTextureSlot::Count)> slots{};
         FillSlots(entry["Textures"], slots);
 
         auto& sm = subs[i];
 
-        sm.SetBaseColor(slots[(size_t)EModelTextureSlot::BaseColor]);
-        sm.SetNormal(slots[(size_t)EModelTextureSlot::Normal]);
-        sm.SetORM(slots[(size_t)EModelTextureSlot::ORM]);
-        sm.SetEmissive(slots[(size_t)EModelTextureSlot::Emissive]);
-        sm.SetOpacity(slots[(size_t)EModelTextureSlot::Opacity]);
-        sm.SetHeight(slots[(size_t)EModelTextureSlot::Height]);
+        sm.SetBaseColor(slots[static_cast<std::size_t>(EModelTextureSlot::BaseColor)]);
+        sm.SetNormal(slots[static_cast<std::size_t>(EModelTextureSlot::Normal)]);
+        sm.SetORM(slots[static_cast<std::size_t>(EModelTextureSlot::ORM)]);
+        sm.SetEmissive(slots[static_cast<std::size_t>(EModelTextureSlot::Emissive)]);
 
-        sm.SetOcclusion(slots[(size_t)EModelTextureSlot::Occlusion]);
-        sm.SetRoughness(slots[(size_t)EModelTextureSlot::Roughness]);
-        sm.SetMetallic(slots[(size_t)EModelTextureSlot::Metallic]);
+        sm.SetRoughness(slots[static_cast<std::size_t>(EModelTextureSlot::Roughness)]);
+        sm.SetMetallic(slots[static_cast<std::size_t>(EModelTextureSlot::Metallic)]);
+        sm.SetOcclusion(slots[static_cast<std::size_t>(EModelTextureSlot::Occlusion)]);
 
-        sm.SetDyeMask(slots[(size_t)EModelTextureSlot::DyeMask]);
+        sm.SetOpacity(slots[static_cast<std::size_t>(EModelTextureSlot::Opacity)]);
+
+        sm.SetHeight(slots[static_cast<std::size_t>(EModelTextureSlot::Height)]);
+        sm.SetDisplacement(slots[static_cast<std::size_t>(EModelTextureSlot::Displacement)]);
+
+        sm.SetSpecular(slots[static_cast<std::size_t>(EModelTextureSlot::Specular)]);
+        sm.SetGlossiness(slots[static_cast<std::size_t>(EModelTextureSlot::Glossiness)]);
+
+        sm.SetDetailNormal(slots[static_cast<std::size_t>(EModelTextureSlot::DetailNormal)]);
+        sm.SetShadowMap(slots[static_cast<std::size_t>(EModelTextureSlot::ShadowMap)]);
 
         sm.m_bTextureDirty = true;
     }
 }
 
+void kfe::KFEMeshSceneObject::Impl::ImguiViewHeader(float deltaTime)
+{
+    (void)deltaTime;
+
+    ImGui::SeparatorText("Mesh");
+
+    auto EditModelPath = [&](const char* label)
+        {
+            char buf[260]{};
+
+            const size_t maxCopy = sizeof(buf) - 1;
+            const size_t count = std::min(m_modelPath.size(), maxCopy);
+
+            m_modelPath.copy(buf, count);
+            buf[count] = '\0';
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted(label);
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(-80.0f);
+            if (ImGui::InputText("##ModelPath", buf, sizeof(buf)))
+            {
+                m_modelPath = std::string{ buf };
+                m_bModelDirty = true;
+            }
+
+            if (ImGui::BeginDragDropTarget())
+            {
+                if (const ImGuiPayload* payload =
+                    ImGui::AcceptDragDropPayload(kfe::KFEAssetPanel::kPayloadType))
+                {
+                    kfe::KFEAssetPanel::PayloadHeader hdr{};
+                    std::string pathUtf8;
+
+                    if (kfe::KFEAssetPanel::ParsePayload(payload, hdr, pathUtf8))
+                    {
+                        m_modelPath = std::move(pathUtf8);
+                        m_bModelDirty = true;
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("X##ClearModelPath"))
+            {
+                m_modelPath.clear();
+                m_bModelDirty = true;
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Apply##ApplyModelPath"))
+            {
+                m_bModelDirty = true;
+            }
+        };
+
+    EditModelPath("Model Path");
+
+    if (m_bModelDirty)
+        ImGui::TextColored(ImVec4(1, 1, 0, 1), "Pending: model reload");
+}
+
 void kfe::KFEMeshSceneObject::Impl::ImguiView(float dt)
 {
-    if (ImGui::CollapsingHeader("Model Settings", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        {
-            const char* drawModeItems[] = { "Triangle", "Point", "WireFrame" };
-            int currentDrawIndex = 0;
-            switch (m_drawMode)
-            {
-            case EDrawMode::Triangle:  currentDrawIndex = 0; break;
-            case EDrawMode::Point:     currentDrawIndex = 1; break;
-            case EDrawMode::WireFrame: currentDrawIndex = 2; break;
-            }
-
-            if (ImGui::Combo("Draw Mode", &currentDrawIndex, drawModeItems, IM_ARRAYSIZE(drawModeItems)))
-            {
-                switch (currentDrawIndex)
-                {
-                case 0: m_drawMode = EDrawMode::Triangle;  break;
-                case 1: m_drawMode = EDrawMode::Point;     break;
-                case 2: m_drawMode = EDrawMode::WireFrame; break;
-                default: m_drawMode = EDrawMode::Triangle; break;
-                }
-                m_bPipelineDirty = true;
-            }
-        }
-
-        {
-            const char* cullModeItems[] = { "Front", "Back", "None" };
-            int currentCullIndex = 2;
-            switch (m_cullMode)
-            {
-            case ECullMode::Front: currentCullIndex = 0; break;
-            case ECullMode::Back:  currentCullIndex = 1; break;
-            case ECullMode::None:  currentCullIndex = 2; break;
-            }
-
-            if (ImGui::Combo("Cull Mode", &currentCullIndex, cullModeItems, IM_ARRAYSIZE(cullModeItems)))
-            {
-                switch (currentCullIndex)
-                {
-                case 0: m_cullMode = ECullMode::Front; break;
-                case 1: m_cullMode = ECullMode::Back;  break;
-                case 2: m_cullMode = ECullMode::None;  break;
-                default: m_cullMode = ECullMode::None; break;
-                }
-                m_bPipelineDirty = true;
-            }
-        }
-
-        ImGui::Separator();
-
-        if (ImGui::TreeNode("Shaders"))
-        {
-            auto EditPath = [](const char* label, std::string& path, auto setter)
-                {
-                    char buf[260];
-                    std::memset(buf, 0, sizeof(buf));
-
-                    const size_t maxCopy = sizeof(buf) - 1;
-                    const size_t count = std::min(path.size(), maxCopy);
-
-                    path.copy(buf, count);
-                    buf[count] = '\0';
-
-                    if (ImGui::InputText(label, buf, sizeof(buf)))
-                    {
-                        setter(std::string{ buf });
-                    }
-
-                    if (ImGui::BeginDragDropTarget())
-                    {
-                        if (const ImGuiPayload* payload =
-                            ImGui::AcceptDragDropPayload(kfe::KFEAssetPanel::kPayloadType))
-                        {
-                            kfe::KFEAssetPanel::PayloadHeader hdr{};
-                            std::string pathUtf8;
-
-                            if (kfe::KFEAssetPanel::ParsePayload(payload, hdr, pathUtf8))
-                            {
-                                setter(pathUtf8);
-                            }
-                        }
-                        ImGui::EndDragDropTarget();
-                    }
-                };
-
-            EditPath("Vertex Shader", m_vertexShaderPath, [this](const std::string& p) { SetVertexShaderPath(p);   m_bPipelineDirty = true; });
-            EditPath("Pixel Shader", m_pixelShaderPath, [this](const std::string& p) { SetPixelShaderPath(p);    m_bPipelineDirty = true; });
-            EditPath("Geometry Shader", m_geometryShaderPath, [this](const std::string& p) { SetGeometryShaderPath(p); m_bPipelineDirty = true; });
-            EditPath("Hull Shader", m_hullShaderPath, [this](const std::string& p) { SetHullShaderPath(p);     m_bPipelineDirty = true; });
-            EditPath("Domain Shader", m_domainShaderPath, [this](const std::string& p) { SetDomainShaderPath(p);   m_bPipelineDirty = true; });
-            EditPath("Compute Shader", m_computeShaderPath, [this](const std::string& p) { SetComputeShaderPath(p);  m_bPipelineDirty = true; });
-
-            ImGui::TreePop();
-        }
-    }
-
     ImguiTextureMetaConfig(dt);
     ImguiChildTransformation (dt);
 }
@@ -2632,6 +1836,8 @@ void kfe::KFEMeshSceneObject::Impl::ImguiChildTransformation(float deltaTime)
 
 void kfe::KFEMeshSceneObject::Impl::ImguiTextureMetaConfig(float dt)
 {
+    (void)dt;
+
     ImGui::SeparatorText("Submesh Texture + Meta");
 
     auto& subs = m_mesh.GetSubmeshesMutable();
@@ -2883,6 +2089,137 @@ void kfe::KFEMeshSceneObject::Impl::ImguiTextureMetaConfig(float dt)
             return metaDirty;
         };
 
+    auto DrawDisplacementPair = [&](kfe::KFEModelSubmesh& sm) -> bool
+        {
+            bool metaDirty = false;
+
+            if (ImGui::TreeNode("Displacement"))
+            {
+                if (ImGui::TreeNode("Displacement Texture"))
+                {
+                    EditPath("Path",
+                        sm.m_srvs[static_cast<std::size_t>(EModelTextureSlot::Displacement)].TexturePath,
+                        [&sm](const std::string& p) { sm.SetDisplacement(p); });
+
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Meta Displacement"))
+                {
+                    auto& d = sm.m_textureMetaInformation.Displacement;
+
+                    metaDirty |= CheckboxFloat01("Attached", &d.IsTextureAttached);
+                    metaDirty |= ImGui::DragFloat("Displacement Scale", &d.DisplacementScale, 0.001f, 0.0f, 0.5f);
+                    metaDirty |= ImGui::DragFloat2("UV Tiling", &d.UvTilingX, 0.01f, 0.01f, 100.0f);
+
+                    ImGui::TreePop();
+                }
+
+                ImGui::TreePop();
+            }
+
+            return metaDirty;
+        };
+
+    auto DrawSpecGlossPair = [&](kfe::KFEModelSubmesh& sm) -> bool
+        {
+            bool metaDirty = false;
+
+            if (ImGui::TreeNode("Specular / Glossiness"))
+            {
+                if (ImGui::TreeNode("Specular Texture"))
+                {
+                    EditPath("Path",
+                        sm.m_srvs[static_cast<std::size_t>(EModelTextureSlot::Specular)].TexturePath,
+                        [&sm](const std::string& p) { sm.SetSpecular(p); });
+
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Glossiness Texture"))
+                {
+                    EditPath("Path",
+                        sm.m_srvs[static_cast<std::size_t>(EModelTextureSlot::Glossiness)].TexturePath,
+                        [&sm](const std::string& p) { sm.SetGlossiness(p); });
+
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Meta Specular / Glossiness"))
+                {
+                    auto& s = sm.m_textureMetaInformation.Specular;
+                    auto& g = sm.m_textureMetaInformation.Glossiness;
+
+                    metaDirty |= CheckboxFloat01("Specular Attached", &s.IsTextureAttached);
+                    metaDirty |= ImGui::DragFloat("Specular Strength", &s.Strength, 0.01f, 0.0f, 10.0f);
+                    metaDirty |= ImGui::DragFloat2("Specular UV Tiling", &s.UvTilingX, 0.01f, 0.01f, 100.0f);
+
+                    metaDirty |= CheckboxFloat01("Glossiness Attached", &g.IsTextureAttached);
+                    metaDirty |= ImGui::DragFloat("Glossiness Strength", &g.Strength, 0.01f, 0.0f, 10.0f);
+                    metaDirty |= ImGui::DragFloat2("Glossiness UV Tiling", &g.UvTilingX, 0.01f, 0.01f, 100.0f);
+
+                    ImGui::TreePop();
+                }
+
+                ImGui::TreePop();
+            }
+
+            return metaDirty;
+        };
+
+    auto DrawDetailNormalPair = [&](kfe::KFEModelSubmesh& sm) -> bool
+        {
+            bool metaDirty = false;
+
+            if (ImGui::TreeNode("Detail Normal"))
+            {
+                if (ImGui::TreeNode("Detail Normal Texture"))
+                {
+                    EditPath("Path",
+                        sm.m_srvs[static_cast<std::size_t>(EModelTextureSlot::DetailNormal)].TexturePath,
+                        [&sm](const std::string& p) { sm.SetDetailNormal(p); });
+
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Meta Detail Normal"))
+                {
+                    auto& dn = sm.m_textureMetaInformation.DetailNormal;
+
+                    metaDirty |= CheckboxFloat01("Attached", &dn.IsTextureAttached);
+                    metaDirty |= ImGui::DragFloat("Normal Strength", &dn.NormalStrength, 0.01f, 0.0f, 5.0f);
+                    metaDirty |= ImGui::DragFloat2("UV Tiling", &dn.UvTilingX, 0.01f, 0.01f, 100.0f);
+
+                    ImGui::TreePop();
+                }
+
+                ImGui::TreePop();
+            }
+
+            return metaDirty;
+        };
+
+    auto DrawShadowMapPath = [&](kfe::KFEModelSubmesh& sm) -> bool
+        {
+            bool metaDirty = false;
+
+            if (ImGui::TreeNode("Shadow Map"))
+            {
+                if (ImGui::TreeNode("Shadow Map SRV Path (debug)"))
+                {
+                    EditPath("Path",
+                        sm.m_srvs[static_cast<std::size_t>(EModelTextureSlot::ShadowMap)].TexturePath,
+                        [&sm](const std::string& p) { sm.SetShadowMap(p); });
+
+                    ImGui::TreePop();
+                }
+
+                ImGui::TreePop();
+            }
+
+            return metaDirty;
+        };
+
     auto DrawSplitORMPair = [&](kfe::KFEModelSubmesh& sm) -> bool
         {
             bool metaDirty = false;
@@ -2928,37 +2265,10 @@ void kfe::KFEMeshSceneObject::Impl::ImguiTextureMetaConfig(float dt)
                     metaDirty |= ImGui::DragFloat("Roughness", &s.RoughnessValue, 0.01f, 0.0f, 1.0f);
                     metaDirty |= ImGui::DragFloat("Metallic", &s.MetallicValue, 0.01f, 0.0f, 1.0f);
 
-                    ImGui::TreePop();
-                }
-
-                ImGui::TreePop();
-            }
-
-            return metaDirty;
-        };
-
-    auto DrawDyePair = [&](kfe::KFEModelSubmesh& sm) -> bool
-        {
-            bool metaDirty = false;
-
-            if (ImGui::TreeNode("Dye"))
-            {
-                if (ImGui::TreeNode("Dye Mask Texture"))
-                {
-                    EditPath("Path",
-                        sm.m_srvs[static_cast<std::size_t>(EModelTextureSlot::DyeMask)].TexturePath,
-                        [&sm](const std::string& p) { sm.SetDyeMask(p); });
-
-                    ImGui::TreePop();
-                }
-
-                if (ImGui::TreeNode("Meta Dye"))
-                {
-                    auto& d = sm.m_textureMetaInformation.Dye;
-
-                    metaDirty |= CheckboxFloat01("Enabled", &d.IsEnabled);
-                    metaDirty |= ImGui::DragFloat("Strength", &d.Strength, 0.01f, 0.0f, 5.0f);
-                    metaDirty |= ImGui::ColorEdit3("Color", d.Color);
+                    // (Optional but you *do* have these in the struct — might as well expose them)
+                    metaDirty |= ImGui::DragFloat2("Occlusion UV Tiling", &s.OcclusionTilingX, 0.01f, 0.01f, 100.0f);
+                    metaDirty |= ImGui::DragFloat2("Roughness UV Tiling", &s.RoughnessTilingX, 0.01f, 0.01f, 100.0f);
+                    metaDirty |= ImGui::DragFloat2("Metallic UV Tiling", &s.MetallicTilingX, 0.01f, 0.01f, 100.0f);
 
                     ImGui::TreePop();
                 }
@@ -3011,9 +2321,17 @@ void kfe::KFEMeshSceneObject::Impl::ImguiTextureMetaConfig(float dt)
         metaDirty |= DrawORMPair(sm);
         metaDirty |= DrawEmissivePair(sm);
         metaDirty |= DrawOpacityPair(sm);
+
         metaDirty |= DrawHeightPair(sm);
+        metaDirty |= DrawDisplacementPair(sm);
+
         metaDirty |= DrawSplitORMPair(sm);
-        metaDirty |= DrawDyePair(sm);
+
+        metaDirty |= DrawSpecGlossPair(sm);
+        metaDirty |= DrawDetailNormalPair(sm);
+
+        metaDirty |= DrawShadowMapPath(sm);
+
         metaDirty |= DrawGlobalMeta(sm);
 
         if (metaDirty)
@@ -3022,7 +2340,6 @@ void kfe::KFEMeshSceneObject::Impl::ImguiTextureMetaConfig(float dt)
         ImGui::PopID();
     }
 }
-
 
 #pragma endregion
 
