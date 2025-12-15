@@ -22,72 +22,121 @@
 
 namespace kfe
 {
-    enum KFE_LIGHT_TYPE : uint32_t
+    static constexpr std::uint32_t KFE_MAX_CASCADES = 4u;
+    static constexpr std::uint32_t KFE_POINT_FACE_COUNT = 6u;
+
+    enum KFE_LIGHT_TYPE : std::uint32_t
     {
-        KFE_LIGHT_DIRECTIONAL = 0,
-        KFE_LIGHT_SPOT        = 1,
-        KFE_LIGHT_POINT       = 2
+        KFE_LIGHT_DIRECTIONAL = 0u,
+        KFE_LIGHT_SPOT = 1u,
+        KFE_LIGHT_POINT = 2u
     };
 
-    inline static std::string ToString(KFE_LIGHT_TYPE type)
+    enum KFE_SHADOW_TECH : std::uint32_t
+    {
+        KFE_SHADOW_NONE = 0u,
+        KFE_SHADOW_DIR_CSM = 1u,
+        KFE_SHADOW_SPOT_2D = 2u,
+        KFE_SHADOW_POINT_CUBE = 3u
+    };
+
+    enum KFE_LIGHT_FLAGS : std::uint32_t
+    {
+        KFE_LIGHT_FLAG_ENABLED = (1u << 0),
+        KFE_LIGHT_FLAG_CAST_SHADOW = (1u << 1),
+        KFE_LIGHT_FLAG_VOLUMETRIC = (1u << 2),
+        KFE_LIGHT_FLAG_RESERVED3 = (1u << 3)
+    };
+
+    inline static const char* ToString(KFE_LIGHT_TYPE type) noexcept
     {
         switch (type)
         {
         case KFE_LIGHT_DIRECTIONAL: return "DIRECTIONAL";
         case KFE_LIGHT_SPOT:        return "SPOT";
         case KFE_LIGHT_POINT:       return "POINT";
-        default:                    break;
+        default:                    return "UNKNOWN_LIGHT";
         }
-        return "UNKNOWN_LIGHT";
     }
 
-#pragma pack(push, 16)
-
-    typedef struct _KFE_LIGHT_DATA_DESC
+    struct alignas(16) KFE_LIGHT_DATA_GPU
     {
-        //~ light type & intensity
-        float Type;
+        //~ header
+        std::uint32_t Type;          //~ KFE_LIGHT_TYPE
+        std::uint32_t Flags;         //~ KFE_LIGHT_FLAGS
+        std::uint32_t ShadowTech;    //~ KFE_SHADOW_TECH
+        std::uint32_t ShadowMapId;   //~ index into shadow array
+
+        //~ energy & range
         float Intensity;
         float Range;
+        float Attenuation;
         float ShadowStrength;
 
-        //~ spatial
+        //~ position
         DirectX::XMFLOAT3 PositionWS;
-        float             NormalBias;
+        float             _PadPos;
 
+        //~ direction (raw and normalized)
         DirectX::XMFLOAT3 DirectionWS;
-        float             ShadowBias;
+        float             _PadDir0;
 
-        //~ color & attenuation
+        DirectX::XMFLOAT3 DirectionWSNormalized;
+        float             _PadDir1;
+
+        //~ color
         DirectX::XMFLOAT3 Color;
-        float             Attenuation;
+        float             _PadColor;
 
-        //~ spot params
-        float SpotInnerAngle;
-        float SpotOuterAngle;
-        float ShadowDistance;
-        float OrthoSize;
+        //~ spot params (cosines)
+        float SpotInnerCos;
+        float SpotOuterCos;
+        float SpotSoftness;
+        float _PadSpot;
 
-        //~ shadow matrices
-        DirectX::XMMATRIX LightView;
-        DirectX::XMMATRIX LightProj;
-        DirectX::XMMATRIX LightViewProj;
+        //~ shadow params
+        float ShadowBias;
+        float NormalBias;
+        float ShadowNearZ;
+        float ShadowFarZ;
 
+        float ShadowFilterRadius;
+        float ShadowTexelSize;
+        float ShadowFadeStart;
+        float ShadowFadeEnd;
+
+        //~ atlas addressing
+        DirectX::XMFLOAT2 ShadowUVScale;
+        DirectX::XMFLOAT2 ShadowUVOffset;
+
+        //~ directional cascades
+        DirectX::XMFLOAT4   CascadeSplits;
+        DirectX::XMFLOAT4X4 CascadeViewProjT[KFE_MAX_CASCADES];
+
+        //~ single shadow (spot / simple directional)
+        DirectX::XMFLOAT4X4 LightViewProjT;
+
+        //~ point light cubemap shadows
+        DirectX::XMFLOAT4X4 PointFaceViewProjT[KFE_POINT_FACE_COUNT];
+
+        //~ shadow map size
         DirectX::XMFLOAT2 InvShadowMapSize;
-        float             Padding0;
-        float             Padding1;
-
-    } KFE_LIGHT_DATA_DESC;
-
-#pragma pack(pop)
-
-    class KEFCubeSceneObject;
+        float             _PadSM0;
+        float             _PadSM1;
+    };
+    static_assert((sizeof(KFE_LIGHT_DATA_GPU) % 16) == 0, "KFE_LIGHT_DATA_GPU must be 16-byte multiple.");
 
     class KFE_API IKFELight : public IKFEObject
     {
     public:
         IKFELight();
         virtual ~IKFELight() override;
+
+        IKFELight(const IKFELight&) = delete;
+        IKFELight& operator=(const IKFELight&) = delete;
+       
+        IKFELight(IKFELight&&) noexcept;
+        IKFELight& operator=(IKFELight&&) noexcept;
 
         //~ lifetime
         void Enable();
@@ -98,7 +147,7 @@ namespace kfe
         void Update(const KFECamera* camera);
 
         //~ gpu data
-        NODISCARD KFE_LIGHT_DATA_DESC GetLightData() const;
+        NODISCARD KFE_LIGHT_DATA_GPU GetLightData() const;
 
         //~ cpu culling
         void  SetCullRadius(float r);
@@ -117,6 +166,18 @@ namespace kfe
         NODISCARD KFE_LIGHT_TYPE GetLightType() const;
         NODISCARD std::string GetLightTypeName() const;
 
+        //~ flags & shadow tech
+        void SetFlags(std::uint32_t flags);
+        void AddFlags(std::uint32_t flags);
+        void RemoveFlags(std::uint32_t flags);
+        NODISCARD std::uint32_t GetFlags() const;
+
+        void SetShadowTech(KFE_SHADOW_TECH tech);
+        NODISCARD KFE_SHADOW_TECH GetShadowTech() const;
+
+        void SetShadowMapId(std::uint32_t id);
+        NODISCARD std::uint32_t GetShadowMapId() const;
+
         //~ common params
         void  SetIntensity(float v);
         float GetIntensity() const;
@@ -130,6 +191,7 @@ namespace kfe
 
         void  SetDirectionWS(const DirectX::XMFLOAT3& dir);
         DirectX::XMFLOAT3 GetDirectionWS() const;
+        DirectX::XMFLOAT3 GetDirectionWSNormalized() const;
 
         //~ range & attenuation
         void  SetRange(float v);
@@ -138,12 +200,15 @@ namespace kfe
         void  SetAttenuation(float v);
         float GetAttenuation() const;
 
-        //~ spot params
+        //~ spot params (radians)
         void  SetSpotInnerAngle(float radians);
         float GetSpotInnerAngle() const;
 
         void  SetSpotOuterAngle(float radians);
         float GetSpotOuterAngle() const;
+
+        void  SetSpotSoftness(float v);
+        float GetSpotSoftness() const;
 
         //~ shadow params
         void  SetShadowStrength(float v);
@@ -155,24 +220,49 @@ namespace kfe
         void  SetNormalBias(float v);
         float GetNormalBias() const;
 
+        void  SetShadowNearZ(float v);
+        float GetShadowNearZ() const;
+
+        void  SetShadowFarZ(float v);
+        float GetShadowFarZ() const;
+
+        void  SetShadowFilterRadius(float v);
+        float GetShadowFilterRadius() const;
+
+        void  SetShadowTexelSize(float v);
+        float GetShadowTexelSize() const;
+
+        void  SetShadowFadeStart(float v);
+        float GetShadowFadeStart() const;
+
+        void  SetShadowFadeEnd(float v);
+        float GetShadowFadeEnd() const;
+
         void  SetShadowDistance(float v);
         float GetShadowDistance() const;
 
         void  SetOrthoSize(float v);
         float GetOrthoSize() const;
 
+        void  SetShadowAtlasUV(const DirectX::XMFLOAT2& scale, const DirectX::XMFLOAT2& offset);
+        DirectX::XMFLOAT2 GetShadowUVScale() const;
+        DirectX::XMFLOAT2 GetShadowUVOffset() const;
+
         void  SetShadowMapSize(std::uint32_t w, std::uint32_t h);
         std::uint32_t GetShadowMapWidth()  const;
         std::uint32_t GetShadowMapHeight() const;
 
-        //~ matrices
+        //~ directional cascades
+        void SetCascadeSplits(const DirectX::XMFLOAT4& splits);
+        DirectX::XMFLOAT4 GetCascadeSplits() const;
+
+        //~ matrices (cpu)
         DirectX::XMMATRIX GetLightView() const;
         DirectX::XMMATRIX GetLightProj() const;
         DirectX::XMMATRIX GetLightViewProj() const;
 
         void SetLightView(const DirectX::XMMATRIX& m);
         void SetLightProj(const DirectX::XMMATRIX& m);
-        void SetLightViewProj(const DirectX::XMMATRIX& m);
 
         //~ imgui
         virtual void ImguiView(float deltaTime) = 0;
@@ -184,22 +274,29 @@ namespace kfe
         //~ defaults
         virtual void ResetToDefaults() = 0;
 
-        //~ Light Configs
+        //~ configs
         void        SetLightName(const std::string& name);
         std::string GetLightName() const;
 
     protected:
+        void EnsurePacked_() const noexcept;
         virtual void UpdateLight(const KFECamera* camera) = 0;
+
         static DirectX::XMVECTOR NormalizeSafe(DirectX::FXMVECTOR v) noexcept;
         static DirectX::XMVECTOR ChooseUpVector(DirectX::FXMVECTOR dir) noexcept;
 
     protected:
-            KFE_LIGHT_DATA_DESC m_lightData{};
-            float               m_cullRadius = 30.0f;
-            std::string         m_lightName{};
+        mutable DirectX::XMMATRIX       m_lightViewCPU{};
+        mutable DirectX::XMMATRIX       m_lightProjCPU{};
+        mutable DirectX::XMMATRIX       m_lightViewProjCPU{};
+        mutable KFE_LIGHT_DATA_GPU      m_lightData{};
+        float                           m_cullRadius = 30.0f;
+        std::string                     m_lightName{};
+        mutable bool                    m_bDirty{ true };
 
     private:
+        class Impl;
+        std::unique_ptr<Impl> m_impl;
         bool m_enabled = true;
-        std::unique_ptr<KEFCubeSceneObject> m_debugCube;
     };
 } // namespace kfe

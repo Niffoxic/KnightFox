@@ -209,9 +209,13 @@
     </ClInclude>
     <ClInclude Include="include\engine\render_manager\api\frame_cb.h" />
     <ClInclude Include="include\engine\render_manager\light\directional_light.h" />
+    <ClInclude Include="include\engine\render_manager\light\light_manager.h" />
+    <ClInclude Include="include\engine\render_manager\light\point_light.h" />
+    <ClInclude Include="include\engine\render_manager\light\spot_light.h" />
     <ClInclude Include="include\engine\render_manager\scene\cube_scene.h" />
-    <ClInclude Include="include\engine\render_manager\scene\model_scene.h" />
+    <ClInclude Include="include\engine\render_manager\scene\scene_types.h" />
     <ClInclude Include="include\engine\render_manager\shadow\shadow_map.h" />
+    <ClInclude Include="include\engine\system\interface\interface_light.h" />
     <ClInclude Include="include\engine\system\interface\interface_scene.h" />
     <ClInclude Include="include\engine\system\common_types.h" />
     <ClInclude Include="include\engine\core.h" />
@@ -225,6 +229,7 @@
     <ClInclude Include="include\engine\system\interface\interface_manager.h" />
     <ClInclude Include="include\engine\system\interface\interface_singleton.h" />
     <ClInclude Include="include\engine\system\key_generator.h" />
+    <ClInclude Include="include\engine\system\registry\registry_light.h" />
     <ClInclude Include="include\engine\system\registry\registry_scene.h" />
     <ClInclude Include="include\engine\system\timer.h" />
     <ClInclude Include="include\engine\render_manager\api\components\adapter.h" />
@@ -273,7 +278,7 @@
     <ClCompile Include="src\render_manager\api\pso.cpp" />
     <ClCompile Include="src\render_manager\api\root_signature.cpp" />
     <ClCompile Include="src\render_manager\api\sampler.cpp" />
-    <ClCompile Include="src\render_manager\api\texture\frame_cb.cpp" />
+    <ClCompile Include="src\render_manager\api\frame_cb.cpp" />
     <ClCompile Include="src\render_manager\api\texture\staging_texture.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_dsv.cpp" />
     <ClCompile Include="src\render_manager\api\texture\texture_rtv.cpp" />
@@ -300,16 +305,20 @@
     <ClCompile Include="src\render_manager\components\camera.cpp" />
     <ClCompile Include="src\render_manager\components\render_queue.cpp" />
     <ClCompile Include="src\render_manager\light\directional_light.cpp" />
+    <ClCompile Include="src\render_manager\light\light_manager.cpp" />
+    <ClCompile Include="src\render_manager\light\point_light.cpp" />
+    <ClCompile Include="src\render_manager\light\spot_light.cpp" />
     <ClCompile Include="src\render_manager\scene\cube_scene.cpp" />
     <ClCompile Include="src\render_manager\shadow\shadow_map.cpp" />
+    <ClCompile Include="src\system\interface\interface_light.cpp" />
     <ClCompile Include="src\system\interface\interface_scene.cpp" />
-    <ClCompile Include="src\render_manager\scene\model_scene.cpp" />
     <ClCompile Include="src\system\dependency_resolver.cpp" />
     <ClCompile Include="src\system\event_queue.cpp" />
     <ClCompile Include="src\system\exception\base_exception.cpp" />
     <ClCompile Include="src\system\exception\dx_exception.cpp" />
     <ClCompile Include="src\system\exception\win_exception.cpp" />
     <ClCompile Include="src\system\key_generator.cpp" />
+    <ClCompile Include="src\system\registry\registry_light.cpp" />
     <ClCompile Include="src\system\registry\registry_scene.cpp" />
     <ClCompile Include="src\system\timer.cpp" />
     <ClCompile Include="src\render_manager\api\components\adapter.cpp" />

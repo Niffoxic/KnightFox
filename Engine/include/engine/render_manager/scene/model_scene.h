@@ -69,7 +69,7 @@ namespace kfe
 
         // ~ Lifecycle
         void Update(const KFE_UPDATE_OBJECT_DESC& desc) override;
-        bool Build(_In_ const KFE_BUILD_OBJECT_DESC& desc) override;
+        bool BuildChild(_In_ const KFE_BUILD_OBJECT_DESC& desc) override;
         bool Destroy() override;
         void Render(_In_ const KFE_RENDER_OBJECT_DESC& desc) override;
 

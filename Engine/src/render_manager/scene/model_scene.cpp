@@ -45,7 +45,6 @@
 #include <cstring>
 #include <unordered_map>
 #include <map>
-#include <unordered_map>
 #include <unordered_set>
 #include <array>
 
@@ -82,22 +81,6 @@ public:
     //~ Model path
     void SetModelPath(const std::string& path) noexcept;
 
-    //~ Shader paths
-    void SetVertexShaderPath    (const std::string& path) noexcept;
-    void SetPixelShaderPath     (const std::string& path) noexcept;
-    void SetGeometryShaderPath  (const std::string& path) noexcept;
-    void SetHullShaderPath      (const std::string& path) noexcept;
-    void SetDomainShaderPath    (const std::string& path) noexcept;
-    void SetComputeShaderPath   (const std::string& path) noexcept;
-
-    const std::string& GetVertexShaderPath  () const noexcept { return m_vertexShaderPath; }
-    const std::string& GetPixelShaderPath   () const noexcept { return m_pixelShaderPath; }
-    const std::string& GetGeometryShaderPath() const noexcept { return m_geometryShaderPath; }
-    const std::string& GetHullShaderPath    () const noexcept { return m_hullShaderPath; }
-    const std::string& GetDomainShaderPath  () const noexcept { return m_domainShaderPath; }
-    const std::string& GetComputeShaderPath () const noexcept { return m_computeShaderPath; }
-    const std::string& GetModelPath         () const noexcept { return m_modelPath; }
-
     JsonLoader GetJsonData               () const noexcept;
     JsonLoader GetChildTransformation    () const noexcept;
     JsonLoader GetChildMetaInformation   () const noexcept;
@@ -114,9 +97,6 @@ public:
 private:
     bool BuildGeometry      (_In_ const KFE_BUILD_OBJECT_DESC& desc);
     bool BuildConstantBuffer(_In_ const KFE_BUILD_OBJECT_DESC& desc);
-    bool BuildRootSignature (_In_ const KFE_BUILD_OBJECT_DESC& desc);
-    bool BuildPipeline      (KFEDevice* device);
-    bool BuildSampler       (_In_ const KFE_BUILD_OBJECT_DESC& desc);
 
     //~ Build Constant buffer for submeshes
     void ApplyChildTransformationsFromCache() noexcept;
@@ -138,8 +118,7 @@ private:
         const DirectX::XMMATRIX& parentWorld);
 
 public:
-    ECullMode m_cullMode        { ECullMode::None };
-    EDrawMode m_drawMode        { EDrawMode::Triangle };
+
     bool      m_bPipelineDirty  { false };
     bool      m_bTextureDirty   { true };
     bool      m_bModelDirty     { true };
@@ -151,14 +130,6 @@ private:
     bool                m_bBuild{ false };
 
     //~ Shaders
-    std::string m_vertexShaderPath  { "shaders/mesh/vertex.hlsl" };
-    std::string m_pixelShaderPath   { "shaders/mesh/pixel.hlsl" };
-    std::string m_geometryShaderPath{};
-    std::string m_hullShaderPath    {};
-    std::string m_domainShaderPath  {};
-    std::string m_computeShaderPath {};
-
-    std::unique_ptr<KFERootSignature> m_pRootSignature{ nullptr };
 
     //~ Constant buffers
     std::unique_ptr<KFEBuffer>         m_pCBBuffer{ nullptr };
@@ -168,19 +139,12 @@ private:
     std::unique_ptr<KFEConstantBuffer> m_pMetaCBV{ nullptr };
 
     //~ Pipeline
-    std::unique_ptr<KFEPipelineState> m_pPipeline{ nullptr };
     KFEDevice*                        m_pDevice  { nullptr };
-
-    //~ Sampling
-    KFEResourceHeap*            m_pResourceHeap { nullptr };
-    KFESamplerHeap*             m_pSamplerHeap  { nullptr };
-    std::unique_ptr<KFESampler> m_pSampler      { nullptr };
-    std::uint32_t               m_samplerIndex  { KFE_INVALID_INDEX };
 
     //~ Model
     KFEModel    m_mesh     {};
     std::string m_modelPath{ "assets/3d/blacksmith/source/BS_Final_Apose_Sketchfab.fbx" };
-    std::unordered_map<std::uint32_t, KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC> m_cbData     {};
+    std::unordered_map<std::uint32_t, KFE_COMMON_CB_GPU> m_cbData     {};
     std::unordered_map<std::uint32_t, DirectX::XMFLOAT4X4>                 m_cbTransLazy{};
     std::unordered_map<std::uint32_t, ModelTextureMetaInformation>         m_cbMetaLazy{};
     std::unordered_map<std::uint32_t, std::array<std::string, (size_t)EModelTextureSlot::Count>> m_cbTexLazy;
@@ -224,7 +188,7 @@ void kfe::KFEMeshSceneObject::Update(const KFE_UPDATE_OBJECT_DESC& desc)
 }
 
 _Use_decl_annotations_
-bool kfe::KFEMeshSceneObject::Build(const KFE_BUILD_OBJECT_DESC& desc)
+bool kfe::KFEMeshSceneObject::BuildChild(const KFE_BUILD_OBJECT_DESC& desc)
 {
     if (m_impl->Build(desc))
     {
@@ -407,7 +371,7 @@ void kfe::KFEMeshSceneObject::LoadFromJson(const JsonLoader& loader)
 
 void kfe::KFEMeshSceneObject::Impl::Update(const KFE_UPDATE_OBJECT_DESC& desc)
 {
-    m_nTimeLived += desc.deltaTime;
+    m_nTimeLived += desc.DeltaTime;
     UpdateConstantBuffer(desc);
     UpdateSubmeshConstantBuffers(desc);
 }
@@ -645,7 +609,7 @@ bool kfe::KFEMeshSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_D
 
     m_pCBBuffer = std::make_unique<KFEBuffer>();
 
-    std::uint32_t bytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC));
+    std::uint32_t bytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_CB_GPU));
     bytes = kfe_helpers::AlignTo256(bytes);
 
     KFE_CREATE_BUFFER_DESC buffer{};
@@ -687,10 +651,10 @@ bool kfe::KFEMeshSceneObject::Impl::BuildRootSignature(const KFE_BUILD_OBJECT_DE
 
     //~ SRV descriptor table
     D3D12_DESCRIPTOR_RANGE srvRange{};
-    srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    srvRange.NumDescriptors = static_cast<UINT>(EModelTextureSlot::Count);
+    srvRange.RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    srvRange.NumDescriptors     = static_cast<UINT>(EModelTextureSlot::Count);
     srvRange.BaseShaderRegister = 0u;    //~ t0
-    srvRange.RegisterSpace = 0u;
+    srvRange.RegisterSpace      = 0u;
     srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
     D3D12_ROOT_PARAMETER params[4]{};
@@ -1129,7 +1093,7 @@ bool kfe::KFEMeshSceneObject::Impl::BuildSubmeshConstantBuffers(const KFE_BUILD_
         return false;
     }
 
-    std::uint32_t cbBytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC));
+    std::uint32_t cbBytes = static_cast<std::uint32_t>(sizeof(KFE_COMMON_CB_GPU));
     cbBytes               = kfe_helpers::AlignTo256(cbBytes);
 
     std::uint32_t metaBytes = static_cast<std::uint32_t>(sizeof(ModelTextureMetaInformation));
@@ -1212,11 +1176,67 @@ void kfe::KFEMeshSceneObject::Impl::BuildSubmeshCBDataCacheFromModel() noexcept
 
     CacheNodeMeshesRecursive(*root);
 
-    KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC init{};
-    init.WorldMatrix        = DirectX::XMMatrixIdentity();
-    init.ViewMatrix         = DirectX::XMMatrixIdentity();
-    init.ProjectionMatrix   = DirectX::XMMatrixIdentity();
-    init.OrthogonalMatrix   = DirectX::XMMatrixIdentity();
+    using namespace DirectX;
+
+    KFE_COMMON_CB_GPU init{};
+
+    const XMMATRIX I = XMMatrixIdentity();
+
+    // Matrices
+    XMStoreFloat4x4(&init.WorldT, I);
+    XMStoreFloat4x4(&init.WorldInvTransposeT, I);
+
+    XMStoreFloat4x4(&init.ViewT, I);
+    XMStoreFloat4x4(&init.ProjT, I);
+    XMStoreFloat4x4(&init.ViewProjT, I);
+
+    XMStoreFloat4x4(&init.OrthoT, I);
+    XMStoreFloat4x4(&init.PrevViewProjT, I);
+
+    // Camera
+    init.CameraPosWS = { 0.0f, 0.0f, 0.0f };
+    init.CameraNear = 0.1f;
+
+    init.CameraForwardWS = { 0.0f, 0.0f, 1.0f };
+    init.CameraFar = 1000.0f;
+
+    init.CameraRightWS = { 1.0f, 0.0f, 0.0f };
+    init._PadCam0 = 0.0f;
+
+    init.CameraUpWS = { 0.0f, 1.0f, 0.0f };
+    init._PadCam1 = 0.0f;
+
+    // Object-ish
+    init.ObjectPosWS = { 0.0f, 0.0f, 0.0f };
+    init.ObjectID = 0u;
+
+    init.PlayerPosWS = { 0.0f, 0.0f, 0.0f };
+    init._PadObj0 = 0.0f;
+
+    // Render target / viewport
+    init.Resolution = { 1.0f, 1.0f };
+    init.InvResolution = { 1.0f, 1.0f };
+
+    init.MousePosPixels = { 0.0f, 0.0f };
+    init.MousePosNDC = { 0.0f, 0.0f };
+
+    // Time / frame
+    init.Time = 0.0f;
+    init.DeltaTime = 0.0f;
+    init.FrameIndex = 0u;
+    init._PadTime0 = 0.0f;
+
+    // Lights / flags
+    init.NumTotalLights = 0u;
+    init.NumPointLights = 0u;
+    init.NumSpotLights = 0u;
+    init.RenderFlags = 0u;
+
+    // Misc knobs
+    init.Exposure = 1.0f;
+    init.Gamma = 2.2f;
+    init.FogDensity = 0.0f;
+    init.FogStart = 0.0f;
 
     for (std::uint32_t i = 0u; i < submeshCount; ++i)
     {
@@ -1227,23 +1247,83 @@ void kfe::KFEMeshSceneObject::Impl::BuildSubmeshCBDataCacheFromModel() noexcept
 
 void kfe::KFEMeshSceneObject::Impl::CacheNodeMeshesRecursive(const KFEModelNode& node) noexcept
 {
-    const DirectX::XMMATRIX nodeLocal = node.GetMatrix();
+    using namespace DirectX;
+
+    const XMMATRIX nodeLocal = node.GetMatrix();
+    const XMMATRIX nodeLocalT = XMMatrixTranspose(nodeLocal);
+
+    const XMMATRIX I = XMMatrixIdentity();
 
     for (std::uint32_t meshIndex : node.MeshIndices)
     {
         auto it = m_cbData.find(meshIndex);
+
         if (it == m_cbData.end())
         {
-            KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC cb{};
-            cb.WorldMatrix = nodeLocal;
-            cb.ViewMatrix = DirectX::XMMatrixIdentity();
-            cb.ProjectionMatrix = DirectX::XMMatrixIdentity();
-            cb.OrthogonalMatrix = DirectX::XMMatrixIdentity();
+            KFE_COMMON_CB_GPU cb{};
+
+            // Matrices
+            XMStoreFloat4x4(&cb.WorldT, nodeLocalT);
+
+            // World inverse transpose
+            {
+                const XMMATRIX Winv = XMMatrixInverse(nullptr, nodeLocal);
+                const XMMATRIX WIT = XMMatrixTranspose(Winv);
+                XMStoreFloat4x4(&cb.WorldInvTransposeT, WIT);
+            }
+
+            XMStoreFloat4x4(&cb.ViewT, I);
+            XMStoreFloat4x4(&cb.ProjT, I);
+            XMStoreFloat4x4(&cb.ViewProjT, I);
+            XMStoreFloat4x4(&cb.OrthoT, I);
+            XMStoreFloat4x4(&cb.PrevViewProjT, I);
+
+            cb.CameraPosWS = { 0.0f, 0.0f, 0.0f };
+            cb.CameraNear = 0.1f;
+            cb.CameraForwardWS = { 0.0f, 0.0f, 1.0f };
+            cb.CameraFar = 1000.0f;
+            cb.CameraRightWS = { 1.0f, 0.0f, 0.0f };
+            cb._PadCam0 = 0.0f;
+            cb.CameraUpWS = { 0.0f, 1.0f, 0.0f };
+            cb._PadCam1 = 0.0f;
+
+            cb.ObjectPosWS = { 0.0f, 0.0f, 0.0f };
+            cb.ObjectID = 0u;
+
+            cb.PlayerPosWS = { 0.0f, 0.0f, 0.0f };
+            cb._PadObj0 = 0.0f;
+
+            cb.Resolution = { 1.0f, 1.0f };
+            cb.InvResolution = { 1.0f, 1.0f };
+            cb.MousePosPixels = { 0.0f, 0.0f };
+            cb.MousePosNDC = { 0.0f, 0.0f };
+
+            cb.Time = 0.0f;
+            cb.DeltaTime = 0.0f;
+            cb.FrameIndex = 0u;
+            cb._PadTime0 = 0.0f;
+
+            cb.NumTotalLights = 0u;
+            cb.NumPointLights = 0u;
+            cb.NumSpotLights = 0u;
+            cb.RenderFlags = 0u;
+
+            cb.Exposure = 1.0f;
+            cb.Gamma = 2.2f;
+            cb.FogDensity = 0.0f;
+            cb.FogStart = 0.0f;
+
             m_cbData.emplace(meshIndex, cb);
         }
         else
         {
-            it->second.WorldMatrix = nodeLocal;
+            XMStoreFloat4x4(&it->second.WorldT, nodeLocalT);
+
+            {
+                const XMMATRIX Winv = XMMatrixInverse(nullptr, nodeLocal);
+                const XMMATRIX WIT = XMMatrixTranspose(Winv);
+                XMStoreFloat4x4(&it->second.WorldInvTransposeT, WIT);
+            }
         }
     }
 
@@ -1257,39 +1337,97 @@ void kfe::KFEMeshSceneObject::Impl::CacheNodeMeshesRecursive(const KFEModelNode&
 void kfe::KFEMeshSceneObject::Impl::UpdateConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc)
 {
     if (!m_bBuild) return;
-    auto* cv = static_cast<KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC*>(m_pCBV->GetMappedData());
+
+    auto* cv = static_cast<KFE_COMMON_CB_GPU*>(m_pCBV->GetMappedData());
     if (!cv) return;
 
-    cv->WorldMatrix = DirectX::XMMatrixTranspose(m_pObject->GetWorldMatrix());
-    cv->ViewMatrix = desc.ViewMatrix;
-    cv->ProjectionMatrix = desc.PerpectiveMatrix;
-    cv->OrthogonalMatrix = desc.OrthographicMatrix;
-    cv->Resolution = desc.Resolution;
-    cv->MousePosition = desc.MousePosition;
-    cv->ObjectPosition = m_pObject->GetPosition();
-    cv->_PaddingObjectPos = 0.f;
-    cv->CameraPosition = desc.CameraPosition;
-    cv->_PaddingCameraPos = 0.f;
-    cv->PlayerPosition = desc.PlayerPosition;
-    cv->_PaddingPlayerPos = 0.f;
-    cv->Time = m_nTimeLived;
-    cv->FrameIndex = 0u;
-    cv->DeltaTime = desc.deltaTime;
-    cv->ZNear = desc.ZNear;
-    cv->ZFar = desc.ZFar;
+    using namespace DirectX;
 
-    cv->_PaddingFinal[0] = 0.f;
-    cv->_PaddingFinal[1] = 0.f;
-    cv->_PaddingFinal[2] = 0.f;
+    const XMMATRIX W = m_pObject->GetWorldMatrix();
+    const XMMATRIX WT = XMMatrixTranspose(W);
+
+    XMStoreFloat4x4(&cv->WorldT, WT);
+
+    // World inverse transpose
+    {
+        const XMMATRIX Winv = XMMatrixInverse(nullptr, W);
+        const XMMATRIX WIT = XMMatrixTranspose(Winv);
+        XMStoreFloat4x4(&cv->WorldInvTransposeT, WIT);
+    }
+
+    XMStoreFloat4x4(&cv->ViewT, desc.ViewMatrixT);
+    XMStoreFloat4x4(&cv->ProjT, desc.PerpectiveMatrixT);
+
+    // ViewProjT
+    {
+        const XMMATRIX V = XMMatrixTranspose(desc.ViewMatrixT);
+        const XMMATRIX P = XMMatrixTranspose(desc.PerpectiveMatrixT);
+        const XMMATRIX VP = XMMatrixMultiply(V, P);
+        XMStoreFloat4x4(&cv->ViewProjT, XMMatrixTranspose(VP));
+    }
+
+    XMStoreFloat4x4(&cv->OrthoT, desc.OrthographicMatrixT);
+
+    cv->PrevViewProjT = cv->ViewProjT;
+
+    // Camera
+    cv->CameraPosWS = desc.CameraPosition;
+    cv->CameraNear = desc.ZNear;
+
+    cv->CameraForwardWS = desc.CameraForwardWS;
+    cv->CameraFar = desc.ZFar;
+
+    cv->CameraRightWS = desc.CameraRightWS;
+    cv->_PadCam0 = 0.0f;
+
+    cv->CameraUpWS = desc.CameraUpWS;
+    cv->_PadCam1 = 0.0f;
+    cv->ObjectPosWS = desc.ObjectPosition;
+    cv->ObjectID = desc.ObjectID;
+
+    cv->PlayerPosWS = desc.PlayerPosition;
+    cv->_PadObj0 = 0.0f;
+
+    // Render target
+    cv->Resolution = desc.Resolution;
+    cv->InvResolution =
+    {
+        (desc.Resolution.x != 0.0f) ? (1.0f / desc.Resolution.x) : 0.0f,
+        (desc.Resolution.y != 0.0f) ? (1.0f / desc.Resolution.y) : 0.0f
+    };
+
+    cv->MousePosPixels = desc.MousePosition;
+
+    // Pixels 
+    cv->MousePosNDC =
+    {
+        (desc.Resolution.x != 0.0f) ? ((desc.MousePosition.x / desc.Resolution.x) * 2.0f - 1.0f) : 0.0f,
+        (desc.Resolution.y != 0.0f) ? (1.0f - (desc.MousePosition.y / desc.Resolution.y) * 2.0f) : 0.0f
+    };
+
+    // Time
+    cv->Time = desc.Time;
+    cv->DeltaTime = desc.DeltaTime;
+    cv->FrameIndex = desc.FrameIndex;
+    cv->_PadTime0 = 0.0f;
+
+    // Lights / flags
+    cv->NumTotalLights = m_pObject->m_lightManager.GetPackedCount();
+    cv->NumPointLights = 0u;
+    cv->NumSpotLights = 0u;
+    cv->RenderFlags = 0u;
+    cv->Exposure = 1.0f;
+    cv->Gamma = 2.2f;
+    cv->FogDensity = 0.0f;
+    cv->FogStart = 0.0f;
 }
 
 void kfe::KFEMeshSceneObject::Impl::UpdateSubmeshConstantBuffers(const KFE_UPDATE_OBJECT_DESC& desc)
 {
-    if (!m_bBuild)
-        return;
+    if (!m_bBuild) return;
+    if (!m_mesh.IsValid()) return;
 
-    if (!m_mesh.IsValid())
-        return;
+    using namespace DirectX;
 
     const auto& submeshes = m_mesh.GetSubmeshes();
 
@@ -1300,58 +1438,175 @@ void kfe::KFEMeshSceneObject::Impl::UpdateSubmeshConstantBuffers(const KFE_UPDAT
         if (!sm.CBView)
             continue;
 
-        auto* cv = static_cast<KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC*>(sm.CBView->GetMappedData());
+        auto* cv = static_cast<KFE_COMMON_CB_GPU*>(sm.CBView->GetMappedData());
         if (!cv)
             continue;
 
-        cv->ViewMatrix = desc.ViewMatrix;
-        cv->ProjectionMatrix = desc.PerpectiveMatrix;
-        cv->OrthogonalMatrix = desc.OrthographicMatrix;
+        // Matrices
+        XMStoreFloat4x4(&cv->ViewT, desc.ViewMatrixT);
+        XMStoreFloat4x4(&cv->ProjT, desc.PerpectiveMatrixT);
+        XMStoreFloat4x4(&cv->OrthoT, desc.OrthographicMatrixT);
 
+        // ViewProjT
+        {
+            const XMMATRIX V = XMMatrixTranspose(desc.ViewMatrixT);
+            const XMMATRIX P = XMMatrixTranspose(desc.PerpectiveMatrixT);
+            const XMMATRIX VP = XMMatrixMultiply(V, P);
+            XMStoreFloat4x4(&cv->ViewProjT, XMMatrixTranspose(VP));
+        }
+
+        cv->PrevViewProjT = cv->ViewProjT;
+
+        if (m_pObject)
+        {
+            const XMMATRIX W = m_pObject->GetWorldMatrix();
+            XMStoreFloat4x4(&cv->WorldT, XMMatrixTranspose(W));
+
+            const XMMATRIX Winv = XMMatrixInverse(nullptr, W);
+            const XMMATRIX WIT = XMMatrixTranspose(Winv);
+            XMStoreFloat4x4(&cv->WorldInvTransposeT, WIT);
+
+            cv->ObjectPosWS = m_pObject->GetPosition();
+        }
+        else
+        {
+            const XMMATRIX I = XMMatrixIdentity();
+            XMStoreFloat4x4(&cv->WorldT, I);
+            XMStoreFloat4x4(&cv->WorldInvTransposeT, I);
+            cv->ObjectPosWS = { 0.0f, 0.0f, 0.0f };
+        }
+
+        // Camera
+        cv->CameraPosWS = desc.CameraPosition;
+        cv->CameraNear = desc.ZNear;
+
+        cv->CameraForwardWS = desc.CameraForwardWS;
+        cv->CameraFar = desc.ZFar;
+
+        cv->CameraRightWS = desc.CameraRightWS;
+        cv->_PadCam0 = 0.0f;
+
+        cv->CameraUpWS = desc.CameraUpWS;
+        cv->_PadCam1 = 0.0f;
+
+        cv->PlayerPosWS = desc.PlayerPosition;
+        cv->_PadObj0 = 0.0f;
+
+        cv->ObjectID = desc.ObjectID;
+
+        // Render target / viewport
         cv->Resolution = desc.Resolution;
-        cv->MousePosition = desc.MousePosition;
+        cv->InvResolution =
+        {
+            (desc.Resolution.x != 0.0f) ? (1.0f / desc.Resolution.x) : 0.0f,
+            (desc.Resolution.y != 0.0f) ? (1.0f / desc.Resolution.y) : 0.0f
+        };
 
-        cv->ObjectPosition = m_pObject ? m_pObject->GetPosition() : DirectX::XMFLOAT3{ 0.0f, 0.0f, 0.0f };
-        cv->_PaddingObjectPos = 0.f;
+        cv->MousePosPixels = desc.MousePosition;
 
-        cv->CameraPosition = desc.CameraPosition;
-        cv->_PaddingCameraPos = 0.f;
+        cv->MousePosNDC =
+        {
+            (desc.Resolution.x != 0.0f) ? ((desc.MousePosition.x / desc.Resolution.x) * 2.0f - 1.0f) : 0.0f,
+            (desc.Resolution.y != 0.0f) ? (1.0f - (desc.MousePosition.y / desc.Resolution.y) * 2.0f) : 0.0f
+        };
 
-        cv->PlayerPosition = desc.PlayerPosition;
-        cv->_PaddingPlayerPos = 0.f;
+        // Time
+        cv->Time = desc.Time;
+        cv->DeltaTime = desc.DeltaTime;
+        cv->FrameIndex = desc.FrameIndex;
+        cv->_PadTime0 = 0.0f;
 
-        cv->Time = m_nTimeLived;
-        cv->FrameIndex = 0u;
-        cv->DeltaTime = desc.deltaTime;
+        cv->NumTotalLights = m_pObject->m_lightManager.GetPackedCount();
+        cv->NumPointLights = 0u;
+        cv->NumSpotLights = 0u;
+        cv->RenderFlags = 0u;
 
-        cv->ZNear = desc.ZNear;
-        cv->ZFar = desc.ZFar;
-
-        cv->_PaddingFinal[0] = 0.f;
-        cv->_PaddingFinal[1] = 0.f;
-        cv->_PaddingFinal[2] = 0.f;
+        cv->Exposure = 1.0f;
+        cv->Gamma = 2.2f;
+        cv->FogDensity = 0.0f;
+        cv->FogStart = 0.0f;
     }
 }
 
 void kfe::KFEMeshSceneObject::Impl::UpdateCBDataForNodeMeshes(const KFEModelNode& node) noexcept
 {
-    const DirectX::XMMATRIX local = node.GetMatrix();
+    using namespace DirectX;
+
+    const XMMATRIX local = node.GetMatrix();
+    const XMMATRIX localT = XMMatrixTranspose(local);
+
+    const XMMATRIX I = XMMatrixIdentity();
 
     for (std::uint32_t meshIndex : node.MeshIndices)
     {
         auto it = m_cbData.find(meshIndex);
+
         if (it == m_cbData.end())
         {
-            KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC init{};
-            init.WorldMatrix = local;
-            init.ViewMatrix = DirectX::XMMatrixIdentity();
-            init.ProjectionMatrix = DirectX::XMMatrixIdentity();
-            init.OrthogonalMatrix = DirectX::XMMatrixIdentity();
-            m_cbData.emplace(meshIndex, init);
+            KFE_COMMON_CB_GPU cb{};
+
+            // Matrices
+            XMStoreFloat4x4(&cb.WorldT, localT);
+
+            // Inverse transpose for normals
+            {
+                const XMMATRIX Linv = XMMatrixInverse(nullptr, local);
+                const XMMATRIX LIT = XMMatrixTranspose(Linv);
+                XMStoreFloat4x4(&cb.WorldInvTransposeT, LIT);
+            }
+
+            XMStoreFloat4x4(&cb.ViewT, I);
+            XMStoreFloat4x4(&cb.ProjT, I);
+            XMStoreFloat4x4(&cb.ViewProjT, I);
+            XMStoreFloat4x4(&cb.OrthoT, I);
+            XMStoreFloat4x4(&cb.PrevViewProjT, I);
+
+            // Safe defaults
+            cb.CameraPosWS = { 0.0f, 0.0f, 0.0f };
+            cb.CameraNear = 0.1f;
+            cb.CameraForwardWS = { 0.0f, 0.0f, 1.0f };
+            cb.CameraFar = 1000.0f;
+            cb.CameraRightWS = { 1.0f, 0.0f, 0.0f };
+            cb._PadCam0 = 0.0f;
+            cb.CameraUpWS = { 0.0f, 1.0f, 0.0f };
+            cb._PadCam1 = 0.0f;
+
+            cb.ObjectPosWS = { 0.0f, 0.0f, 0.0f };
+            cb.ObjectID = 0u;
+
+            cb.PlayerPosWS = { 0.0f, 0.0f, 0.0f };
+            cb._PadObj0 = 0.0f;
+
+            cb.Resolution = { 1.0f, 1.0f };
+            cb.InvResolution = { 1.0f, 1.0f };
+            cb.MousePosPixels = { 0.0f, 0.0f };
+            cb.MousePosNDC = { 0.0f, 0.0f };
+
+            cb.Time = 0.0f;
+            cb.DeltaTime = 0.0f;
+            cb.FrameIndex = 0u;
+            cb._PadTime0 = 0.0f;
+
+            cb.NumTotalLights = 0u;
+            cb.NumPointLights = 0u;
+            cb.NumSpotLights = 0u;
+            cb.RenderFlags = 0u;
+
+            cb.Exposure = 1.0f;
+            cb.Gamma = 2.2f;
+            cb.FogDensity = 0.0f;
+            cb.FogStart = 0.0f;
+
+            m_cbData.emplace(meshIndex, cb);
         }
         else
         {
-            it->second.WorldMatrix = local;
+            // Update world
+            XMStoreFloat4x4(&it->second.WorldT, localT);
+
+            const XMMATRIX Linv = XMMatrixInverse(nullptr, local);
+            const XMMATRIX LIT = XMMatrixTranspose(Linv);
+            XMStoreFloat4x4(&it->second.WorldInvTransposeT, LIT);
         }
     }
 }
@@ -1377,16 +1632,21 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
     const auto& submeshes = m_mesh.GetSubmeshes();
     const auto& meshesGPU = share->Entry->MeshesGPU;
 
+    // Node hierarchy world (CPU-space, NOT transposed)
     const XMMATRIX local = node.GetMatrix();
     const XMMATRIX nodeWorld = local * parentWorld;
 
+    // Light CB (keep as you had it)
     if (m_pObject && m_pObject->m_pLightCBV)
     {
         cmdList->SetGraphicsRootConstantBufferView(
             3u,
             m_pObject->m_pLightCBV->GetGPUVirtualAddress());
     }
-    else LOG_ERROR("NOPE!");
+    else
+    {
+        LOG_ERROR("KFEMeshSceneObject::RenderNodeRecursive: No Light CBV bound.");
+    }
 
     for (std::uint32_t meshIndex : node.MeshIndices)
     {
@@ -1411,29 +1671,41 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
 
         auto& sm = const_cast<KFEModelSubmesh&>(sub);
 
-        //~ per submesh b0 (WorldMatrix only) + bind CBV
+        // Per submesh b0
         if (sm.CBView)
         {
             XMMATRIX cachedLocal = XMMatrixIdentity();
 
             auto it = m_cbData.find(meshIndex);
             if (it != m_cbData.end())
-                cachedLocal = it->second.WorldMatrix;
+            {
+                const XMMATRIX cachedLocalT = XMLoadFloat4x4(&it->second.WorldT);
+                cachedLocal = XMMatrixTranspose(cachedLocalT);
+            }
 
             const XMMATRIX finalWorld = cachedLocal * nodeWorld;
 
-            if (auto* cv = static_cast<KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC*>(sm.CBView->GetMappedData()))
+            if (auto* cv = static_cast<KFE_COMMON_CB_GPU*>(sm.CBView->GetMappedData()))
             {
-                cv->WorldMatrix = DirectX::XMMatrixTranspose(finalWorld);
+                // Store transposed for GPU
+                XMStoreFloat4x4(&cv->WorldT, XMMatrixTranspose(finalWorld));
+
+                // Inverse transpose for normals
+                const XMMATRIX Winv = XMMatrixInverse(nullptr, finalWorld);
+                const XMMATRIX WIT = XMMatrixTranspose(Winv);
+                XMStoreFloat4x4(&cv->WorldInvTransposeT, WIT);
+
+                cv->ObjectPosWS = m_pObject ? m_pObject->GetPosition() : XMFLOAT3{ 0.0f, 0.0f, 0.0f };
+                cv->ObjectID = m_pObject->GetAssignedKey();
             }
 
             cmdList->SetGraphicsRootConstantBufferView(
                 0u,
-                static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(sm.CBView->GetGPUVirtualAddress()));
+                sm.CBView->GetGPUVirtualAddress());
         }
 
-        //~ per submesh SRV table update (CPU copy) + bind table
-        sm.BindTextureFromPath(desc.CommandList, m_pDevice, m_pResourceHeap);
+        //SRV table update
+        sm.BindTextureFromPath(cmdList, m_pDevice, m_pResourceHeap);
 
         if (sm.GetBaseSrvIndex() != KFE_INVALID_INDEX)
         {
@@ -1442,14 +1714,14 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
                 m_pResourceHeap->GetGPUHandle(sm.GetBaseSrvIndex()));
         }
 
-        //~ per submesh b1 (meta) update + bind CBV
+        // b1 (meta) update + bind CBV
         if (sm.MetaCBView)
         {
             UpdateMetaCB(sm);
 
             cmdList->SetGraphicsRootConstantBufferView(
                 2u,
-                static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(sm.MetaCBView->GetGPUVirtualAddress()));
+                sm.MetaCBView->GetGPUVirtualAddress());
         }
 
         const D3D12_VERTEX_BUFFER_VIEW vb = vbView->GetView();

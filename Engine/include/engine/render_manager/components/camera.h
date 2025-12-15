@@ -164,7 +164,7 @@ namespace kfe
 
 	private:
 		//~ Transform
-		DirectX::XMFLOAT3 m_position{ 0.f, 0.f, -5.f };
+		DirectX::XMFLOAT3 Position{ 0.f, 0.f, -5.f };
 		DirectX::XMFLOAT3 m_scale	{ 1.f, 1.f, 1.f };
 
 		//~ Euler rotation in rad

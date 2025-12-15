@@ -336,14 +336,14 @@ void kfe::KFERenderQueue::Impl::Update_SceneObjects(float deltaTime)
 
 	//~ Update
 	KFE_UPDATE_OBJECT_DESC updatter{};
-	updatter.CameraPosition		= m_pCamera->GetPosition();
-	updatter.ZFar				= m_pCamera->GetFarZ();
-	updatter.ZNear				= m_pCamera->GetNearZ();
-	updatter.OrthographicMatrix = DirectX::XMMatrixTranspose(m_pCamera->GetOrthographicMatrix());
-	updatter.PerpectiveMatrix	= DirectX::XMMatrixTranspose(m_pCamera->GetPerspectiveMatrix());
-	updatter.ViewMatrix			= DirectX::XMMatrixTranspose(m_pCamera->GetViewMatrix());
+	updatter.CameraPosition		 = m_pCamera->GetPosition();
+	updatter.ZFar				 = m_pCamera->GetFarZ();
+	updatter.ZNear				 = m_pCamera->GetNearZ();
+	updatter.OrthographicMatrixT = DirectX::XMMatrixTranspose(m_pCamera->GetOrthographicMatrix());
+	updatter.PerpectiveMatrixT	 = DirectX::XMMatrixTranspose(m_pCamera->GetPerspectiveMatrix());
+	updatter.ViewMatrixT	     = DirectX::XMMatrixTranspose(m_pCamera->GetViewMatrix());
 
-	updatter.deltaTime = deltaTime;
+	updatter.DeltaTime = deltaTime;
 
 	int x = 0, y = 0;
 	m_pWindows->Mouse.GetMousePosition(x, y);
@@ -378,7 +378,7 @@ void kfe::KFERenderQueue::Impl::MainPass_SceneObject(const KFE_RENDER_QUEUE_MAIN
 	for (auto& [id, scene] : m_sceneObjects)
 	{
 		if (!scene || !scene->IsInitialized()) continue;
-		scene->Render(renderInfo);
+		scene->MainPass(renderInfo);
 	}
 }
 
@@ -418,7 +418,7 @@ void kfe::KFERenderQueue::Impl::RemoveLight(const KID id) noexcept
 	
 	for (auto& [sid, scene]: m_sceneObjects)
 	{
-		m_sceneObjects->DetachLight(id);
+		scene->DetachLight(id);
 	}
 	m_lights.erase(id);
 }

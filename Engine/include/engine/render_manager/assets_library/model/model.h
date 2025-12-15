@@ -49,7 +49,7 @@ namespace kfe
             const DirectX::XMFLOAT3& scale) noexcept
         {
             m_localMatrix = m;
-            m_position    = pos;
+            Position    = pos;
             m_rotation    = rotDeg;
             m_scale       = scale;
             m_pivot       = { 0.0f, 0.0f, 0.0f };
@@ -69,14 +69,14 @@ namespace kfe
         void SetEnabled(bool v) noexcept { m_enabled = v; }
 
         // Getters
-        const DirectX::XMFLOAT3& GetPosition() const noexcept { return m_position; }
+        const DirectX::XMFLOAT3& GetPosition() const noexcept { return Position; }
         const DirectX::XMFLOAT3& GetRotation() const noexcept { return m_rotation; } //~ degrees
         const DirectX::XMFLOAT3& GetScale() const noexcept { return m_scale; }
         const DirectX::XMFLOAT3& GetPivot() const noexcept { return m_pivot; }
 
         void SetPosition(const DirectX::XMFLOAT3& p) noexcept
         {
-            m_position = p;
+            Position = p;
             MarkDirty();
         }
 
@@ -102,22 +102,22 @@ namespace kfe
             const DirectX::XMFLOAT3& rDeg,
             const DirectX::XMFLOAT3& s) noexcept
         {
-            m_position = p;
+            Position = p;
             m_rotation = rDeg;
             m_scale = s;
             MarkDirty();
         }
 
         //~ Position
-        void AddPositionX(float v) noexcept { m_position.x += v; MarkDirty(); }
-        void AddPositionY(float v) noexcept { m_position.y += v; MarkDirty(); }
-        void AddPositionZ(float v) noexcept { m_position.z += v; MarkDirty(); }
+        void AddPositionX(float v) noexcept { Position.x += v; MarkDirty(); }
+        void AddPositionY(float v) noexcept { Position.y += v; MarkDirty(); }
+        void AddPositionZ(float v) noexcept { Position.z += v; MarkDirty(); }
 
         void AddPosition(const DirectX::XMFLOAT3& dp) noexcept
         {
-            m_position.x += dp.x;
-            m_position.y += dp.y;
-            m_position.z += dp.z;
+            Position.x += dp.x;
+            Position.y += dp.y;
+            Position.z += dp.z;
             MarkDirty();
         }
 
@@ -150,7 +150,7 @@ namespace kfe
         // Utilities
         void ResetTransform() noexcept
         {
-            m_position = { 0.0f, 0.0f, 0.0f };
+            Position = { 0.0f, 0.0f, 0.0f };
             m_rotation = { 0.0f, 0.0f, 0.0f };
             m_scale = { 1.0f, 1.0f, 1.0f };
             m_pivot = { 0.0f, 0.0f, 0.0f };
@@ -188,7 +188,7 @@ namespace kfe
             const XMMATRIX S = XMMatrixScaling(m_scale.x, m_scale.y, m_scale.z);
             const XMMATRIX R = XMMatrixRotationRollPitchYaw(rx, ry, rz);
             const XMMATRIX TpivotPos = XMMatrixTranslation(m_pivot.x, m_pivot.y, m_pivot.z);
-            const XMMATRIX T = XMMatrixTranslation(m_position.x, m_position.y, m_position.z);
+            const XMMATRIX T = XMMatrixTranslation(Position.x, Position.y, Position.z);
 
             const XMMATRIX M = TpivotNeg * S * R * TpivotPos * T;
 
@@ -197,7 +197,7 @@ namespace kfe
         }
 
     private:
-        DirectX::XMFLOAT3 m_position{ 0.0f, 0.0f, 0.0f };
+        DirectX::XMFLOAT3 Position{ 0.0f, 0.0f, 0.0f };
         DirectX::XMFLOAT3 m_rotation{ 0.0f, 0.0f, 0.0f };
         DirectX::XMFLOAT3 m_scale{ 1.0f, 1.0f, 1.0f };
         DirectX::XMFLOAT3 m_pivot{ 0.0f, 0.0f, 0.0f };
@@ -218,18 +218,25 @@ namespace kfe
     // A light submesh descriptor
     enum class EModelTextureSlot : std::uint32_t
     {
-        BaseColor = 0,
-        Normal,
-        ORM,
-        Emissive,
-        Opacity,
-        Height,
+        BaseColor = 0,        //~ Albedo
+        Normal,               //~ Normal map
+        ORM,                  //~ Occlusion/Roughness/Metallic
+        Emissive,             //~ Emission (optional but common)
 
-        Occlusion,
-        Roughness,
-        Metallic,
+        Roughness,            //~ Separate roughness
+        Metallic,             //~ Separate metallic
+        Occlusion,            //~ Separate AO
 
-        DyeMask,
+        Opacity,              //~ Alpha / cutout / foliage
+
+        Height,               //~ Height / parallax
+        Displacement,         //~ Rare but seen in scans
+
+        Specular,             //~ Specular color
+        Glossiness,           //~ Specular workflow
+
+        DetailNormal,         //~ Extra normal detail
+        ShadowMap,            //~ Depth Pass SRV
 
         Count
     };
@@ -284,6 +291,38 @@ namespace kfe
             float ParallaxMaxLayers{ 32.0f };
         } Height;
 
+        struct DisplacementTexture
+        {
+            float IsTextureAttached{ 0.0f };
+            float DisplacementScale{ 0.05f };
+            float UvTilingX{ 1.0f };
+            float UvTilingY{ 1.0f };
+        } Displacement;
+
+        struct SpecularTexture
+        {
+            float IsTextureAttached{ 0.0f };
+            float Strength{ 1.0f };
+            float UvTilingX{ 1.0f };
+            float UvTilingY{ 1.0f };
+        } Specular;
+
+        struct GlossinessTexture
+        {
+            float IsTextureAttached{ 0.0f };
+            float Strength{ 1.0f };
+            float UvTilingX{ 1.0f };
+            float UvTilingY{ 1.0f };
+        } Glossiness;
+
+        struct DetailNormalTexture
+        {
+            float IsTextureAttached{ 0.0f };
+            float NormalStrength{ 1.0f };
+            float UvTilingX{ 4.0f };
+            float UvTilingY{ 4.0f };
+        } DetailNormal;
+
         struct SingularOccRoughMetal
         {
             float IsOcclusionAttached{ 0.0f };
@@ -307,17 +346,6 @@ namespace kfe
             float _Pad3{ 0.0f };
         } Singular;
 
-        struct Dye
-        {
-            float IsEnabled{ 0.0f };
-            float Strength{ 1.0f };
-            float _Pad0{ 0.0f };
-            float _Pad1{ 0.0f };
-
-            float Color[3]{ 1.0f, 1.0f, 1.0f };
-            float _Pad2{ 0.0f };
-        } Dye;
-
         float ForcedMipLevel{ 0.0f };
         float UseForcedMip{ 0.0f };
         float _Pad0{ 0.0f };
@@ -329,9 +357,9 @@ namespace kfe
         std::string Name{};
         std::uint32_t                      CacheMeshIndex = 0u;
         std::unique_ptr<KFEBuffer>         ConstantBuffer{ nullptr };
-        std::unique_ptr<KFEConstantBuffer> CBView        { nullptr };
+        std::unique_ptr<KFEConstantBuffer> CBView{ nullptr };
 
-        std::unique_ptr<KFEBuffer>         MetaCB    { nullptr };
+        std::unique_ptr<KFEBuffer>         MetaCB{ nullptr };
         std::unique_ptr<KFEConstantBuffer> MetaCBView{ nullptr };
         bool m_bMetaDirty{ true };
 
@@ -340,20 +368,21 @@ namespace kfe
         struct SrvData
         {
             std::string    TexturePath{};
-            KFETextureSRV* TextureSrv    { nullptr };
+            KFETextureSRV* TextureSrv{ nullptr };
             std::uint32_t  ResourceHandle{ KFE_INVALID_INDEX };
-            std::uint32_t  ReservedSlot  { KFE_INVALID_INDEX };
-            bool           Dirty         { false };
+            std::uint32_t  ReservedSlot{ KFE_INVALID_INDEX };
+            bool           Dirty{ false };
 
             void Reset() noexcept
             {
                 TexturePath.clear();
-                TextureSrv     = nullptr;
+                TextureSrv = nullptr;
                 ResourceHandle = KFE_INVALID_INDEX;
-                ReservedSlot   = KFE_INVALID_INDEX;
-                Dirty          = false;
+                ReservedSlot = KFE_INVALID_INDEX;
+                Dirty = false;
             }
         };
+
         std::array<SrvData, static_cast<std::size_t>(EModelTextureSlot::Count)> m_srvs;
         std::uint32_t m_baseSrvIndex{ KFE_INVALID_INDEX };
         bool          m_bTextureDirty{ true };
@@ -364,7 +393,7 @@ namespace kfe
                 e.Reset();
         }
 
-        bool AllocateReserveSolt(KFEResourceHeap* heap) noexcept
+        bool AllocateReserveSlot(KFEResourceHeap* heap) noexcept
         {
             if (!heap)
                 return false;
@@ -375,14 +404,12 @@ namespace kfe
             if (m_baseSrvIndex != KFE_INVALID_INDEX)
                 return true;
 
-            //~ Allocate one contiguous block
             const std::uint32_t base = heap->Allocate(static_cast<std::uint32_t>(count));
             if (base == KFE_INVALID_INDEX)
                 return false;
 
             m_baseSrvIndex = base;
 
-            //~ Assign contiguous slots
             for (std::size_t i = 0; i < count; ++i)
             {
                 auto& d = m_srvs[i];
@@ -416,7 +443,8 @@ namespace kfe
             m_bTextureDirty = false;
         }
 
-        bool BindTextureFromPath(ID3D12GraphicsCommandList* cmdList,
+        bool BindTextureFromPath(
+            ID3D12GraphicsCommandList* cmdList,
             KFEDevice* device,
             KFEResourceHeap* heap) noexcept
         {
@@ -430,7 +458,7 @@ namespace kfe
 
             const std::size_t count = static_cast<std::size_t>(EModelTextureSlot::Count);
 
-            std::size_t   firstValidIndex    = static_cast<std::size_t>(-1);
+            std::size_t   firstValidIndex = static_cast<std::size_t>(-1);
             std::uint32_t firstValidResource = KFE_INVALID_INDEX;
 
             for (std::size_t i = 0; i < count; ++i)
@@ -458,9 +486,9 @@ namespace kfe
                 if (!kfe_helpers::IsFile(data.TexturePath))
                 {
                     LOG_ERROR("Texture '{}' does not exist!", data.TexturePath);
-                    data.TextureSrv     = nullptr;
+                    data.TextureSrv = nullptr;
                     data.ResourceHandle = KFE_INVALID_INDEX;
-                    data.Dirty          = false;
+                    data.Dirty = false;
                     continue;
                 }
 
@@ -531,20 +559,21 @@ namespace kfe
             return m_srvs[static_cast<std::size_t>(tex)].TexturePath;
         }
 
-        const std::string& GetBaseColorPath() const noexcept { return GetTexturePath(EModelTextureSlot::BaseColor); }
-        const std::string& GetNormalPath()    const noexcept { return GetTexturePath(EModelTextureSlot::Normal); }
-        const std::string& GetORMPath()       const noexcept { return GetTexturePath(EModelTextureSlot::ORM); }
-        const std::string& GetEmissivePath()  const noexcept { return GetTexturePath(EModelTextureSlot::Emissive); }
-        const std::string& GetOpacityPath()   const noexcept { return GetTexturePath(EModelTextureSlot::Opacity); }
-        const std::string& GetHeightPath()    const noexcept { return GetTexturePath(EModelTextureSlot::Height); }
+        const std::string& GetBaseColorPath()    const noexcept { return GetTexturePath(EModelTextureSlot::BaseColor); }
+        const std::string& GetNormalPath()       const noexcept { return GetTexturePath(EModelTextureSlot::Normal); }
+        const std::string& GetORMPath()          const noexcept { return GetTexturePath(EModelTextureSlot::ORM); }
+        const std::string& GetEmissivePath()     const noexcept { return GetTexturePath(EModelTextureSlot::Emissive); }
+        const std::string& GetRoughnessPath()    const noexcept { return GetTexturePath(EModelTextureSlot::Roughness); }
+        const std::string& GetMetallicPath()     const noexcept { return GetTexturePath(EModelTextureSlot::Metallic); }
+        const std::string& GetOcclusionPath()    const noexcept { return GetTexturePath(EModelTextureSlot::Occlusion); }
+        const std::string& GetOpacityPath()      const noexcept { return GetTexturePath(EModelTextureSlot::Opacity); }
+        const std::string& GetHeightPath()       const noexcept { return GetTexturePath(EModelTextureSlot::Height); }
+        const std::string& GetDisplacementPath() const noexcept { return GetTexturePath(EModelTextureSlot::Displacement); }
+        const std::string& GetSpecularPath()     const noexcept { return GetTexturePath(EModelTextureSlot::Specular); }
+        const std::string& GetGlossinessPath()   const noexcept { return GetTexturePath(EModelTextureSlot::Glossiness); }
+        const std::string& GetDetailNormalPath() const noexcept { return GetTexturePath(EModelTextureSlot::DetailNormal); }
+        const std::string& GetShadowMapPath()    const noexcept { return GetTexturePath(EModelTextureSlot::ShadowMap); }
 
-        const std::string& GetOcclusionPath() const noexcept { return GetTexturePath(EModelTextureSlot::Occlusion); }
-        const std::string& GetRoughnessPath() const noexcept { return GetTexturePath(EModelTextureSlot::Roughness); }
-        const std::string& GetMetallicPath()  const noexcept { return GetTexturePath(EModelTextureSlot::Metallic); }
-
-        const std::string& GetDyeMaskPath()   const noexcept { return GetTexturePath(EModelTextureSlot::DyeMask); }
-
-        //~ Helpers
         bool HasTexture(EModelTextureSlot tex) const noexcept
         {
             return !m_srvs[static_cast<std::size_t>(tex)].TexturePath.empty();
@@ -572,16 +601,19 @@ namespace kfe
 
         std::uint32_t GetBaseSrvIndex() const noexcept { return m_baseSrvIndex; }
 
-        //~ set textures
         void SetTexture(EModelTextureSlot tex, const std::string& path) noexcept
         {
-            auto index          = static_cast<std::size_t>(tex);
-            auto& data          = m_srvs[index];
-            data.TexturePath    = path;
-            data.TextureSrv     = nullptr;
+            const std::size_t index = static_cast<std::size_t>(tex);
+            auto& data = m_srvs[index];
+
+            if (data.TexturePath == path && data.ResourceHandle != KFE_INVALID_INDEX)
+                return;
+
+            data.TexturePath = path;
+            data.TextureSrv = nullptr;
             data.ResourceHandle = KFE_INVALID_INDEX;
-            data.Dirty          = true;
-            m_bTextureDirty     = true;
+            data.Dirty = true;
+            m_bTextureDirty = true;
         }
 
         void ClearTexture(EModelTextureSlot tex) noexcept
@@ -598,16 +630,19 @@ namespace kfe
         }
 
         void SetBaseColor(const std::string& p) noexcept { SetTexture(EModelTextureSlot::BaseColor, p); }
-        void SetNormal   (const std::string& p) noexcept { SetTexture(EModelTextureSlot::Normal, p); }
-        void SetORM      (const std::string& p) noexcept { SetTexture(EModelTextureSlot::ORM, p); }
-        void SetEmissive (const std::string& p) noexcept { SetTexture(EModelTextureSlot::Emissive, p); }
-        void SetOpacity  (const std::string& p) noexcept { SetTexture(EModelTextureSlot::Opacity, p); }
-        void SetHeight   (const std::string& p) noexcept { SetTexture(EModelTextureSlot::Height, p); }
-
-        void SetOcclusion(const std::string& p) noexcept { SetTexture(EModelTextureSlot::Occlusion, p); }
+        void SetNormal(const std::string& p)    noexcept { SetTexture(EModelTextureSlot::Normal, p); }
+        void SetORM(const std::string& p)       noexcept { SetTexture(EModelTextureSlot::ORM, p); }
+        void SetEmissive(const std::string& p)  noexcept { SetTexture(EModelTextureSlot::Emissive, p); }
         void SetRoughness(const std::string& p) noexcept { SetTexture(EModelTextureSlot::Roughness, p); }
-        void SetMetallic (const std::string& p) noexcept { SetTexture(EModelTextureSlot::Metallic, p); }
-        void SetDyeMask  (const std::string& p) noexcept { SetTexture(EModelTextureSlot::DyeMask, p); }
+        void SetMetallic(const std::string& p)  noexcept { SetTexture(EModelTextureSlot::Metallic, p); }
+        void SetOcclusion(const std::string& p) noexcept { SetTexture(EModelTextureSlot::Occlusion, p); }
+        void SetOpacity(const std::string& p)   noexcept { SetTexture(EModelTextureSlot::Opacity, p); }
+        void SetHeight(const std::string& p)    noexcept { SetTexture(EModelTextureSlot::Height, p); }
+        void SetDisplacement(const std::string& p)  noexcept { SetTexture(EModelTextureSlot::Displacement, p); }
+        void SetSpecular(const std::string& p)      noexcept { SetTexture(EModelTextureSlot::Specular, p); }
+        void SetGlossiness(const std::string& p)    noexcept { SetTexture(EModelTextureSlot::Glossiness, p); }
+        void SetDetailNormal(const std::string& p)  noexcept { SetTexture(EModelTextureSlot::DetailNormal, p); }
+        void SetShadowMap(const std::string& p)     noexcept { SetTexture(EModelTextureSlot::ShadowMap, p); }
     };
 
     /// <summary>

@@ -80,8 +80,8 @@ void kfe::KFECamera::Update(float deltaTime)
 {
 	if (m_followTarget)
 	{
-		XMFLOAT3 targetPos			= m_followTarget->GetPosition();
-		XMFLOAT4 targetOrientFloat	= m_followTarget->GetOrientation();
+		XMFLOAT3 targetPos			= m_followTarget->Transform.Position;
+		XMFLOAT4 targetOrientFloat	= m_followTarget->Transform.Orientation;
 		XMVECTOR targetOrient		= XMLoadFloat4(&targetOrientFloat);
 		XMVECTOR offset				= XMLoadFloat3(&m_followOffset);
 		XMVECTOR rotatedOffset		= XMVector3Rotate(offset, targetOrient);
@@ -89,13 +89,13 @@ void kfe::KFECamera::Update(float deltaTime)
 
 		if (!m_smoothFollowEnabled)
 		{
-			XMStoreFloat3(&m_position, desiredCamPos);
+			XMStoreFloat3(&Position, desiredCamPos);
 			m_pitch = 0.f;
 			m_yaw	= 0.f;
 			m_roll	= 0.f;
 
 			//~ Face toward target
-			XMVECTOR camPos  = XMLoadFloat3(&m_position);
+			XMVECTOR camPos  = XMLoadFloat3(&Position);
 			XMVECTOR forward = XMVector3Normalize(XMVectorSubtract(XMLoadFloat3(&targetPos), camPos));
 
 			float fx = XMVectorGetX(forward);
@@ -127,12 +127,12 @@ void kfe::KFECamera::Update(float deltaTime)
 
 		//~ Smooth position interpolation
 		{
-			XMVECTOR currentPos = XMLoadFloat3(&m_position);
+			XMVECTOR currentPos = XMLoadFloat3(&Position);
 
 			float t			= 1.f - std::expf(-m_followPositionSmoothing * deltaTime);
 			XMVECTOR newPos = XMVectorLerp(currentPos, desiredCamPos, t);
 
-			XMStoreFloat3(&m_position, newPos);
+			XMStoreFloat3(&Position, newPos);
 		}
 
 		//~ Smooth rotation interpolation
@@ -186,25 +186,25 @@ DirectX::XMMATRIX kfe::KFECamera::GetOrthographicMatrix() const noexcept
 _Use_decl_annotations_
 const DirectX::XMFLOAT3& kfe::KFECamera::GetPosition() const noexcept
 {
-	return m_position;
+	return Position;
 }
 
 _Use_decl_annotations_
 float kfe::KFECamera::GetPositionX() const noexcept
 {
-	return m_position.x;
+	return Position.x;
 }
 
 _Use_decl_annotations_
 float kfe::KFECamera::GetPositionY() const noexcept
 {
-	return m_position.y;
+	return Position.y;
 }
 
 _Use_decl_annotations_
 float kfe::KFECamera::GetPositionZ() const noexcept
 {
-	return m_position.z;
+	return Position.z;
 }
 
 _Use_decl_annotations_
@@ -287,67 +287,67 @@ float kfe::KFECamera::GetOrthoSize() const noexcept
 
 void kfe::KFECamera::SetPosition(const DirectX::XMFLOAT3& pos) noexcept
 {
-	m_position = pos;
+	Position = pos;
 	MarkViewDirty();
 }
 
 void kfe::KFECamera::SetPosition(float x, float y, float z) noexcept
 {
-	m_position.x = x;
-	m_position.y = y;
-	m_position.z = z;
+	Position.x = x;
+	Position.y = y;
+	Position.z = z;
 	MarkViewDirty();
 }
 
 void kfe::KFECamera::SetPositionX(float x) noexcept
 {
-	m_position.x = x;
+	Position.x = x;
 	MarkViewDirty();
 }
 
 void kfe::KFECamera::SetPositionY(float y) noexcept
 {
-	m_position.y = y;
+	Position.y = y;
 	MarkViewDirty();
 }
 
 void kfe::KFECamera::SetPositionZ(float z) noexcept
 {
-	m_position.z = z;
+	Position.z = z;
 	MarkViewDirty();
 }
 
 void kfe::KFECamera::AddPosition(const DirectX::XMFLOAT3& delta) noexcept
 {
-	m_position.x += delta.x;
-	m_position.y += delta.y;
-	m_position.z += delta.z;
+	Position.x += delta.x;
+	Position.y += delta.y;
+	Position.z += delta.z;
 	MarkViewDirty();
 }
 
 void kfe::KFECamera::AddPosition(float dx, float dy, float dz) noexcept
 {
-	m_position.x += dx;
-	m_position.y += dy;
-	m_position.z += dz;
+	Position.x += dx;
+	Position.y += dy;
+	Position.z += dz;
 	MarkViewDirty();
 }
 
 void kfe::KFECamera::AddPositionX(float dx) noexcept
 {
-	m_position.x += dx;
+	Position.x += dx;
 	MarkViewDirty();
 }
 
 void kfe::KFECamera::AddPositionY(float dy) noexcept
 {
-	m_position.y += dy;
+	Position.y += dy;
 	MarkViewDirty();
 }
 
 void kfe::KFECamera::AddPositionZ(float dz) noexcept
 {
-	m_position.z += dz;
+	Position.z += dz;
 	MarkViewDirty();
 }
 
@@ -483,7 +483,7 @@ void kfe::KFECamera::RotateRoll(float dt) noexcept
 
 void kfe::KFECamera::LookAt(const DirectX::XMFLOAT3& target) noexcept
 {
-	XMVECTOR eye = XMLoadFloat3(&m_position);
+	XMVECTOR eye = XMLoadFloat3(&Position);
 	XMVECTOR targetV = XMLoadFloat3(&target);
 	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
@@ -623,7 +623,7 @@ float kfe::KFECamera::GetFollowLagSeconds() const noexcept
 
 void kfe::KFECamera::RecalculateViewMatrix() noexcept
 {
-	XMVECTOR eye	 = XMLoadFloat3(&m_position);
+	XMVECTOR eye	 = XMLoadFloat3(&Position);
 	XMVECTOR forward = GetForwardVector();
 	XMVECTOR up		 = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 

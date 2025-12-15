@@ -3,10 +3,42 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 #include "imgui/imgui.h"
 
 using namespace DirectX;
+
+namespace
+{
+    static inline float KFE_Clamp01(const float v) noexcept
+    {
+        return std::clamp(v, 0.0f, 1.0f);
+    }
+
+    static inline float KFE_ClampCos(const float v) noexcept
+    {
+        return std::clamp(v, -1.0f, 1.0f);
+    }
+
+    static inline void KFE_WriteFloat3(JsonLoader& j, const char* key, const XMFLOAT3& v) noexcept
+    {
+        j[key]["x"] = v.x;
+        j[key]["y"] = v.y;
+        j[key]["z"] = v.z;
+    }
+
+    static inline bool KFE_ReadFloat3(const JsonLoader& j, const char* key, XMFLOAT3& out) noexcept
+    {
+        if (!j.Has(key))
+            return false;
+
+        out.x = j[key]["x"].AsFloat();
+        out.y = j[key]["y"].AsFloat();
+        out.z = j[key]["z"].AsFloat();
+        return true;
+    }
+}
 
 kfe::KFEPointLight::KFEPointLight()
 {
@@ -37,6 +69,10 @@ void kfe::KFEPointLight::ResetToDefaults()
 
     SetLightName("PointLight");
 
+    SetFlags(KFE_LIGHT_FLAG_ENABLED);
+    SetShadowTech(KFE_SHADOW_NONE);
+    SetShadowMapId(0u);
+
     SetPositionWS({ 0.0f, 2.0f, 0.0f });
     SetDirectionWS({ 0.0f, -1.0f, 0.0f });
 
@@ -48,10 +84,21 @@ void kfe::KFEPointLight::ResetToDefaults()
 
     SetSpotInnerAngle(0.0f);
     SetSpotOuterAngle(0.0f);
+    SetSpotSoftness(0.0f);
 
     SetShadowStrength(0.0f);
     SetShadowBias(0.0005f);
     SetNormalBias(0.01f);
+
+    SetShadowNearZ(0.1f);
+    SetShadowFarZ(100.0f);
+
+    SetShadowFilterRadius(1.0f);
+    SetShadowTexelSize(0.0f);
+    SetShadowFadeStart(0.0f);
+    SetShadowFadeEnd(0.0f);
+
+    SetShadowAtlasUV({ 1.0f, 1.0f }, { 0.0f, 0.0f });
 
     SetShadowDistance(0.0f);
     SetOrthoSize(0.0f);
@@ -60,31 +107,60 @@ void kfe::KFEPointLight::ResetToDefaults()
 
     SetLightView(XMMatrixIdentity());
     SetLightProj(XMMatrixIdentity());
-    SetLightViewProj(XMMatrixIdentity());
+
+    SetCascadeSplits({ 0.0f, 0.0f, 0.0f, 0.0f });
 
     SetCullRadius(40.0f);
 }
 
 void kfe::KFEPointLight::UpdateLight(const KFECamera*)
 {
-    if (m_lightData.Intensity < 0.0f) m_lightData.Intensity = 0.0f;
-    if (m_lightData.Attenuation < 0.0f) m_lightData.Attenuation = 0.0f;
-    if (m_lightData.Range < 0.0f) m_lightData.Range = 0.0f;
+    //~ sanitize core params
+    SetIntensity(std::max(0.0f, GetIntensity()));
+    SetAttenuation(std::max(0.0f, GetAttenuation()));
+    SetRange(std::max(0.0f, GetRange()));
 
-    if (m_lightData.ShadowStrength < 0.0f) m_lightData.ShadowStrength = 0.0f;
-    if (m_lightData.ShadowStrength > 1.0f) m_lightData.ShadowStrength = 1.0f;
-    if (m_lightData.ShadowBias < 0.0f) m_lightData.ShadowBias = 0.0f;
-    if (m_lightData.NormalBias < 0.0f) m_lightData.NormalBias = 0.0f;
+    SetShadowStrength(KFE_Clamp01(GetShadowStrength()));
+    SetShadowBias(std::max(0.0f, GetShadowBias()));
+    SetNormalBias(std::max(0.0f, GetNormalBias()));
 
-    m_lightData.LightView = XMMatrixIdentity();
-    m_lightData.LightProj = XMMatrixIdentity();
-    m_lightData.LightViewProj = XMMatrixIdentity();
+    SetShadowNearZ(std::max(0.0001f, GetShadowNearZ()));
+    SetShadowFarZ(std::max(GetShadowNearZ() + 0.001f, GetShadowFarZ()));
 
-    m_lightData.SpotInnerAngle = 0.0f;
-    m_lightData.SpotOuterAngle = 0.0f;
+    SetShadowFilterRadius(std::max(0.0f, GetShadowFilterRadius()));
+    SetShadowTexelSize(std::max(0.0f, GetShadowTexelSize()));
+    SetShadowFadeStart(std::max(0.0f, GetShadowFadeStart()));
+    SetShadowFadeEnd(std::max(GetShadowFadeStart(), GetShadowFadeEnd()));
 
-    m_lightData.ShadowDistance = 0.0f;
-    m_lightData.OrthoSize = 0.0f;
+    //~ point lights don't use spot params
+    SetSpotInnerAngle(0.0f);
+    SetSpotOuterAngle(0.0f);
+    SetSpotSoftness(0.0f);
+
+    //~ not used for point
+    SetShadowDistance(0.0f);
+    SetOrthoSize(0.0f);
+
+    //~ keep direction normalized (even if not used heavily)
+    {
+        const XMFLOAT3 d = GetDirectionWS();
+        XMVECTOR v = XMVectorSet(d.x, d.y, d.z, 0.0f);
+        v = NormalizeSafe(v);
+        XMFLOAT3 out{};
+        XMStoreFloat3(&out, v);
+        SetDirectionWS(out);
+    }
+
+    //~ enforce tech for point
+    {
+        const KFE_SHADOW_TECH tech = GetShadowTech();
+        if (tech != KFE_SHADOW_NONE && tech != KFE_SHADOW_POINT_CUBE)
+            SetShadowTech(KFE_SHADOW_POINT_CUBE);
+    }
+
+    //~ point shadow matrices are per-face; keep CPU view/proj identity here
+    SetLightView(XMMatrixIdentity());
+    SetLightProj(XMMatrixIdentity());
 }
 
 void kfe::KFEPointLight::ImguiView(float)
@@ -95,13 +171,52 @@ void kfe::KFEPointLight::ImguiView(float)
     {
         char nameBuf[128]{};
         const std::string cur = GetLightName();
-#if defined(_MSC_VER)
         strncpy_s(nameBuf, cur.c_str(), _TRUNCATE);
-#else
-        std::strncpy(nameBuf, cur.c_str(), sizeof(nameBuf) - 1);
-#endif
         if (ImGui::InputText("Name", nameBuf, sizeof(nameBuf)))
             SetLightName(std::string{ nameBuf });
+    }
+
+    {
+        bool enabled = IsEnable();
+        if (ImGui::Checkbox("Enabled", &enabled))
+        {
+            if (enabled) Enable();
+            else Disable();
+        }
+    }
+
+    {
+        std::uint32_t flags = GetFlags();
+        bool castShadow = (flags & KFE_LIGHT_FLAG_CAST_SHADOW) != 0u;
+
+        if (ImGui::Checkbox("Cast Shadow", &castShadow))
+        {
+            if (castShadow) AddFlags(KFE_LIGHT_FLAG_CAST_SHADOW);
+            else RemoveFlags(KFE_LIGHT_FLAG_CAST_SHADOW);
+        }
+
+        bool volumetric = (GetFlags() & KFE_LIGHT_FLAG_VOLUMETRIC) != 0u;
+        if (ImGui::Checkbox("Volumetric", &volumetric))
+        {
+            if (volumetric) AddFlags(KFE_LIGHT_FLAG_VOLUMETRIC);
+            else RemoveFlags(KFE_LIGHT_FLAG_VOLUMETRIC);
+        }
+    }
+
+    {
+        int tech = static_cast<int>(GetShadowTech());
+        const char* items[] = { "None", "Dir CSM (invalid)", "Spot 2D (invalid)", "Point Cube" };
+
+        if (tech < 0) tech = 0;
+        if (tech > 3) tech = 3;
+
+        if (ImGui::Combo("Shadow Tech", &tech, items, IM_ARRAYSIZE(items)))
+        {
+            if (tech != static_cast<int>(KFE_SHADOW_NONE) && tech != static_cast<int>(KFE_SHADOW_POINT_CUBE))
+                tech = static_cast<int>(KFE_SHADOW_POINT_CUBE);
+
+            SetShadowTech(static_cast<KFE_SHADOW_TECH>(tech));
+        }
     }
 
     {
@@ -150,50 +265,98 @@ void kfe::KFEPointLight::ImguiView(float)
         float nb = GetNormalBias();
         if (ImGui::DragFloat("NormalBias", &nb, 0.0001f, 0.0f, 10.0f, "%.6f"))
             SetNormalBias(nb);
+
+        float nearZ = GetShadowNearZ();
+        if (ImGui::DragFloat("ShadowNearZ", &nearZ, 0.01f, 0.0001f, 100000.0f))
+            SetShadowNearZ(nearZ);
+
+        float farZ = GetShadowFarZ();
+        if (ImGui::DragFloat("ShadowFarZ", &farZ, 0.1f, 0.0001f, 100000.0f))
+            SetShadowFarZ(farZ);
+
+        float filter = GetShadowFilterRadius();
+        if (ImGui::DragFloat("FilterRadius", &filter, 0.01f, 0.0f, 50.0f))
+            SetShadowFilterRadius(filter);
     }
 
     {
-        if (ImGui::Button("Reset"))
-            ResetToDefaults();
+        int w = static_cast<int>(GetShadowMapWidth());
+        int h = static_cast<int>(GetShadowMapHeight());
+
+        if (w <= 0) w = 1024;
+        if (h <= 0) h = 1024;
+
+        if (ImGui::DragInt("ShadowMapWidth", &w, 1.0f, 1, 16384) ||
+            ImGui::DragInt("ShadowMapHeight", &h, 1.0f, 1, 16384))
+        {
+            SetShadowMapSize(static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(h));
+        }
+
+        const auto inv = GetLightData().InvShadowMapSize;
+        ImGui::Text("InvShadowMapSize: %.6f, %.6f", inv.x, inv.y);
     }
+
+    if (ImGui::Button("Reset"))
+        ResetToDefaults();
 }
 
 void kfe::KFEPointLight::LoadFromJson(const JsonLoader& loader)
 {
     ResetToDefaults();
 
-    if (loader.Has("Name"))
-        SetLightName(loader["Name"].GetValue());
+    if (loader.Has("LightName")) SetLightName(loader["LightName"].GetValue());
+    if (loader.Has("Flags"))     SetFlags(loader["Flags"].AsUInt());
 
-    if (loader.Has("PositionWS"))
+    if (loader.Has("ShadowTech"))
     {
-        XMFLOAT3 p{};
-        p.x = loader["PositionWS"]["x"].AsFloat();
-        p.y = loader["PositionWS"]["y"].AsFloat();
-        p.z = loader["PositionWS"]["z"].AsFloat();
-        SetPositionWS(p);
+        const auto t = static_cast<KFE_SHADOW_TECH>(loader["ShadowTech"].AsUInt());
+        if (t == KFE_SHADOW_NONE || t == KFE_SHADOW_POINT_CUBE)
+            SetShadowTech(t);
+        else
+            SetShadowTech(KFE_SHADOW_POINT_CUBE);
     }
 
-    if (loader.Has("Color"))
+    if (loader.Has("ShadowMapId"))
+        SetShadowMapId(loader["ShadowMapId"].AsUInt());
+
+    XMFLOAT3 v{};
+    if (KFE_ReadFloat3(loader, "PositionWS", v)) SetPositionWS(v);
+    if (KFE_ReadFloat3(loader, "DirectionWS", v) || KFE_ReadFloat3(loader, "DirectionWSNormalized", v)) SetDirectionWS(v);
+    if (KFE_ReadFloat3(loader, "Color", v)) SetColor(v);
+
+    if (loader.Has("Intensity"))   SetIntensity(loader["Intensity"].AsFloat());
+    if (loader.Has("Range"))       SetRange(loader["Range"].AsFloat());
+    if (loader.Has("Attenuation")) SetAttenuation(loader["Attenuation"].AsFloat());
+
+    if (loader.Has("ShadowStrength"))     SetShadowStrength(loader["ShadowStrength"].AsFloat());
+    if (loader.Has("ShadowBias"))         SetShadowBias(loader["ShadowBias"].AsFloat());
+    if (loader.Has("NormalBias"))         SetNormalBias(loader["NormalBias"].AsFloat());
+    if (loader.Has("ShadowNearZ"))        SetShadowNearZ(loader["ShadowNearZ"].AsFloat());
+    if (loader.Has("ShadowFarZ"))         SetShadowFarZ(loader["ShadowFarZ"].AsFloat());
+    if (loader.Has("ShadowFilterRadius")) SetShadowFilterRadius(loader["ShadowFilterRadius"].AsFloat());
+
+    if (loader.Has("ShadowMapSize"))
     {
-        XMFLOAT3 c{};
-        c.x = loader["Color"]["x"].AsFloat();
-        c.y = loader["Color"]["y"].AsFloat();
-        c.z = loader["Color"]["z"].AsFloat();
-        SetColor(c);
+        const std::uint32_t w = loader["ShadowMapSize"]["w"].AsUInt();
+        const std::uint32_t h = loader["ShadowMapSize"]["h"].AsUInt();
+        SetShadowMapSize(w, h);
     }
 
-    if (loader.Has("Intensity"))      SetIntensity(loader["Intensity"].AsFloat());
-    if (loader.Has("Range"))          SetRange(loader["Range"].AsFloat());
-    if (loader.Has("Attenuation"))    SetAttenuation(loader["Attenuation"].AsFloat());
-
-    if (loader.Has("ShadowStrength")) SetShadowStrength(loader["ShadowStrength"].AsFloat());
-    if (loader.Has("ShadowBias"))     SetShadowBias(loader["ShadowBias"].AsFloat());
-    if (loader.Has("NormalBias"))     SetNormalBias(loader["NormalBias"].AsFloat());
-
-    if (loader.Has("CullRadius"))     SetCullRadius(loader["CullRadius"].AsFloat());
+    if (loader.Has("CullRadius"))
+        SetCullRadius(loader["CullRadius"].AsFloat());
 
     SetLightType(KFE_LIGHT_POINT);
+
+    //~ enforce point invariants
+    SetSpotInnerAngle(0.0f);
+    SetSpotOuterAngle(0.0f);
+    SetSpotSoftness(0.0f);
+
+    SetShadowDistance(0.0f);
+    SetOrthoSize(0.0f);
+
+    if (GetShadowTech() != KFE_SHADOW_NONE && GetShadowTech() != KFE_SHADOW_POINT_CUBE)
+        SetShadowTech(KFE_SHADOW_POINT_CUBE);
 }
 
 JsonLoader kfe::KFEPointLight::GetJsonData() const
@@ -201,25 +364,31 @@ JsonLoader kfe::KFEPointLight::GetJsonData() const
     JsonLoader j{};
 
     j["Type"] = ToString(KFE_LIGHT_POINT);
-    j["Name"] = GetLightName();
 
-    j["PositionWS"]["x"] = m_lightData.PositionWS.x;
-    j["PositionWS"]["y"] = m_lightData.PositionWS.y;
-    j["PositionWS"]["z"] = m_lightData.PositionWS.z;
+    j["LightName"] = GetLightName();
+    j["Flags"] = std::to_string(GetFlags());
+    j["ShadowTech"] = std::to_string(static_cast<std::uint32_t>(GetShadowTech()));
+    j["ShadowMapId"] = std::to_string(GetShadowMapId());
 
-    j["Color"]["x"] = m_lightData.Color.x;
-    j["Color"]["y"] = m_lightData.Color.y;
-    j["Color"]["z"] = m_lightData.Color.z;
+    KFE_WriteFloat3(j, "PositionWS", GetPositionWS());
+    KFE_WriteFloat3(j, "DirectionWS", GetDirectionWSNormalized());
+    KFE_WriteFloat3(j, "Color", GetColor());
 
-    j["Intensity"] = m_lightData.Intensity;
-    j["Range"] = m_lightData.Range;
-    j["Attenuation"] = m_lightData.Attenuation;
+    j["Intensity"] = GetIntensity();
+    j["Range"] = GetRange();
+    j["Attenuation"] = GetAttenuation();
 
-    j["ShadowStrength"] = m_lightData.ShadowStrength;
-    j["ShadowBias"] = m_lightData.ShadowBias;
-    j["NormalBias"] = m_lightData.NormalBias;
+    j["ShadowStrength"] = GetShadowStrength();
+    j["ShadowBias"] = GetShadowBias();
+    j["NormalBias"] = GetNormalBias();
+    j["ShadowNearZ"] = GetShadowNearZ();
+    j["ShadowFarZ"] = GetShadowFarZ();
+    j["ShadowFilterRadius"] = GetShadowFilterRadius();
 
-    j["CullRadius"] = m_cullRadius;
+    j["ShadowMapSize"]["w"] = std::to_string(GetShadowMapWidth());
+    j["ShadowMapSize"]["h"] = std::to_string(GetShadowMapHeight());
+
+    j["CullRadius"] = GetCullRadius();
 
     return j;
 }

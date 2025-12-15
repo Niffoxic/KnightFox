@@ -2,662 +2,24 @@
 	"47": {
 		"ID": "47",
 		"Data": {
-			"Transformation": {
+			"Type": "KEFCubeSceneObject",
+			"Name": "Main Test Cube",
+			"Visible": "true",
+			"ShaderInfo": {
+				"PixelShader": "shaders/model/pixel_shader.hlsl",
+				"VertexShader": "shaders/model/vertex_shader.hlsl",
+				"ShadowVertexShader": ""
+			},
+			"TransformInfo": {
 				"Position": {
-					"x": "-2.600000",
-					"y": "0.900000",
-					"z": "-1.000000"
+					"x": "1.380000",
+					"y": "-0.170000",
+					"z": "0.890000"
 				},
 				"Scale": {
 					"x": "1.000000",
 					"y": "1.000000",
 					"z": "1.000000"
-				},
-				"Orientation": {
-					"x": "0.000000",
-					"y": "0.000000",
-					"z": "0.000000",
-					"w": "0.000000"
-				}
-			},
-			"Properties": {
-				"PixelShader": "shaders/cube/pixel.hlsl",
-				"CullMode": "None",
-				"VertexShader": "shaders/cube/vertex.hlsl",
-				"MainTexturePath": "",
-				"GeometryShader": "",
-				"DomainShader": "",
-				"DrawMode": "Triangle",
-				"HullShader": "",
-				"ComputeShader": "",
-				"SecondaryTexturePath": "",
-				"NormalMapPath": "",
-				"SpecularMapPath": "",
-				"HeightMapPath": "",
-				"TexturePath": "",
-				"TextureMeta": {
-					"Specular": {
-						"IsTextureAttached": "0.000000",
-						"SpecularIntensity": "1.000000",
-						"RoughnessMultiplier": "1.000000",
-						"MetalnessMultiplier": "1.000000"
-					},
-					"Main": {
-						"UvTilingY": "1.000000",
-						"IsTextureAttached": "0.000000",
-						"LerpToSecondary": "0.000000",
-						"UvTilingX": "1.000000"
-					},
-					"Secondary": {
-						"UvTilingY": "1.000000",
-						"IsTextureAttached": "0.000000",
-						"UvTilingX": "1.000000",
-						"BlendFactor": "1.000000"
-					},
-					"Height": {
-						"ParallaxMinLayers": "8.000000",
-						"HeightScale": "0.050000",
-						"IsTextureAttached": "0.000000",
-						"ParallaxMaxLayers": "32.000000"
-					},
-					"Normal": {
-						"UvTilingY": "1.000000",
-						"IsTextureAttached": "0.000000",
-						"UvTilingX": "1.000000",
-						"NormalStrength": "1.000000"
-					},
-					"MipDebug": {
-						"ForcedMipLevel": "0.000000",
-						"UseForcedMip": "0.000000"
-					}
-				}
-			}
-		},
-		"Type": "KEFCubeSceneObject",
-		"Name": "cube"
-	},
-	"48": {
-		"ID": "48",
-		"Data": {
-			"Transformation": {
-				"Position": {
-					"x": "-4.100000",
-					"y": "0.000000",
-					"z": "-3.800000"
-				},
-				"Scale": {
-					"x": "1.000000",
-					"y": "1.000000",
-					"z": "1.000000"
-				},
-				"Orientation": {
-					"x": "0.000000",
-					"y": "-0.670680",
-					"z": "0.000000",
-					"w": "-0.741747"
-				}
-			},
-			"Properties": {
-				"TextureInformation": {
-					"0": {
-						"Name": "BS_Cloth1",
-						"Textures": {
-							"BaseColor": "assets/3d/blacksmith/textures/BS_low_1002_BaseColor.png",
-							"Height": "",
-							"Occlusion": "",
-							"Normal": "assets/3d/blacksmith/textures/BS_low_1002_Normal.jpg",
-							"ORM": "",
-							"Opacity": "",
-							"Emissive": "",
-							"Roughness": "",
-							"Metallic": "",
-							"DyeMask": ""
-						}
-					},
-					"1": {
-						"Name": "BS_Body1",
-						"Textures": {
-							"BaseColor": "assets/3d/blacksmith/textures/BS_low_1001_BaseColor.png",
-							"Height": "",
-							"Occlusion": "assets/3d/blacksmith/textures/BS_low_1001_Occlusion.png",
-							"Normal": "assets/3d/blacksmith/textures/BS_low_1001_Normal.png",
-							"ORM": "",
-							"Opacity": "",
-							"Emissive": "",
-							"Roughness": "assets/3d/blacksmith/textures/BS_low_1001_Roughness.png",
-							"Metallic": "",
-							"DyeMask": ""
-						}
-					},
-					"2": {
-						"Name": "Bs_Beard_Hair04",
-						"Textures": {
-							"BaseColor": "",
-							"Height": "",
-							"Occlusion": "assets/3d/blacksmith/textures/BS_Hair_occlusion.png",
-							"Normal": "assets/3d/blacksmith/textures/BS_Hair_Normal_normals.png",
-							"ORM": "",
-							"Opacity": "assets/3d/blacksmith/textures/BS_Hair_Alpha.tga.png",
-							"Emissive": "",
-							"Roughness": "",
-							"Metallic": "",
-							"DyeMask": ""
-						}
-					},
-					"3": {
-						"Name": "Long_hammer_low1",
-						"Textures": {
-							"BaseColor": "assets/3d/blacksmith/textures/Longhammer_low02_Long_Hammer_BaseColor.png",
-							"Height": "",
-							"Occlusion": "assets/3d/blacksmith/textures/Longhammer_low02_Long_Hammer_Occlusion.png",
-							"Normal": "",
-							"ORM": "",
-							"Opacity": "",
-							"Emissive": "",
-							"Roughness": "assets/3d/blacksmith/textures/Longhammer_low02_Long_Hammer_Roughness.png",
-							"Metallic": "assets/3d/blacksmith/textures/Longhammer_low02_Long_Hammer_Metallic.png",
-							"DyeMask": ""
-						}
-					}
-				},
-				"PixelShader": "shaders/mesh/pixel.hlsl",
-				"CullMode": "Back",
-				"VertexShader": "shaders/mesh/vertex.hlsl",
-				"GeometryShader": "",
-				"DomainShader": "",
-				"DrawMode": "Triangle",
-				"HullShader": "",
-				"ComputeShader": "",
-				"ModelPath": "assets/3d/blacksmith/source/BS_Final_Apose_Sketchfab.fbx",
-				"Submesh": {
-					"Root": {
-						"Name": "BS_Final_geo",
-						"Matrix": {
-							"m13": "0.000000",
-							"m00": "1.000000",
-							"m12": "0.000000",
-							"m01": "0.000000",
-							"m11": "1.000000",
-							"m02": "0.000000",
-							"m10": "0.000000",
-							"m03": "0.000000",
-							"m20": "0.000000",
-							"m21": "0.000000",
-							"m22": "1.000000",
-							"m23": "0.000000",
-							"m30": "0.000000",
-							"m31": "0.000000",
-							"m32": "0.000000",
-							"m33": "1.000000"
-						},
-						"Children": {
-							"0": {
-								"Name": "BS_Cloth1",
-								"Matrix": {
-									"m13": "0.000000",
-									"m00": "1.000000",
-									"m12": "0.000000",
-									"m01": "0.000000",
-									"m11": "1.000000",
-									"m02": "0.000000",
-									"m10": "0.000000",
-									"m03": "0.000000",
-									"m20": "0.000000",
-									"m21": "0.000000",
-									"m22": "1.000000",
-									"m23": "0.000000",
-									"m30": "0.000000",
-									"m31": "0.000000",
-									"m32": "0.000000",
-									"m33": "1.000000"
-								}
-							},
-							"1": {
-								"Name": "BS_Body1",
-								"Matrix": {
-									"m13": "0.000000",
-									"m00": "1.000000",
-									"m12": "-0.000000",
-									"m01": "0.000000",
-									"m11": "1.000000",
-									"m02": "-0.000000",
-									"m10": "0.000000",
-									"m03": "0.000000",
-									"m20": "-0.000000",
-									"m21": "-0.000000",
-									"m22": "1.000000",
-									"m23": "-0.000000",
-									"m30": "0.000000",
-									"m31": "0.000000",
-									"m32": "-0.000000",
-									"m33": "1.000000"
-								}
-							},
-							"2": {
-								"Name": "Bs_Beard_Hair04_$AssimpFbx$_RotationPivot",
-								"Matrix": {
-									"m13": "152.466599",
-									"m00": "1.000000",
-									"m12": "-0.000000",
-									"m01": "0.000000",
-									"m11": "1.000000",
-									"m02": "-0.000000",
-									"m10": "0.000000",
-									"m03": "-0.292966",
-									"m20": "-0.000000",
-									"m21": "-0.000000",
-									"m22": "1.000000",
-									"m23": "-7.481611",
-									"m30": "0.000000",
-									"m31": "0.000000",
-									"m32": "-0.000000",
-									"m33": "1.000000"
-								},
-								"Children": {
-									"0": {
-										"Name": "Bs_Beard_Hair04_$AssimpFbx$_RotationPivotInverse",
-										"Matrix": {
-											"m13": "-152.466599",
-											"m00": "1.000000",
-											"m12": "-0.000000",
-											"m01": "0.000000",
-											"m11": "1.000000",
-											"m02": "-0.000000",
-											"m10": "0.000000",
-											"m03": "0.292966",
-											"m20": "-0.000000",
-											"m21": "-0.000000",
-											"m22": "1.000000",
-											"m23": "7.481611",
-											"m30": "0.000000",
-											"m31": "0.000000",
-											"m32": "-0.000000",
-											"m33": "1.000000"
-										},
-										"Children": {
-											"0": {
-												"Name": "Bs_Beard_Hair04_$AssimpFbx$_ScalingPivot",
-												"Matrix": {
-													"m13": "152.466599",
-													"m00": "1.000000",
-													"m12": "-0.000000",
-													"m01": "0.000000",
-													"m11": "1.000000",
-													"m02": "-0.000000",
-													"m10": "0.000000",
-													"m03": "-0.292966",
-													"m20": "-0.000000",
-													"m21": "-0.000000",
-													"m22": "1.000000",
-													"m23": "-7.481611",
-													"m30": "0.000000",
-													"m31": "0.000000",
-													"m32": "-0.000000",
-													"m33": "1.000000"
-												},
-												"Children": {
-													"0": {
-														"Name": "Bs_Beard_Hair04_$AssimpFbx$_ScalingPivotInverse",
-														"Matrix": {
-															"m13": "-152.466599",
-															"m00": "1.000000",
-															"m12": "-0.000000",
-															"m01": "0.000000",
-															"m11": "1.000000",
-															"m02": "-0.000000",
-															"m10": "0.000000",
-															"m03": "0.292966",
-															"m20": "-0.000000",
-															"m21": "-0.000000",
-															"m22": "1.000000",
-															"m23": "7.481611",
-															"m30": "0.000000",
-															"m31": "0.000000",
-															"m32": "-0.000000",
-															"m33": "1.000000"
-														},
-														"Children": {
-															"0": {
-																"Name": "Bs_Beard_Hair04",
-																"Matrix": {
-																	"m13": "0.000000",
-																	"m00": "1.000000",
-																	"m12": "0.000000",
-																	"m01": "0.000000",
-																	"m11": "1.000000",
-																	"m02": "0.000000",
-																	"m10": "0.000000",
-																	"m03": "0.000000",
-																	"m20": "0.000000",
-																	"m21": "0.000000",
-																	"m22": "1.000000",
-																	"m23": "0.000000",
-																	"m30": "0.000000",
-																	"m31": "0.000000",
-																	"m32": "0.000000",
-																	"m33": "1.000000"
-																}
-															}
-														}
-													}
-												}
-											}
-										}
-									}
-								}
-							},
-							"3": {
-								"Name": "Long_hammer_low1",
-								"Matrix": {
-									"m13": "0.000000",
-									"m00": "1.000000",
-									"m12": "-0.000000",
-									"m01": "0.000000",
-									"m11": "1.000000",
-									"m02": "-0.000000",
-									"m10": "0.000000",
-									"m03": "0.000000",
-									"m20": "-0.000000",
-									"m21": "-0.000000",
-									"m22": "1.000000",
-									"m23": "-0.000000",
-									"m30": "0.000000",
-									"m31": "0.000000",
-									"m32": "-0.000000",
-									"m33": "1.000000"
-								}
-							}
-						}
-					}
-				},
-				"MetaInformation": {
-					"0": {
-						"Name": "BS_Cloth1",
-						"Meta": {
-							"BaseColor": {
-								"Strength": "3.570000",
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "1.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Height": {
-								"ParallaxMinLayers": "8.000000",
-								"HeightScale": "0.050000",
-								"IsTextureAttached": "0.000000",
-								"ParallaxMaxLayers": "32.000000"
-							},
-							"Normal": {
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "1.000000",
-								"UvTilingX": "1.000000",
-								"NormalStrength": "1.000000"
-							},
-							"ORM": {
-								"UvTilingY": "1.000000",
-								"IsMixed": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Opacity": {
-								"AlphaMultiplier": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"AlphaCutoff": "0.500000"
-							},
-							"Emissive": {
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"EmissiveIntensity": "1.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Singular": {
-								"RoughnessValue": "1.000000",
-								"IsOcclusionAttached": "0.000000",
-								"IsRoughnessAttached": "0.000000",
-								"IsMetallicAttached": "0.000000",
-								"OcclusionTilingX": "1.000000",
-								"OcclusionStrength": "1.000000",
-								"MetallicValue": "0.000000",
-								"OcclusionTilingY": "1.000000",
-								"RoughnessTilingX": "1.000000",
-								"RoughnessTilingY": "1.000000",
-								"MetallicTilingX": "1.000000",
-								"MetallicTilingY": "1.000000"
-							},
-							"Dye": {
-								"IsEnabled": "1.000000",
-								"Color": {
-									"x": "0.465686",
-									"y": "0.317306",
-									"z": "0.317306"
-								},
-								"Strength": "1.000000"
-							},
-							"Global": {
-								"ForcedMipLevel": "0.000000",
-								"UseForcedMip": "0.000000"
-							}
-						}
-					},
-					"1": {
-						"Name": "BS_Body1",
-						"Meta": {
-							"BaseColor": {
-								"Strength": "2.680000",
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "1.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Height": {
-								"ParallaxMinLayers": "8.000000",
-								"HeightScale": "0.050000",
-								"IsTextureAttached": "0.000000",
-								"ParallaxMaxLayers": "32.000000"
-							},
-							"Normal": {
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "1.000000",
-								"UvTilingX": "1.000000",
-								"NormalStrength": "1.000000"
-							},
-							"ORM": {
-								"UvTilingY": "1.000000",
-								"IsMixed": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Opacity": {
-								"AlphaMultiplier": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"AlphaCutoff": "0.500000"
-							},
-							"Emissive": {
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"EmissiveIntensity": "1.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Singular": {
-								"RoughnessValue": "1.000000",
-								"IsOcclusionAttached": "1.000000",
-								"IsRoughnessAttached": "1.000000",
-								"IsMetallicAttached": "0.000000",
-								"OcclusionTilingX": "1.000000",
-								"OcclusionStrength": "1.000000",
-								"MetallicValue": "0.000000",
-								"OcclusionTilingY": "1.000000",
-								"RoughnessTilingX": "1.000000",
-								"RoughnessTilingY": "1.000000",
-								"MetallicTilingX": "1.000000",
-								"MetallicTilingY": "1.000000"
-							},
-							"Dye": {
-								"IsEnabled": "0.000000",
-								"Color": {
-									"x": "0.354748",
-									"y": "0.715686",
-									"z": "0.343810"
-								},
-								"Strength": "1.000000"
-							},
-							"Global": {
-								"ForcedMipLevel": "0.000000",
-								"UseForcedMip": "0.000000"
-							}
-						}
-					},
-					"2": {
-						"Name": "Bs_Beard_Hair04",
-						"Meta": {
-							"BaseColor": {
-								"Strength": "1.000000",
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Height": {
-								"ParallaxMinLayers": "8.000000",
-								"HeightScale": "0.050000",
-								"IsTextureAttached": "0.000000",
-								"ParallaxMaxLayers": "32.000000"
-							},
-							"Normal": {
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "1.000000",
-								"UvTilingX": "1.000000",
-								"NormalStrength": "1.000000"
-							},
-							"ORM": {
-								"UvTilingY": "1.000000",
-								"IsMixed": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Opacity": {
-								"AlphaMultiplier": "1.000000",
-								"IsTextureAttached": "1.000000",
-								"AlphaCutoff": "0.500000"
-							},
-							"Emissive": {
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"EmissiveIntensity": "1.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Singular": {
-								"RoughnessValue": "1.000000",
-								"IsOcclusionAttached": "1.000000",
-								"IsRoughnessAttached": "0.000000",
-								"IsMetallicAttached": "0.000000",
-								"OcclusionTilingX": "1.000000",
-								"OcclusionStrength": "1.000000",
-								"MetallicValue": "0.000000",
-								"OcclusionTilingY": "1.000000",
-								"RoughnessTilingX": "1.000000",
-								"RoughnessTilingY": "1.000000",
-								"MetallicTilingX": "1.000000",
-								"MetallicTilingY": "1.000000"
-							},
-							"Dye": {
-								"IsEnabled": "0.000000",
-								"Color": {
-									"x": "1.000000",
-									"y": "1.000000",
-									"z": "1.000000"
-								},
-								"Strength": "1.000000"
-							},
-							"Global": {
-								"ForcedMipLevel": "0.000000",
-								"UseForcedMip": "0.000000"
-							}
-						}
-					},
-					"3": {
-						"Name": "Long_hammer_low1",
-						"Meta": {
-							"BaseColor": {
-								"Strength": "2.330000",
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "1.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Height": {
-								"ParallaxMinLayers": "8.000000",
-								"HeightScale": "0.050000",
-								"IsTextureAttached": "0.000000",
-								"ParallaxMaxLayers": "32.000000"
-							},
-							"Normal": {
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"UvTilingX": "1.000000",
-								"NormalStrength": "1.000000"
-							},
-							"ORM": {
-								"UvTilingY": "1.000000",
-								"IsMixed": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Opacity": {
-								"AlphaMultiplier": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"AlphaCutoff": "0.500000"
-							},
-							"Emissive": {
-								"UvTilingY": "1.000000",
-								"IsTextureAttached": "0.000000",
-								"EmissiveIntensity": "1.000000",
-								"UvTilingX": "1.000000"
-							},
-							"Singular": {
-								"RoughnessValue": "1.000000",
-								"IsOcclusionAttached": "1.000000",
-								"IsRoughnessAttached": "1.000000",
-								"IsMetallicAttached": "1.000000",
-								"OcclusionTilingX": "1.000000",
-								"OcclusionStrength": "1.000000",
-								"MetallicValue": "1.000000",
-								"OcclusionTilingY": "1.000000",
-								"RoughnessTilingX": "1.000000",
-								"RoughnessTilingY": "1.000000",
-								"MetallicTilingX": "1.000000",
-								"MetallicTilingY": "1.000000"
-							},
-							"Dye": {
-								"IsEnabled": "0.000000",
-								"Color": {
-									"x": "0.348039",
-									"y": "0.059713",
-									"z": "0.059713"
-								},
-								"Strength": "1.000000"
-							},
-							"Global": {
-								"ForcedMipLevel": "0.000000",
-								"UseForcedMip": "0.000000"
-							}
-						}
-					}
-				}
-			}
-		},
-		"Type": "KFEMeshSceneObject",
-		"Name": "Blacksmith"
-	},
-	"49": {
-		"ID": "49",
-		"Data": {
-			"Transformation": {
-				"Position": {
-					"x": "-3.200000",
-					"y": "-1.000000",
-					"z": "-2.800000"
-				},
-				"Scale": {
-					"x": "10.000000",
-					"y": "1.000000",
-					"z": "10.000000"
 				},
 				"Orientation": {
 					"x": "0.000000",
@@ -666,116 +28,31 @@
 					"w": "1.000000"
 				}
 			},
-			"Properties": {
-				"PixelShader": "shaders/cube/pixel.hlsl",
-				"CullMode": "None",
-				"VertexShader": "shaders/cube/vertex.hlsl",
-				"MainTexturePath": "assets/textures/bricks/base.jpg",
-				"GeometryShader": "",
-				"DomainShader": "",
-				"DrawMode": "Triangle",
-				"HullShader": "",
-				"ComputeShader": "",
-				"SecondaryTexturePath": "",
-				"NormalMapPath": "assets/textures/bricks/normal.jpg",
-				"SpecularMapPath": "",
-				"HeightMapPath": "assets/textures/bricks/displacement.jpg",
-				"TexturePath": "assets/textures/bricks/base.jpg",
-				"TextureMeta": {
-					"Specular": {
-						"IsTextureAttached": "0.000000",
-						"SpecularIntensity": "1.000000",
-						"RoughnessMultiplier": "1.000000",
-						"MetalnessMultiplier": "1.000000"
-					},
-					"Main": {
-						"UvTilingY": "1.000000",
-						"IsTextureAttached": "1.000000",
-						"LerpToSecondary": "0.000000",
-						"UvTilingX": "1.000000"
-					},
-					"Secondary": {
-						"UvTilingY": "1.000000",
-						"IsTextureAttached": "0.000000",
-						"UvTilingX": "1.000000",
-						"BlendFactor": "1.000000"
-					},
-					"Height": {
-						"ParallaxMinLayers": "8.000000",
-						"HeightScale": "0.050000",
-						"IsTextureAttached": "1.000000",
-						"ParallaxMaxLayers": "32.000000"
-					},
-					"Normal": {
-						"UvTilingY": "1.000000",
-						"IsTextureAttached": "1.000000",
-						"UvTilingX": "1.000000",
-						"NormalStrength": "1.000000"
-					},
-					"MipDebug": {
-						"ForcedMipLevel": "0.000000",
-						"UseForcedMip": "0.000000"
-					}
-				}
-			}
-		},
-		"Type": "KEFCubeSceneObject",
-		"Name": "ground"
-	},
-	"50": {
-		"ID": "50",
-		"Data": {
-			"Transformation": {
-				"Position": {
-					"x": "-2.200000",
-					"y": "0.000000",
-					"z": "-4.700000"
-				},
-				"Scale": {
-					"x": "1.000000",
-					"y": "1.000000",
-					"z": "1.000000"
-				},
-				"Orientation": {
-					"x": "0.009647",
-					"y": "0.000000",
-					"z": "-0.263341",
-					"w": "0.964655"
-				}
+			"DrawInfo": {
+				"CullMode": "Back",
+				"DrawMode": "Triangle"
 			},
-			"Properties": {
-				"PixelShader": "shaders/cube/pixel.hlsl",
-				"CullMode": "None",
-				"VertexShader": "shaders/cube/vertex.hlsl",
-				"MainTexturePath": "",
-				"GeometryShader": "",
-				"DomainShader": "",
-				"DrawMode": "Triangle",
-				"HullShader": "",
-				"ComputeShader": "",
-				"SecondaryTexturePath": "",
-				"NormalMapPath": "",
-				"SpecularMapPath": "",
-				"HeightMapPath": "",
-				"TexturePath": "",
+			"MeshInfo": {
+				"SubDivisionLevel": "16",
+				"BaseColor": "assets/textures/bricks/base.jpg",
+				"Height": "",
+				"Occlusion": "assets/textures/bricks/ao.jpg",
+				"Normal": "assets/textures/bricks/normal.jpg",
+				"ORM": "",
+				"Emissive": "",
+				"Roughness": "",
+				"Metallic": "",
+				"Opacity": "",
+				"Displacement": "assets/textures/bricks/displacement.jpg",
+				"Specular": "",
+				"Glossiness": "assets/textures/bricks/gloss.jpg",
+				"DetailNormal": "",
 				"TextureMeta": {
-					"Specular": {
-						"IsTextureAttached": "0.000000",
-						"SpecularIntensity": "1.000000",
-						"RoughnessMultiplier": "1.000000",
-						"MetalnessMultiplier": "1.000000"
-					},
-					"Main": {
+					"BaseColor": {
+						"Strength": "2.155000",
 						"UvTilingY": "1.000000",
-						"IsTextureAttached": "0.000000",
-						"LerpToSecondary": "0.000000",
-						"UvTilingX": "1.000000"
-					},
-					"Secondary": {
-						"UvTilingY": "1.000000",
-						"IsTextureAttached": "0.000000",
-						"UvTilingX": "1.000000",
-						"BlendFactor": "1.000000"
+						"IsTextureAttached": "1.000000",
+						"UvTilingX": "1.590000"
 					},
 					"Height": {
 						"ParallaxMinLayers": "8.000000",
@@ -785,18 +62,73 @@
 					},
 					"Normal": {
 						"UvTilingY": "1.000000",
-						"IsTextureAttached": "0.000000",
+						"IsTextureAttached": "1.000000",
 						"UvTilingX": "1.000000",
+						"NormalStrength": "3.372000"
+					},
+					"ORM": {
+						"UvTilingY": "1.000000",
+						"IsMixed": "1.000000",
+						"IsTextureAttached": "0.000000",
+						"UvTilingX": "1.000000"
+					},
+					"Displacement": {
+						"UvTilingY": "1.000000",
+						"IsTextureAttached": "1.000000",
+						"DisplacementScale": "0.077000",
+						"UvTilingX": "1.000000"
+					},
+					"Opacity": {
+						"AlphaMultiplier": "1.000000",
+						"IsTextureAttached": "0.000000",
+						"AlphaCutoff": "0.500000"
+					},
+					"Emissive": {
+						"UvTilingY": "1.000000",
+						"IsTextureAttached": "0.000000",
+						"EmissiveIntensity": "1.000000",
+						"UvTilingX": "1.000000"
+					},
+					"Singular": {
+						"RoughnessValue": "1.000000",
+						"IsOcclusionAttached": "1.000000",
+						"IsRoughnessAttached": "0.000000",
+						"IsMetallicAttached": "0.000000",
+						"OcclusionTilingX": "1.000000",
+						"OcclusionStrength": "1.000000",
+						"MetallicValue": "0.000000",
+						"OcclusionTilingY": "1.000000",
+						"RoughnessTilingX": "1.000000",
+						"RoughnessTilingY": "1.000000",
+						"MetallicTilingX": "1.000000",
+						"MetallicTilingY": "1.000000"
+					},
+					"Specular": {
+						"UvTilingY": "1.000000",
+						"Strength": "1.000000",
+						"IsTextureAttached": "0.000000",
+						"UvTilingX": "1.000000"
+					},
+					"Glossiness": {
+						"UvTilingY": "2.930000",
+						"Strength": "1.405000",
+						"IsTextureAttached": "0.000000",
+						"UvTilingX": "3.000000"
+					},
+					"DetailNormal": {
+						"UvTilingY": "4.000000",
+						"IsTextureAttached": "0.000000",
+						"UvTilingX": "4.000000",
 						"NormalStrength": "1.000000"
 					},
 					"MipDebug": {
-						"ForcedMipLevel": "0.000000",
+						"ForcedMipLevel": "6.800000",
 						"UseForcedMip": "0.000000"
 					}
 				}
 			}
 		},
 		"Type": "KEFCubeSceneObject",
-		"Name": "No Name Given"
+		"Name": "Main Test Cube"
 	}
 }

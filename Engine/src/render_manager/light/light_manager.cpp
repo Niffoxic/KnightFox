@@ -14,7 +14,7 @@ namespace
 {
     static std::uint64_t BytesForLights(std::uint32_t capacity) noexcept
     {
-        return static_cast<std::uint64_t>(sizeof(kfe::KFE_LIGHT_DATA_DESC)) *
+        return static_cast<std::uint64_t>(sizeof(kfe::KFE_LIGHT_DATA_GPU)) *
             static_cast<std::uint64_t>(capacity);
     }
 }
@@ -220,7 +220,7 @@ void kfe::KFELightManager::DetachLight(_In_ KID lightId)
 
 void kfe::KFELightManager::SetDrawState(
     ID3D12GraphicsCommandList* cmdList,
-    D3D12_RESOURCE_STATES before) noexcept
+    D3D12_RESOURCE_STATES before)
 {
     if (!cmdList || !m_staging || !m_staging->IsInitialized())
         return;
@@ -304,7 +304,7 @@ void kfe::KFELightManager::PackData() noexcept
         m_cpuPacked.resize(m_capacity);
 
     if (packCount > 0)
-        std::memset(m_cpuPacked.data(), 0, sizeof(KFE_LIGHT_DATA_DESC) * packCount);
+        std::memset(m_cpuPacked.data(), 0, sizeof(KFE_LIGHT_DATA_GPU) * packCount);
 
     for (std::uint32_t i = 0u; i < packCount; ++i)
     {
@@ -345,7 +345,7 @@ bool kfe::KFELightManager::RecordUpload(ID3D12GraphicsCommandList* cmdList) noex
         return true;
 
     const std::uint64_t bytes =
-        static_cast<std::uint64_t>(sizeof(KFE_LIGHT_DATA_DESC)) *
+        static_cast<std::uint64_t>(sizeof(KFE_LIGHT_DATA_GPU)) *
         static_cast<std::uint64_t>(count);
 
     if (!m_staging->WriteBytes(m_cpuPacked.data(), bytes, 0u))
@@ -391,7 +391,7 @@ std::uint32_t kfe::KFELightManager::GetPackedCount() const noexcept
     return m_lastPackedCount;
 }
 
-const std::vector<kfe::KFE_LIGHT_DATA_DESC>& kfe::KFELightManager::GetPackedCPUData() const noexcept
+const std::vector<kfe::KFE_LIGHT_DATA_GPU>& kfe::KFELightManager::GetPackedCPUData() const noexcept
 {
     return m_cpuPacked;
 }
@@ -470,7 +470,7 @@ bool kfe::KFELightManager::Resize(std::uint32_t newCapacity, const char* newDebu
         sbDesc.Device = m_pDevice;
         sbDesc.ResourceBuffer = newStaging->GetDefaultBuffer();
         sbDesc.ResourceHeap = m_pHeap;
-        sbDesc.ElementStride = static_cast<std::uint32_t>(sizeof(KFE_LIGHT_DATA_DESC));
+        sbDesc.ElementStride = static_cast<std::uint32_t>(sizeof(KFE_LIGHT_DATA_GPU));
         sbDesc.ElementCount = newCapacity;
         sbDesc.OffsetInBytes = 0u;
 
@@ -538,7 +538,7 @@ bool kfe::KFELightManager::CreateGPUResources(std::uint32_t capacity, const char
     sbDesc.Device = m_pDevice;
     sbDesc.ResourceBuffer = m_staging->GetDefaultBuffer();
     sbDesc.ResourceHeap = m_pHeap;
-    sbDesc.ElementStride = static_cast<std::uint32_t>(sizeof(KFE_LIGHT_DATA_DESC));
+    sbDesc.ElementStride = static_cast<std::uint32_t>(sizeof(KFE_LIGHT_DATA_GPU));
     sbDesc.ElementCount = capacity;
     sbDesc.OffsetInBytes = 0u;
 
@@ -605,9 +605,9 @@ void kfe::KFELightManager::RebuildAccessor() noexcept
     }
 }
 
-void kfe::KFELightManager::PackOne(_In_ const IKFELight* src, _Out_ KFE_LIGHT_DATA_DESC& dst) noexcept
+void kfe::KFELightManager::PackOne(_In_ const IKFELight* src, _Out_ KFE_LIGHT_DATA_GPU& dst) noexcept
 {
-    std::memset(&dst, 0, sizeof(KFE_LIGHT_DATA_DESC));
+    std::memset(&dst, 0, sizeof(KFE_LIGHT_DATA_GPU));
 
     if (!src)
         return;

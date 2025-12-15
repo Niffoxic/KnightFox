@@ -147,95 +147,10 @@ void KFEInspectorPanel::DrawSelectedObjectInspector(float deltaTime)
 
 void KFEInspectorPanel::DrawLightsSection()
 {
-    KFEDirectionalLight* light = m_pWorld->GetDirectionalLight();
-    if (!light)
+    if (!ImGui::CollapsingHeader("Lights"))
         return;
 
-    if (!ImGui::CollapsingHeader("Lights", ImGuiTreeNodeFlags_DefaultOpen))
-        return;
-
-    ImGui::PushID("DirectionalLight");
-
-    ImGui::SeparatorText("Directional Light");
-
-    //~ Direction
-    {
-        DirectX::XMFLOAT3 dir = light->GetDirectionWS();
-        if (ImGui::DragFloat3("Direction", &dir.x, 0.01f, -1.0f, 1.0f))
-        {
-            DirectX::XMVECTOR v = DirectX::XMLoadFloat3(&dir);
-            v = DirectX::XMVector3Normalize(v);
-            DirectX::XMStoreFloat3(&dir, v);
-            light->SetDirectionWS(dir);
-        }
-    }
-
-    //~ Color
-    {
-        DirectX::XMFLOAT3 col = light->GetColor();
-        if (ImGui::ColorEdit3("Color", &col.x))
-        {
-            light->SetColor(col);
-        }
-    }
-
-    //~ Intensity
-    {
-        float intensity = light->GetIntensity();
-        if (ImGui::DragFloat("Intensity", &intensity, 0.05f, 0.0f, 50.0f))
-        {
-            light->SetIntensity(intensity);
-        }
-    }
-
-    ImGui::SeparatorText("Shadow (prep)");
-
-    //~ Shadow strength
-    {
-        float v = light->GetShadowStrength();
-        if (ImGui::SliderFloat("Shadow Strength", &v, 0.0f, 1.0f))
-        {
-            light->SetShadowStrength(v);
-        }
-    }
-
-    //~ Shadow bias
-    {
-        float bias = light->GetShadowBias();
-        if (ImGui::DragFloat("Shadow Bias", &bias, 0.0001f, 0.0f, 0.05f, "%.5f"))
-        {
-            light->SetShadowBias(bias);
-        }
-    }
-
-    //~ Normal bias
-    {
-        float nb = light->GetNormalBias();
-        if (ImGui::DragFloat("Normal Bias", &nb, 0.0001f, 0.0f, 0.05f, "%.5f"))
-        {
-            light->SetNormalBias(nb);
-        }
-    }
-
-    //~ Shadow distance
-    {
-        float d = light->GetShadowDistance();
-        if (ImGui::DragFloat("Shadow Distance", &d, 1.0f, 1.0f, 500.0f))
-        {
-            light->SetShadowDistance(d);
-        }
-    }
-
-    //~ Ortho size
-    {
-        float o = light->GetOrthoSize();
-        if (ImGui::DragFloat("Ortho Size", &o, 1.0f, 1.0f, 500.0f))
-        {
-            light->SetOrthoSize(o);
-        }
-    }
-
-    ImGui::PopID();
+    ImGui::TextDisabled("No light stack yet.");
 }
 
 void KFEInspectorPanel::DrawPostProcessingSection()

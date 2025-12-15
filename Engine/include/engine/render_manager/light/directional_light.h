@@ -27,7 +27,6 @@ namespace kfe
 		std::string GetName		  () const noexcept override;
 		std::string GetDescription() const noexcept override;
 		
-
 		bool CanCullByDistance() const override;
 		void ImguiView(float deltaTime) override;
 		

@@ -48,13 +48,6 @@ public:
         return *this;
     }
 
-    JsonLoader& operator=(std::int32_t value)
-    {
-        m_value = std::to_string(value);
-        m_children.clear();
-        return *this;
-    }
-
     JsonLoader& operator=(std::int64_t value)
     {
         m_value = std::to_string(value);

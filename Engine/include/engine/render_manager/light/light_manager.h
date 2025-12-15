@@ -100,7 +100,7 @@ namespace kfe
         NODISCARD std::uint32_t GetPackedCount() const noexcept;
 
         // Direct access to packed CPU data
-        NODISCARD const std::vector<KFE_LIGHT_DATA_DESC>& GetPackedCPUData() const noexcept;
+        NODISCARD const std::vector<KFE_LIGHT_DATA_GPU>& GetPackedCPUData() const noexcept;
 
         // Descriptor index for the structured SRV
         NODISCARD std::uint32_t GetSRVDescriptorIndex() const noexcept;
@@ -122,7 +122,7 @@ namespace kfe
 
         void RebuildAccessor() noexcept;
 
-        static void PackOne(_In_ const IKFELight* src, _Out_ KFE_LIGHT_DATA_DESC& dst) noexcept;
+        static void PackOne(_In_ const IKFELight* src, _Out_ KFE_LIGHT_DATA_GPU& dst) noexcept;
 
     private:
         // Init params
@@ -138,7 +138,7 @@ namespace kfe
         std::vector<IKFELight*>             m_lightAccessor;
 
         // CPU packed data
-        std::vector<KFE_LIGHT_DATA_DESC>    m_cpuPacked;
+        std::vector<KFE_LIGHT_DATA_GPU>    m_cpuPacked;
         std::uint32_t                       m_lastPackedCount{ 0u };
         bool                                m_bDirty{ true };
 

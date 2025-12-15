@@ -103,12 +103,13 @@ private:
 	bool InitializeHeaps	  ();
 	bool InitializeTextures   ();
 	void CreateViewport		  ();
+	bool InitShadowResources  ();
 
 	void HandleInput(float dt);
 
-	//~ Create Shadow Pass
-	bool InitShadowResources	();
-	void RenderShadowPass	(ID3D12GraphicsCommandList* cmdList);
+	//~ RenderPasses
+	void RenderShadowPass(ID3D12GraphicsCommandList* cmdList);
+	void RenderMainPass  (ID3D12GraphicsCommandList* cmdList);
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -154,7 +155,7 @@ private:
 	D3D12_RECT					  m_shadowScissorRect{};
 	std::unique_ptr<KFEShadowMap> m_pShadowMap		 { nullptr };
 	D3D12_GPU_DESCRIPTOR_HANDLE   m_shadowCmpSampler {};
-	bool						  m_shadowMapIsSRV	 { true };
+	bool						  m_shadowMapIsSRV	 { false };
 
 	float m_totalTime{ 0.0f };
 
@@ -162,6 +163,9 @@ private:
 	float m_spaceToggleCooldown{ 0.0f };
 	KFECamera m_camera{};
 	bool m_bSkipFirst{ true };
+
+	//~ frame data
+	KFE_SWAP_CHAIN_DATA m_frameSwap{};
 };
 
 #pragma endregion
@@ -414,61 +418,8 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		THROW_MSG("Graphics command list is null.");
 	}
 
-	auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
-		m_pFence.Get(), m_nFenceValue);
-
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = swapData.BufferResource;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-
-	RenderShadowPass(cmdList);
-
-	//~ swapchain for main pass
-	cmdList->ResourceBarrier(1u, &barrier);
-
-	cmdList->RSSetViewports(1u, &m_viewport);
-	cmdList->RSSetScissorRects(1u, &m_scissorRect);
-
-	ID3D12DescriptorHeap* heaps[] = { m_pResourceHeap->GetNative(), m_pSamplerHeap->GetNative() };
-	cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapData.BufferHandle;
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pDSV->GetCPUHandle();
-
-	cmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
-
-	const float color[4]
-	{
-		0.f,
-		0.f,
-		0.f,
-		0.f
-	};
-
-	cmdList->ClearRenderTargetView(
-		rtvHandle,
-		color,
-		0u,
-		nullptr);
-
-	cmdList->ClearDepthStencilView(
-		dsvHandle,
-		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-		1.f,
-		0u,
-		0u,
-		nullptr);
-
-	KFE_RENDER_QUEUE_RENDER_DESC render{};
-	render.FenceValue			= m_nFenceValue;
-	render.GraphicsCommandList	= cmdList;
-	render.pFence				= m_pFence.Get();
-	render.ShadowMap			= m_pShadowMap.get();
-	KFERenderQueue::Instance().RenderSceneObject(render);
+	// RenderShadowPass(cmdList);
+	RenderMainPass  (cmdList);
 
 #ifdef _DEBUG
 	{
@@ -490,6 +441,8 @@ void kfe::KFERenderManager::Impl::FrameEnd()
 	}
 #if defined(DEBUG) || defined(_DEBUG)
 	ImGui::Render();
+	ID3D12DescriptorHeap* imguiHeaps[] = { m_pImguiHeap->GetNative() };
+	cmdList->SetDescriptorHeaps(1u, imguiHeaps);
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList);
 
 	ImGuiIO& io = ImGui::GetIO();
@@ -500,13 +453,10 @@ void kfe::KFERenderManager::Impl::FrameEnd()
 	}
 #endif
 
-	auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
-					m_pFence.Get(), m_nFenceValue);
-
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type					= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags					= D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource	= swapData.BufferResource;
+	barrier.Transition.pResource	= m_frameSwap.BufferResource;
 	barrier.Transition.Subresource	= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	barrier.Transition.StateBefore	= D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter	= D3D12_RESOURCE_STATE_PRESENT;
@@ -908,53 +858,115 @@ void kfe::KFERenderManager::Impl::RenderShadowPass(ID3D12GraphicsCommandList* cm
 	if (!shadowRes)
 		return;
 
+	constexpr D3D12_RESOURCE_STATES kShadowSRVState =
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+
 	//~ Transition to DEPTH_WRITE if needed
 	if (m_shadowMapIsSRV)
 	{
 		D3D12_RESOURCE_BARRIER b{};
-		b.Type					 = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		b.Flags					 = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		b.Transition.pResource	 = shadowRes;
+		b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		b.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		b.Transition.pResource = shadowRes;
 		b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		b.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		b.Transition.StateAfter  = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		b.Transition.StateBefore = kShadowSRVState;
+		b.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 		cmdList->ResourceBarrier(1u, &b);
 
 		m_shadowMapIsSRV = false;
 	}
 
-	auto dsv = m_pShadowMap->GetDSV();
+	const auto dsv = m_pShadowMap->GetDSV();
 
 	cmdList->RSSetViewports(1u, &m_shadowViewport);
 	cmdList->RSSetScissorRects(1u, &m_shadowScissorRect);
 
-	cmdList->OMSetRenderTargets(0, nullptr, FALSE, &dsv);
-	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	cmdList->OMSetRenderTargets(0u, nullptr, FALSE, &dsv);
+	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0u, 0u, nullptr);
 
-	ID3D12DescriptorHeap* heaps[] = { m_pResourceHeap->GetNative(),
-									  m_pSamplerHeap->GetNative() };
+	ID3D12DescriptorHeap* heaps[] =
+	{
+		m_pResourceHeap->GetNative(),
+		m_pSamplerHeap->GetNative()
+	};
 	cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-	KFE_RENDER_QUEUE_RENDER_DESC shadow{};
-	shadow.FenceValue			= m_nFenceValue;
-	shadow.GraphicsCommandList	= cmdList;
-	shadow.pFence				= m_pFence.Get();
-	shadow.ShadowMap			= nullptr;
+	KFE_RENDER_QUEUE_SHADOW_PASS_DESC shadow{};
+	shadow.FenceValue = m_nFenceValue;
+	shadow.GraphicsCommandList = cmdList;
+	shadow.pFence = m_pFence.Get();
 
 	//~ Draw all shadow casters
-	KFERenderQueue::Instance().RenderShadowSceneObject(shadow);
+	KFERenderQueue::Instance().RenderShadowPass(shadow);
 
 	//~ Transition back to SRV for main pass sampling
 	{
 		D3D12_RESOURCE_BARRIER b{};
-		b.Type					 = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		b.Flags					 = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		b.Transition.pResource	 = shadowRes;
+		b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		b.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		b.Transition.pResource = shadowRes;
 		b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 		b.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE;
-		b.Transition.StateAfter  = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		b.Transition.StateAfter = kShadowSRVState;
 		cmdList->ResourceBarrier(1u, &b);
 
 		m_shadowMapIsSRV = true;
 	}
+}
+
+void kfe::KFERenderManager::Impl::RenderMainPass(ID3D12GraphicsCommandList* cmdList)
+{
+	//~ swapchain for main pass
+	m_frameSwap = m_pSwapChain->GetAndMarkBackBufferData(m_pFence.Get(), m_nFenceValue);
+
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type					= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags					= D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource	= m_frameSwap.BufferResource;
+	barrier.Transition.Subresource	= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore	= D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter	= D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+	cmdList->ResourceBarrier(1u, &barrier);
+
+	cmdList->RSSetViewports(1u, &m_viewport);
+	cmdList->RSSetScissorRects(1u, &m_scissorRect);
+
+	ID3D12DescriptorHeap* heaps[] = { m_pResourceHeap->GetNative(), m_pSamplerHeap->GetNative() };
+	cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_frameSwap.BufferHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pDSV->GetCPUHandle();
+
+	cmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
+
+	const float color[4]
+	{
+		0.f,
+		0.f,
+		0.f,
+		0.f
+	};
+
+	cmdList->ClearRenderTargetView(
+		rtvHandle,
+		color,
+		0u,
+		nullptr);
+
+	cmdList->ClearDepthStencilView(
+		dsvHandle,
+		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+		1.f,
+		0u,
+		0u,
+		nullptr);
+
+	KFE_RENDER_QUEUE_MAIN_PASS_DESC render{};
+	render.FenceValue			= m_nFenceValue;
+	render.GraphicsCommandList	= cmdList;
+	render.pFence				= m_pFence.Get();
+	render.ShadowMap			= m_pShadowMap.get();
+	KFERenderQueue::Instance().RenderMainPass(render);
 }

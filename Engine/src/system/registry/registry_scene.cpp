@@ -12,7 +12,7 @@
 #include "pch.h"
 #include "engine/system/registry/registry_scene.h"
 #include "engine/render_manager/scene/cube_scene.h"
-#include "engine/render_manager/scene/model_scene.h"
+//#include "engine/render_manager/scene/model_scene.h"
 
 namespace
 {
@@ -81,6 +81,6 @@ namespace kfe
     using KEFCubeSceneObject = kfe::KEFCubeSceneObject;
     KFE_REGISTER_SCENE_OBJECT(KEFCubeSceneObject);
     
-    using KFEMeshSceneObject = kfe::KFEMeshSceneObject;
-    KFE_REGISTER_SCENE_OBJECT(KFEMeshSceneObject);
+    //using KFEMeshSceneObject = kfe::KFEMeshSceneObject;
+    //KFE_REGISTER_SCENE_OBJECT(KFEMeshSceneObject);
 } // namespace kfe
