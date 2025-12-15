@@ -1,6 +1,6 @@
 {
-	"61": {
-		"ID": "61",
+	"65": {
+		"ID": "65",
 		"Data": {
 			"Type": "KFEPointLight",
 			"DirectionWS": {
@@ -28,8 +28,8 @@
 		"Type": "KFEPointLight",
 		"Name": "PointLight"
 	},
-	"62": {
-		"ID": "62",
+	"66": {
+		"ID": "66",
 		"Data": {
 			"Type": "KFEDirectionalLight",
 			"DirectionWS": {
@@ -49,8 +49,8 @@
 		"Type": "KFEDirectionalLight",
 		"Name": "Directional"
 	},
-	"63": {
-		"ID": "63",
+	"67": {
+		"ID": "67",
 		"Data": {
 			"Type": "KFESpotLight",
 			"DirectionWS": {
@@ -81,8 +81,8 @@
 		"Type": "KFESpotLight",
 		"Name": "SpotLight"
 	},
-	"64": {
-		"ID": "64",
+	"68": {
+		"ID": "68",
 		"Data": {
 			"Type": "KFEDirectionalLight",
 			"DirectionWS": {

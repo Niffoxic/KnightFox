@@ -544,7 +544,7 @@ bool kfe::KFEMeshSceneObject::Impl::BuildSubmeshConstantBuffers(const KFE_BUILD_
 
     KFE_FRAME_CONSTANT_BUFFER_DESC buffer{};
     buffer.Device       = desc.Device;
-    buffer.FrameCount   = 3u;
+    buffer.FrameCount   = 2u;
     buffer.ResourceHeap = desc.ResourceHeap;
     buffer.SizeInBytes  = sizeof(KFE_COMMON_CB_GPU);
 
@@ -1704,18 +1704,121 @@ void kfe::KFEMeshSceneObject::Impl::ImguiChildTransformation(float deltaTime)
     const float rotSpeed = 15.0f * dt * 60.0f;
     const float scaleSpeed = 0.25f * dt * 60.0f;
 
-    static KFEModelNode* s_selected = nullptr;
-    if (!s_selected)
-        s_selected = root;
+    // Pick a nicer display root (skip dummy nodes)
+    KFEModelNode* displayRoot = root;
+    while (displayRoot &&
+        displayRoot->Children.size() == 1 &&
+        !displayRoot->HasMeshes())
+    {
+        displayRoot = displayRoot->Children[0].get();
+    }
+    if (!displayRoot)
+        displayRoot = root;
 
-    auto DrawNodeTreeRecursive = [&](auto&& self, KFEModelNode* node) -> void
+    // -----------------------------
+    // Selection stored as a "path"
+    // Example: "0/2/1" (child indices)
+    // -----------------------------
+    static std::string s_selectedPath;
+
+    auto NodeLabel = [](const KFEModelNode* n) -> const char*
+        {
+            if (!n) return "<null>";
+            return n->Name.empty() ? "(unnamed)" : n->Name.c_str();
+        };
+
+    auto MakePathFromPointers = [&](KFEModelNode* baseRoot, KFEModelNode* target) -> std::string
+        {
+            // Find path by DFS and record indices
+            std::vector<int> stack;
+
+            auto Dfs = [&](auto&& self, KFEModelNode* node) -> bool
+                {
+                    if (!node) return false;
+                    if (node == target) return true;
+
+                    for (int i = 0; i < (int)node->Children.size(); ++i)
+                    {
+                        stack.push_back(i);
+                        if (self(self, node->Children[i].get()))
+                            return true;
+                        stack.pop_back();
+                    }
+                    return false;
+                };
+
+            stack.clear();
+            if (!Dfs(Dfs, baseRoot))
+                return {};
+
+            // Build "0/2/1"
+            std::string out;
+            out.reserve(stack.size() * 3);
+            for (size_t i = 0; i < stack.size(); ++i)
+            {
+                if (i) out.push_back('/');
+                out += std::to_string(stack[i]);
+            }
+            return out;
+        };
+
+    auto FindByPath = [&](KFEModelNode* baseRoot, const std::string& path) -> KFEModelNode*
+        {
+            if (!baseRoot)
+                return nullptr;
+
+            if (path.empty())
+                return baseRoot;
+
+            KFEModelNode* cur = baseRoot;
+
+            size_t start = 0;
+            while (start < path.size())
+            {
+                size_t slash = path.find('/', start);
+                const size_t end = (slash == std::string::npos) ? path.size() : slash;
+
+                const std::string token = path.substr(start, end - start);
+                if (token.empty())
+                    return nullptr;
+
+                const int idx = std::atoi(token.c_str());
+                if (idx < 0 || idx >= (int)cur->Children.size())
+                    return nullptr;
+
+                cur = cur->Children[idx].get();
+                if (!cur)
+                    return nullptr;
+
+                if (slash == std::string::npos)
+                    break;
+                start = slash + 1;
+            }
+
+            return cur;
+        };
+
+    // Initialize selection if empty
+    if (s_selectedPath.empty())
+        s_selectedPath = ""; // empty = displayRoot itself
+
+    // Reacquire selected pointer every frame (SAFE even after rebuild)
+    KFEModelNode* selected = FindByPath(displayRoot, s_selectedPath);
+    if (!selected)
+    {
+        // Selection path is no longer valid -> fallback
+        selected = displayRoot;
+        s_selectedPath.clear();
+    }
+
+    auto DrawNodeTreeRecursive = [&](auto&& self, KFEModelNode* node, const std::string& basePath) -> void
         {
             if (!node)
                 return;
 
             ImGui::PushID(node);
 
-            const bool isSelected = (s_selected == node);
+            const bool isSelected = (basePath == s_selectedPath);
 
             ImGuiTreeNodeFlags flags =
                 ImGuiTreeNodeFlags_OpenOnArrow |
@@ -1724,21 +1827,29 @@ void kfe::KFEMeshSceneObject::Impl::ImguiChildTransformation(float deltaTime)
             if (isSelected)
                 flags |= ImGuiTreeNodeFlags_Selected;
 
-            if (!node->HasChildren())
+            const bool hasChildren = node->HasChildren();
+            if (!hasChildren)
                 flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-            const char* label = node->Name.empty() ? "(unnamed)" : node->Name.c_str();
+            // Use label safely
+            const bool opened = ImGui::TreeNodeEx(NodeLabel(node), flags);
 
-            const bool opened = ImGui::TreeNodeEx(label, flags);
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+                s_selectedPath = basePath;
 
-            if (ImGui::IsItemClicked())
-                s_selected = node;
-
-            if (node->HasChildren() && opened)
+            if (hasChildren && opened)
             {
-                for (auto& c : node->Children)
-                    self(self, c.get());
+                for (int i = 0; i < (int)node->Children.size(); ++i)
+                {
+                    auto* child = node->Children[i].get();
+                    if (!child) continue;
 
+                    std::string childPath = basePath;
+                    if (!childPath.empty()) childPath.push_back('/');
+                    childPath += std::to_string(i);
+
+                    self(self, child, childPath);
+                }
                 ImGui::TreePop();
             }
 
@@ -1752,8 +1863,9 @@ void kfe::KFEMeshSceneObject::Impl::ImguiChildTransformation(float deltaTime)
 
             ImGui::PushID(node);
 
-            const char* label = node->Name.empty() ? "(unnamed)" : node->Name.c_str();
-            ImGui::Text("Selected: %s", label);
+            ImGui::TextUnformatted("Selected: ");
+            ImGui::SameLine();
+            ImGui::TextUnformatted(NodeLabel(node));
 
             {
                 bool enabled = node->IsEnabled();
@@ -1812,24 +1924,23 @@ void kfe::KFEMeshSceneObject::Impl::ImguiChildTransformation(float deltaTime)
     ImGui::TextDisabled("Nodes");
     ImGui::Separator();
 
-    KFEModelNode* displayRoot = root;
-    while (displayRoot &&
-        displayRoot->Children.size() == 1 &&
-        !displayRoot->HasMeshes())
-    {
-        displayRoot = displayRoot->Children[0].get();
-    }
-
-    DrawNodeTreeRecursive(DrawNodeTreeRecursive, root);
-
-    if (!s_selected)
-        s_selected = displayRoot;
+    // Tree starts at displayRoot. Root path = "".
+    DrawNodeTreeRecursive(DrawNodeTreeRecursive, displayRoot, std::string{});
 
     ImGui::NextColumn();
 
     ImGui::TextDisabled("Transform Editor");
     ImGui::Separator();
-    EditNodeTRS(s_selected);
+
+    // Reacquire again (paranoid safety if selection changed this frame)
+    selected = FindByPath(displayRoot, s_selectedPath);
+    if (!selected)
+    {
+        selected = displayRoot;
+        s_selectedPath.clear();
+    }
+
+    EditNodeTRS(selected);
 
     ImGui::Columns(1);
 }

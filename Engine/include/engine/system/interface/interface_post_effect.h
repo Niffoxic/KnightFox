@@ -66,7 +66,12 @@ namespace kfe
         void SetPostName(const std::string& name) { m_szName = name; }
         std::string GetPostName() const { return m_szName; }
 
+        void Disable() { m_bEnabled = false; }
+        void Enable() { m_bEnabled = true; }
+        bool IsEnable() const { return m_bEnabled; }
+
     protected:
         std::string m_szName{ "No Name" };
+        bool m_bEnabled{ true };
     };
 }

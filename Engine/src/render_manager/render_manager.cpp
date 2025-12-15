@@ -83,6 +83,7 @@
 #include "engine/render_manager/shadow/shadow_map.h"
 #include "engine/render_manager/post/post_rtt.h"
 #include "engine/render_manager/post/post_effect_fullscreen_quad.h"
+#include "engine/utils/json_loader.h"
 
 #pragma region IMPL
 
@@ -436,6 +437,10 @@ bool kfe::KFERenderManager::Impl::Initialize()
 		LOG_ERROR("Failed to initialize main full screen quad!");
 		return false;
 	}
+
+	JsonLoader postData{};
+	postData.Load("world/post.json");
+	if (postData.IsValid()) m_fullScreenQuad.LoadFromJson(postData);
 	
 	LOG_SUCCESS("Post Processing Resources initialized!");
 	return true;
@@ -443,6 +448,8 @@ bool kfe::KFERenderManager::Impl::Initialize()
 
 bool kfe::KFERenderManager::Impl::Release()
 {
+	JsonLoader postData = m_fullScreenQuad.GetJsonData();
+	postData.Save("world/post.json");
 	return true;
 }
 
@@ -451,6 +458,7 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 	KFERenderQueue::Instance().Update(dt);
 	HandleInput(dt);
 	m_totalTime += dt;
+	m_fullScreenQuad.Update(m_pWindows);
 
 	m_camera.Update(dt);
 
@@ -489,9 +497,9 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		ImGui_ImplDX12_NewFrame();
 		ImGui::NewFrame();
 	}
-#endif
 
 	m_fullScreenQuad.ImguiView(dt);
+#endif
 }
 
 void kfe::KFERenderManager::Impl::FrameEnd()
@@ -678,7 +686,7 @@ bool kfe::KFERenderManager::Impl::InitializeHeaps()
 	//~ CBV/SRV/UAV Heap
 	KFE_DESCRIPTOR_HEAP_CREATE_DESC resource{};
 	resource.Device			  = m_pDevice.get();
-	resource.DescriptorCounts = 1024u;
+	resource.DescriptorCounts = 16384u;
 	resource.DebugName		  = "KnightFox CBV/SRV/UAV Heap Descriptor";
 
 	if (!m_pResourceHeap || !m_pResourceHeap->Initialize(resource))

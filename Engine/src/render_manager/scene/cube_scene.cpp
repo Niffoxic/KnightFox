@@ -347,7 +347,6 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
     auto* cmdList = desc.CommandList;
     if (!cmdList)
         return;
-    m_metaFrameCB.Step();
     //~ Bind descriptor heaps
     if (m_pResourceHeap)
     {
@@ -372,6 +371,7 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
     //~ Bind texture meta constant buffer at b1
     if (m_metaFrameCB.IsInitialized())
     {
+        m_metaFrameCB.Step();
         auto* view = m_metaFrameCB.GetView();
         const D3D12_GPU_VIRTUAL_ADDRESS metaAddr =
             static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(view->GetGPUVirtualAddress());

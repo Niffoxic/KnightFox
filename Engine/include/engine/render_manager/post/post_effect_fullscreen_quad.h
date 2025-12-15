@@ -14,17 +14,68 @@
 #include "engine/render_manager/api/buffer/vertex_buffer.h"
 #include "engine/render_manager/api/buffer/index_buffer.h"
 #include "engine/render_manager/api/frame_cb.h"
+#include "engine/render_manager/components/camera.h"
+#include "engine/windows_manager/windows_manager.h"
 
 
 namespace kfe
 {
     struct alignas(16) FullQuadPostEffect_CB
     {
+        // Basic grade
         float Exposure{ 1.0f };
+        float Gamma{ 2.2f };
+        float Contrast{ 1.0f };
+        float Saturation{ 1.0f };
+
         float Invert{ 0.0f };
+        float Grayscale{ 0.0f };
         float Time{ 0.0f };
-        float _Pad{ 0.0f };
+        float Fade{ 0.0f };
+
+        // Resolution
+        float Resolution[2]{ 0.0f, 0.0f };
+        float InvResolution[2]{ 0.0f, 0.0f };
+
+        // Vignette / blur / sharpen
+        float Vignette{ 0.0f };
+        float VignettePower{ 2.0f };
+        float BlurStrength{ 0.0f };
+        float SharpenStrength{ 0.0f };
+
+        float GrainStrength{ 0.0f };
+        float ChromAbStrength{ 0.0f };
+        float ScanlineStrength{ 0.0f };
+        float DitherStrength{ 0.0f };
+
+        // Mouse
+        float MousePosPixels[2]{ 0.0f, 0.0f };
+        float MousePosUV[2]{ 0.5f, 0.5f };
+
+        float MouseButtons[3]{ 0.0f, 0.0f, 0.0f };
+        float MouseWheel{ 0.0f };
+
+        // Color grading
+        float Temperature{ 0.0f };
+        float Tint{ 0.0f };
+        float HueShift{ 0.0f };
+        float TonemapType{ 2.0f };
+
+        float WhitePoint{ 1.0f };
+        float BloomStrength{ 0.0f };
+        float BloomThreshold{ 1.0f };
+        float BloomKnee{ 0.5f };
+
+        // Lens and presentation
+        float LensDistortion{ 0.0f };
+        float Letterbox{ 0.0f };
+        float LetterboxSoftness{ 0.2f };
+        float RadialBlurStrength{ 0.0f };
+
+        float RadialBlurRadius{ 0.25f };
+        float _Pad0[3]{ 0.0f, 0.0f, 0.0f };
     };
+    static_assert(sizeof(FullQuadPostEffect_CB) % 16 == 0);
 
     class KFE_API KFEPostEffect_FullscreenQuad final : public IKFEPostEffect
     {
@@ -36,6 +87,7 @@ namespace kfe
         std::string GetDescription() const noexcept override { return "Simple post: draw fullscreen quad sampling SceneColor."; }
 
         // IKFEPostEffect
+        void Update(const KFEWindows* window);
         bool Initialize(_In_ const KFE_POST_EFFECT_INIT_DESC& desc) override;
         void Destroy() noexcept override;
 
