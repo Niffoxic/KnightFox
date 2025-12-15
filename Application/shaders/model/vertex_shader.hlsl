@@ -66,46 +66,16 @@ struct VSOutput
     float2 TexCoord1    : TEXCOORD5;
 };
 
-// Row-vector style matrices (mul(v, M))
-
-static const float4x4 kFakeWorld =
-{
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    0, 0, 0, 1
-};
-
-// Camera at (0, 0, -5), looking at origin
-static const float4x4 kFakeView =
-{
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    0, 0, 5, 1
-};
-
-// Standard RH perspective, near=0.1, far=100, fov≈60deg
-static const float4x4 kFakeProj =
-{
-    1.732f, 0,     0,      0,
-    0,      1.732f,0,      0,
-    0,      0,     1.001f, 1,
-    0,      0,    -0.1001f,0
-};
-
 VSOutput main(VSInput v)
 {
     VSOutput o;
 
-    // World
     float4 worldPos = mul(float4(v.Position, 1.0f), gWorldT);
     float4 viewPos  = mul(worldPos, gViewT);
     o.PositionCS    = mul(viewPos, gProjT);
 
     o.WorldPos = worldPos.xyz;
 
-    // Normals (identity world → normal == input)
     o.WorldNormal  = normalize(v.Normal);
     o.WorldTangent = normalize(v.Tangent);
     o.WorldBitan   = normalize(v.Bitangent);

@@ -131,8 +131,12 @@ namespace kfe
             const JsonLoader& dataNode = node["Data"];
 
             auto scene = RegistrySceneObject::Create(typeName);
-            if (!scene)
+            if (!scene) 
+            {
+                THROW_MSG("FAILED");
                 continue;
+            }
+               
 
             scene->SetObjectName(name);
             scene->LoadFromJson(dataNode);
@@ -178,7 +182,7 @@ namespace kfe
 
         KFERenderQueue::Instance().AddLight(light.get());
 
-        std::string type = light->GetLightTypeName();
+        std::string type = light->GetLightType();
         m_lights[id] = std::move(light);
         m_lightViewDirty = true;
         LOG_INFO("Added Light: {}, type=", id, type);
@@ -273,7 +277,7 @@ namespace kfe
 
             JsonLoader& objNode = root[idStr];
             objNode["ID"]   = idStr;
-            objNode["Type"] = light->GetLightTypeName();
+            objNode["Type"] = light->GetLightType();
             objNode["Data"] = light->GetJsonData();
             objNode["Name"] = light->GetLightName();
         }

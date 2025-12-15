@@ -377,7 +377,7 @@ void kfe::KFERenderQueue::Impl::MainPass_SceneObject(const KFE_RENDER_QUEUE_MAIN
 
 	for (auto& [id, scene] : m_sceneObjects)
 	{
-		if (!scene || !scene->IsInitialized()) continue;
+		if (!scene) continue;
 		scene->MainPass(renderInfo);
 	}
 }

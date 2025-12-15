@@ -23,10 +23,17 @@ namespace kfe
         KFEPointLight();
         ~KFEPointLight() override;
 
+        // IKFEObject
         std::string GetName() const noexcept override;
         std::string GetDescription() const noexcept override;
 
+        // IKFELight
         bool CanCullByDistance() const override;
+
+        NODISCARD float GetLightTypeValue() const noexcept override { return 2.0f; }
+
+        std::string GetLightType() const override;
+
         void ImguiView(float deltaTime) override;
 
         void LoadFromJson(const JsonLoader& loader) override;

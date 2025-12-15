@@ -71,7 +71,7 @@ public:
 
 	KFETimer* GetTimer() const;
 	KFEWorld* GetWorld() const noexcept;
-
+	KFEWindows* GetWindows() const noexcept;
 private:
 	std::unique_ptr<KFEWindows>		  m_pWindowsManager{ nullptr };
 	std::unique_ptr<KFERenderManager> m_pRendeManager  { nullptr };
@@ -175,6 +175,11 @@ int kfe::IKFEngine::Execute()
 kfe::KFEWorld* kfe::IKFEngine::GetWorld() const
 {
 	return m_impl->GetWorld();
+}
+
+kfe::KFEWindows* kfe::IKFEngine::GetWindows() const
+{
+	return m_impl->GetWindows();
 }
 
 //~ IMP Implementation
@@ -338,4 +343,9 @@ kfe::KFETimer* kfe::IKFEngine::Impl::GetTimer() const
 kfe::KFEWorld* kfe::IKFEngine::Impl::GetWorld() const noexcept
 {
 	return m_pWorld.get();
+}
+
+kfe::KFEWindows* kfe::IKFEngine::Impl::GetWindows() const noexcept
+{
+	return m_pWindowsManager.get();
 }

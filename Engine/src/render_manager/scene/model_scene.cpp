@@ -120,7 +120,7 @@ private:
 
 public:
     bool      m_bTextureDirty{ true };
-    bool      m_bModelDirty  { true };
+    bool      m_bModelDirty  { false };
     bool      m_bMetaDirty   { true };
 
 private:
@@ -137,7 +137,7 @@ private:
 
     //~ Model
     KFEModel    m_mesh     {};
-    std::string m_modelPath{ "" };
+    std::string m_modelPath{ "assets/defaults/default_3d.obj" };
     std::unordered_map<std::uint32_t, KFE_COMMON_CB_GPU>                   m_cbData{};
     std::unordered_map<std::uint32_t, DirectX::XMFLOAT4X4>                 m_cbTransLazy{};
     std::unordered_map<std::uint32_t, ModelTextureMetaInformation>         m_cbMetaLazy{};
@@ -284,28 +284,23 @@ bool kfe::KFEMeshSceneObject::Impl::Destroy()
 
 void kfe::KFEMeshSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& desc)
 {
-    if (!m_bBuild) return;
-    if (!m_mesh.IsValid()) return;
-
     if (m_bModelDirty)
     {
-        if (!m_pDevice)
-        {
-            LOG_ERROR("Cannot rebuild pipeline, device is null.");
-            return;
-        }
-
+        if (m_modelPath.empty()) return;
         KFE_BUILD_OBJECT_DESC builder{};
         builder.Device = m_pDevice;
         builder.CommandList = desc.CommandList;
         builder.ResourceHeap = m_pResourceHeap;
-
         if (!BuildGeometry(builder))
         {
             LOG_ERROR("Failed to rebuild model.");
+            m_bModelDirty = false; // probably failed!
             return;
         }
     }
+
+    if (!m_bBuild) return;
+    if (!m_mesh.IsValid()) return;
 
     auto* cmdListObj = desc.CommandList;
     if (!cmdListObj)
@@ -389,9 +384,12 @@ bool kfe::KFEMeshSceneObject::Impl::BuildGeometry(const KFE_BUILD_OBJECT_DESC& d
     {
         if (!sm.AllocateReserveSlot(desc.ResourceHeap))
         {
+            LOG_ERROR("Failed to allocate srv slots for model!");
             return false;
         }
     }
+    m_bBuild = true;
+    LOG_SUCCESS("Model Built!");
     return true;
 }
 
@@ -971,10 +969,10 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
             continue;
 
         auto& sm = const_cast<KFEModelSubmesh&>(sub);
-
         // Per submesh b0
         if (sm.ConstantBuffer.IsInitialized())
         {
+            sm.ConstantBuffer.Step();
             XMMATRIX cachedLocal = XMMatrixIdentity();
 
             auto it = m_cbData.find(meshIndex);
@@ -1017,6 +1015,7 @@ void kfe::KFEMeshSceneObject::Impl::RenderNodeRecursive(
         // b1 (meta) update + bind CBV
         if (sm.MetaConstantBuffer.IsInitialized())
         {
+            sm.MetaConstantBuffer.Step();
             UpdateMetaCB(sm);
 
             cmdList->SetGraphicsRootConstantBufferView(
@@ -1654,6 +1653,7 @@ void kfe::KFEMeshSceneObject::Impl::ImguiViewHeader(float deltaTime)
                     if (kfe::KFEAssetPanel::ParsePayload(payload, hdr, pathUtf8))
                     {
                         m_modelPath = std::move(pathUtf8);
+                        LOG_INFO("Model path set to: {}", m_modelPath);
                         m_bModelDirty = true;
                     }
                 }

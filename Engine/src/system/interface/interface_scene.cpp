@@ -49,6 +49,8 @@ void kfe::IKFESceneObject::Update(const KFE_UPDATE_OBJECT_DESC& desc)
             return;
         }
     }
+    m_lightManager.PackData();
+   
     UpdatePrimaryConstantBuffer(desc);
     ChildUpdate(desc);
 }
@@ -171,7 +173,6 @@ bool kfe::IKFESceneObject::Destroy()
 //~ Passes
 void kfe::IKFESceneObject::MainPass(_In_ const KFE_RENDER_OBJECT_DESC& desc)
 {
-    if (!m_sceneInfo.Initialized) return;
     if (!desc.CommandList) return;
 
     if (!m_mainPassInfo.Pipeline || !m_mainPassInfo.Pipeline->GetNative())
@@ -180,6 +181,7 @@ void kfe::IKFESceneObject::MainPass(_In_ const KFE_RENDER_OBJECT_DESC& desc)
         return;
     }
 
+    m_primaryCBFrame.Step();
     desc.CommandList->SetPipelineState(m_mainPassInfo.Pipeline->GetNative());
 
     if (!m_mainPassInfo.RootSignature || !m_mainPassInfo.RootSignature->GetNative())
@@ -208,6 +210,8 @@ void kfe::IKFESceneObject::MainPass(_In_ const KFE_RENDER_OBJECT_DESC& desc)
     desc.CommandList->SetGraphicsRootConstantBufferView(0u, address);
 
     //~ Bind Light Data t15
+    (void)m_lightManager.UpdateAndRecord(desc.CommandList);
+    m_lightManager.SetDrawState(desc.CommandList, D3D12_RESOURCE_STATE_COPY_DEST);
     const std::uint32_t lightAddr = m_lightManager.GetSRVDescriptorIndex();
     const D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = m_mainPassInfo.ResourceHeap->GetGPUHandle(lightAddr);
     desc.CommandList->SetGraphicsRootDescriptorTable(3u, srvHandle);
@@ -1107,6 +1111,10 @@ void kfe::IKFESceneObject::AttachLight(IKFELight* light)
         {
             m_lightManager.AttachLight(light);
         }
+    }
+    else
+    {
+        m_lightManager.AttachLight(light);
     }
 }
 

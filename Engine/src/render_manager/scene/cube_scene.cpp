@@ -347,7 +347,7 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
     auto* cmdList = desc.CommandList;
     if (!cmdList)
         return;
-
+    m_metaFrameCB.Step();
     //~ Bind descriptor heaps
     if (m_pResourceHeap)
     {

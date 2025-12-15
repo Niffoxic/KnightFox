@@ -187,12 +187,9 @@ void kfe::KFELightManager::AttachLight(_In_ IKFELight* light)
 
     if (m_lights.contains(id)) return;
 
-    auto it = m_lights.find(id);
-    if (it != m_lights.end())
-    {
-        it->second = light;
-    }
+    m_lights[id] = light;
 
+    LOG_SUCCESS("Light Attached to the manager!");
     RebuildAccessor();
     MarkDirty      ();
 }

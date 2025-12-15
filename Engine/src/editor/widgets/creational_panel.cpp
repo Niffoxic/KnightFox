@@ -380,25 +380,7 @@ void kfe::ImguiCreationPanelCore::BuildFiltered()
 
 void kfe::ImguiCreationPanelCore::HandleKeyboard(KFEWorld& world)
 {
-    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
-    {
-        if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
-        {
-            if (m_selected < (int)m_filtered.size() - 1) { ++m_selected; }
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
-        {
-            if (m_selected > 0) { --m_selected; }
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter))
-        {
-            if (m_selected >= 0 && m_selected < (int)m_filtered.size())
-            {
-                const auto& it = m_items[m_filtered[m_selected]];
-                TriggerCreate(world, it);
-            }
-        }
-    }
+
 }
 
 // toolbar
@@ -551,11 +533,6 @@ void kfe::ImguiCreationPanelCore::DrawResults(KFEWorld& world)
                     {
                         TriggerCreate(world, it);
                     }
-                }
-
-                if (selected && ImGui::IsKeyPressed(ImGuiKey_Enter))
-                {
-                    TriggerCreate(world, it);
                 }
             }
 

@@ -44,7 +44,7 @@ bool kfe::KFEKeyboardInput::ProcessMessage(UINT message, WPARAM wParam, LPARAM l
 
         if (m_keyDown[key])
         {
-            m_keyPressed[key] = true;
+            m_keyReleased[key] = true;
             m_keyDown[key] = false;
         }
         return true;
@@ -118,6 +118,9 @@ bool kfe::KFEKeyboardInput::WasMultipleKeyPressed(std::initializer_list<int> key
 
 void kfe::KFEKeyboardInput::ClearAll() noexcept
 {
+    std::memset(m_keyDown, 0, sizeof(m_keyDown));
+    std::memset(m_keyPressed, 0, sizeof(m_keyPressed));
+    std::memset(m_keyReleased, 0, sizeof(m_keyReleased));
 }
 
 _Use_decl_annotations_

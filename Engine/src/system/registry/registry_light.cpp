@@ -14,6 +14,7 @@
 #include "engine/render_manager/light/directional_light.h"
 #include "engine/render_manager/light/point_light.h"
 #include "engine/render_manager/light/spot_light.h"
+#include "engine/utils/logger.h"
 
 namespace
 {
@@ -46,9 +47,9 @@ namespace kfe
         auto& registry = ::GetRegistry();
         auto& names = ::GetNameList();
 
-        // same behaviour as before: ignore duplicates
         if (registry.find(name) != registry.end())
         {
+            LOG_ERROR("NO ENTRY FOUND FOR {}", name);
             return;
         }
 

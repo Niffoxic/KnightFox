@@ -253,7 +253,7 @@ std::string kfe::KFEInspectorPanel::BuildLightLabel(IKFELight* light, std::size_
     if (!light)
         return "Null Light";
 
-    std::string name = light->GetName();
+    std::string name = light->GetLightName();
     const auto key = light->GetAssignedKey();
 
     if (name.empty())
