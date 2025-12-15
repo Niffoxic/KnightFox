@@ -79,8 +79,10 @@
 #include "engine/render_manager/components/render_queue.h"
 #include "engine/render_manager/assets_library/texture_library.h"
 
-//~ shadow pass
+//~ pass
 #include "engine/render_manager/shadow/shadow_map.h"
+#include "engine/render_manager/post/post_rtt.h"
+#include "engine/render_manager/post/post_effect_fullscreen_quad.h"
 
 #pragma region IMPL
 
@@ -110,6 +112,7 @@ private:
 	//~ RenderPasses
 	void RenderShadowPass(ID3D12GraphicsCommandList* cmdList);
 	void RenderMainPass  (ID3D12GraphicsCommandList* cmdList);
+	void RenderPostPass  (ID3D12GraphicsCommandList* cmdList);
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -165,7 +168,9 @@ private:
 	bool m_bSkipFirst{ true };
 
 	//~ frame data
-	KFE_SWAP_CHAIN_DATA m_frameSwap{};
+	KFE_SWAP_CHAIN_DATA			 m_frameSwap{};
+	KFERenderTargetTexture		 m_postResource{};
+	KFEPostEffect_FullscreenQuad m_fullScreenQuad{};
 };
 
 #pragma endregion
@@ -380,6 +385,59 @@ bool kfe::KFERenderManager::Impl::Initialize()
 		LOG_ERROR("Failed initialize Image Pool!");
 		return false;
 	}
+
+	const auto winSize = m_pWindows->GetWinSize().As<std::uint32_t>();
+
+	D3D12_CLEAR_VALUE postClear{};
+	postClear.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	postClear.Color[0] = 0.0f;
+	postClear.Color[1] = 0.0f;
+	postClear.Color[2] = 0.0f;
+	postClear.Color[3] = 1.0f;
+
+	KFE_RT_TEXTURE_CREATE_DESC post{};
+	post.Device = m_pDevice.get();
+	post.RTVHeap = m_pRTVHeap.get();
+	post.SRVHeap = m_pResourceHeap.get();
+
+	post.Width = winSize.Width;
+	post.Height = winSize.Height;
+
+	post.Format			= DXGI_FORMAT_R8G8B8A8_UNORM;
+	post.MipLevels		= 1u;
+	post.SampleDesc		= { 1u, 0u };
+
+	post.ResourceFlags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	post.InitialState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+
+	post.ClearValue = &postClear;
+
+	post.RTVDescriptorIndex = KFE_INVALID_INDEX;
+	post.SRVDescriptorIndex = KFE_INVALID_INDEX;
+
+	post.RTVViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	post.SRVViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+
+	if (!m_postResource.Initialize(post))
+	{
+		LOG_ERROR("Failed to initialize post process render target texture (KFERenderTargetTexture).");
+		return false;
+	}
+	m_postResource.SetDrawState(KFE_RT_DRAW_STATE::ShaderResource);
+
+	//~ default pass
+	KFE_POST_EFFECT_INIT_DESC effect{};
+	effect.Device		= m_pDevice.get();
+	effect.OutputFormat = m_pSwapChain->GetBufferFormat();
+	effect.ResourceHeap = m_pResourceHeap.get();
+
+	if (!m_fullScreenQuad.Initialize(effect))
+	{
+		LOG_ERROR("Failed to initialize main full screen quad!");
+		return false;
+	}
+	
+	LOG_SUCCESS("Post Processing Resources initialized!");
 	return true;
 }
 
@@ -395,6 +453,7 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 	m_totalTime += dt;
 
 	m_camera.Update(dt);
+
 	if (!m_pFence)
 	{
 		THROW_MSG("Fence is null!");
@@ -403,9 +462,9 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 	++m_nFenceValue;
 
 	KFE_RESET_COMMAND_LIST resetter{};
-	resetter.Fence		= m_pFence.Get();
+	resetter.Fence = m_pFence.Get();
 	resetter.FenceValue = m_nFenceValue;
-	resetter.PSO		= nullptr;
+	resetter.PSO = nullptr;
 
 	if (!m_pGfxList->Reset(resetter))
 	{
@@ -419,17 +478,20 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 	}
 
 	// RenderShadowPass(cmdList);
-	RenderMainPass  (cmdList);
+	RenderMainPass(cmdList);
+	RenderPostPass(cmdList);
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(DEBUG)
 	{
 		ID3D12DescriptorHeap* heaps[]{ m_pImguiHeap->GetNative() };
 		cmdList->SetDescriptorHeaps(1u, heaps);
 		ImGui_ImplWin32_NewFrame();
-		ImGui_ImplDX12_NewFrame	();
-		ImGui::NewFrame			();
+		ImGui_ImplDX12_NewFrame();
+		ImGui::NewFrame();
 	}
 #endif
+
+	m_fullScreenQuad.ImguiView(dt);
 }
 
 void kfe::KFERenderManager::Impl::FrameEnd()
@@ -469,7 +531,7 @@ void kfe::KFERenderManager::Impl::FrameEnd()
 	ID3D12CommandList* cmdLists[] = { cmdList };
 	queue->ExecuteCommandLists(1u, cmdLists);
 
-	m_pSwapChain->Present();
+	(void)m_pSwapChain->Present();
 	queue->Signal(m_pFence.Get(), m_nFenceValue);
 }
 
@@ -917,18 +979,8 @@ void kfe::KFERenderManager::Impl::RenderShadowPass(ID3D12GraphicsCommandList* cm
 
 void kfe::KFERenderManager::Impl::RenderMainPass(ID3D12GraphicsCommandList* cmdList)
 {
-	//~ swapchain for main pass
+	// Acquire backbuffer for later post pass
 	m_frameSwap = m_pSwapChain->GetAndMarkBackBufferData(m_pFence.Get(), m_nFenceValue);
-
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type					= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags					= D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource	= m_frameSwap.BufferResource;
-	barrier.Transition.Subresource	= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore	= D3D12_RESOURCE_STATE_PRESENT;
-	barrier.Transition.StateAfter	= D3D12_RESOURCE_STATE_RENDER_TARGET;
-
-	cmdList->ResourceBarrier(1u, &barrier);
 
 	cmdList->RSSetViewports(1u, &m_viewport);
 	cmdList->RSSetScissorRects(1u, &m_scissorRect);
@@ -936,37 +988,73 @@ void kfe::KFERenderManager::Impl::RenderMainPass(ID3D12GraphicsCommandList* cmdL
 	ID3D12DescriptorHeap* heaps[] = { m_pResourceHeap->GetNative(), m_pSamplerHeap->GetNative() };
 	cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_frameSwap.BufferHandle;
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pDSV->GetCPUHandle();
+	// Transition SceneColor to RTV
+	if (!m_postResource.Transition(cmdList, KFE_RT_DRAW_STATE::RenderTarget))
+	{
+		THROW_MSG("RenderMainPass: Failed to transition m_postResource to RenderTarget.");
+	}
 
+	// Bind SceneColor RTV as render target
+	const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_postResource.GetRTVCPU();
+	const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pDSV->GetCPUHandle();
 	cmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
 
-	const float color[4]
-	{
-		0.f,
-		0.f,
-		0.f,
-		0.f
-	};
+	const float color[4] = { 0.f, 0.f, 0.f, 1.f };
 
-	cmdList->ClearRenderTargetView(
-		rtvHandle,
-		color,
-		0u,
-		nullptr);
-
+	cmdList->ClearRenderTargetView(rtvHandle, color, 0u, nullptr);
 	cmdList->ClearDepthStencilView(
 		dsvHandle,
 		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-		1.f,
-		0u,
-		0u,
-		nullptr);
+		1.f, 0u, 0u, nullptr);
 
 	KFE_RENDER_QUEUE_MAIN_PASS_DESC render{};
 	render.FenceValue			= m_nFenceValue;
 	render.GraphicsCommandList	= cmdList;
 	render.pFence				= m_pFence.Get();
 	render.ShadowMap			= m_pShadowMap.get();
+
 	KFERenderQueue::Instance().RenderMainPass(render);
+
+	// Transition SceneColor to SRV for the post pass
+	if (!m_postResource.Transition(cmdList, KFE_RT_DRAW_STATE::ShaderResource))
+	{
+		THROW_MSG("RenderMainPass: Failed to transition m_postResource to ShaderResource.");
+	}
+}
+
+void kfe::KFERenderManager::Impl::RenderPostPass(ID3D12GraphicsCommandList* cmdList)
+{
+	// Transition backbuffer from PRESENT to RT
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = m_frameSwap.BufferResource;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	cmdList->ResourceBarrier(1u, &barrier);
+
+	cmdList->RSSetViewports(1u, &m_viewport);
+	cmdList->RSSetScissorRects(1u, &m_scissorRect);
+
+	// Bind descriptor heaps
+	ID3D12DescriptorHeap* heaps[] = { m_pResourceHeap->GetNative(), m_pSamplerHeap->GetNative() };
+	cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+	// Bind backbuffer RTV
+	const D3D12_CPU_DESCRIPTOR_HANDLE bbRtv = m_frameSwap.BufferHandle;
+	cmdList->OMSetRenderTargets(1u, &bbRtv, FALSE, nullptr);
+
+	const float clear[4] = { 0.f, 0.f, 0.f, 1.f };
+	cmdList->ClearRenderTargetView(bbRtv, clear, 0u, nullptr);
+
+	KFE_POST_EFFECT_RENDER_DESC pe{};
+	pe.Cmd = cmdList;
+	pe.OutputRTV = bbRtv;
+	pe.InputSceneSRVIndex = m_postResource.GetSRVIndex();
+	pe.RootParam_SceneSRV = 1u; 
+	pe.Viewport = &m_viewport;
+	pe.Scissor = &m_scissorRect;
+
+	m_fullScreenQuad.Render(pe);
 }

@@ -312,6 +312,15 @@
     <ClInclude Include="include\engine\render_manager\scene\model_scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\engine\render_manager\post\post_rtt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\system\interface\interface_post_effect.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\engine\render_manager\post\post_effect_fullscreen_quad.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -573,6 +582,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\render_manager\scene\model_scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\post\post_rtt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\render_manager\post\post_effect_fullscreen_quad.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
