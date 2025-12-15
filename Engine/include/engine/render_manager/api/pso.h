@@ -67,6 +67,7 @@ namespace kfe
 		void SetBlend	     (_In_ const D3D12_BLEND_DESC& desc)	   noexcept;
 		void SetDepthStencil (_In_ const D3D12_DEPTH_STENCIL_DESC& ds) noexcept;
 		void SetPrimitiveType(_In_ D3D12_PRIMITIVE_TOPOLOGY_TYPE type) noexcept;
+		void SetNumRenderTargets(UINT count) noexcept;
 
 		void SetRTVFormat(_In_ std::uint32_t slot,
 						  _In_ DXGI_FORMAT format) noexcept;

@@ -16,6 +16,7 @@
 
 #include "system/common_types.h"
 #include "engine/map/world.h"
+#include "engine/windows_manager/windows_manager.h"
 
 namespace kfe
 {	typedef struct _KFE_ENGINE_CREATE_DESC
@@ -41,7 +42,8 @@ namespace kfe
 		_Success_(return == S_OK)
 		int Execute();
 
-		KFEWorld* GetWorld() const;
+		KFEWorld*   GetWorld() const;
+		KFEWindows* GetWindows() const;
 
 	protected:
 		//~ Application Must Implement them

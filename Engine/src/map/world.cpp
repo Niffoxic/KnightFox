@@ -13,6 +13,7 @@
 #include "engine/map/world.h"
 
 #include "engine/system/registry/registry_scene.h"
+#include "engine/system/registry/registry_light.h"
 #include "engine/render_manager/components/render_queue.h"
 #include "engine/system/exception/base_exception.h"
 
@@ -22,6 +23,8 @@
 
 namespace kfe
 {
+    KFEWorld::KFEWorld() = default;
+
     bool KFEWorld::Initialize()
     {
         return true;
@@ -29,13 +32,13 @@ namespace kfe
 
     bool KFEWorld::Destroy()
     {
-        m_sceneObjects.clear();
+        m_sceneObjects   .clear();
         m_sceneObjectView.clear();
         m_sceneViewDirty = true;
         return true;
     }
 
-    void KFEWorld::Update(float /*deltaTime*/)
+    void KFEWorld::Update(float deltaTime)
     {
 
     }
@@ -128,8 +131,12 @@ namespace kfe
             const JsonLoader& dataNode = node["Data"];
 
             auto scene = RegistrySceneObject::Create(typeName);
-            if (!scene)
+            if (!scene) 
+            {
+                THROW_MSG("FAILED");
                 continue;
+            }
+               
 
             scene->SetObjectName(name);
             scene->LoadFromJson(dataNode);
@@ -155,6 +162,124 @@ namespace kfe
             objNode["Type"] = scene->GetTypeName  ();
             objNode["Data"] = scene->GetJsonData  ();
             objNode["Name"] = scene->GetObjectName();
+        }
+
+        return root;
+    }
+
+    void KFEWorld::AddLight(std::unique_ptr<IKFELight> light)
+    {
+        if (!light)
+            return;
+
+        const KID id = light->GetAssignedKey();
+
+        if (m_lights.contains(id))
+        {
+            THROW_MSG("Huge error!, Light ID Already Exists!");
+            return;
+        }
+
+        KFERenderQueue::Instance().AddLight(light.get());
+
+        std::string type = light->GetLightType();
+        m_lights[id] = std::move(light);
+        m_lightViewDirty = true;
+        LOG_INFO("Added Light: {}, type=", id, type);
+    }
+
+    void KFEWorld::AddLight(const std::string& lightName)
+    {
+        auto light = RegistryLights::Create(lightName);
+        if (!light)
+            return;
+
+        AddLight(std::move(light));
+    }
+
+    std::unique_ptr<IKFELight> KFEWorld::RemoveLight(IKFELight* light)
+    {
+        if (!light)
+            return nullptr;
+
+        return RemoveLight(light->GetAssignedKey());
+    }
+
+    std::unique_ptr<IKFELight> KFEWorld::RemoveLight(const KID id)
+    {
+        if (!m_lights.contains(id))
+            return nullptr;
+
+        KFERenderQueue::Instance().RemoveLight(id);
+
+        std::unique_ptr<IKFELight> removed = std::move(m_lights[id]);
+        m_lights.erase(id);
+        m_lightViewDirty = true;
+        return removed;
+    }
+
+    const std::vector<IKFELight*>& KFEWorld::GetAllLights()
+    {
+        if (m_lightViewDirty)
+        {
+            m_lightView.clear();
+            m_lightView.reserve(m_lights.size());
+
+            for (auto& [id, uptr] : m_lights)
+            {
+                if (uptr)
+                    m_lightView.push_back(uptr.get());
+            }
+
+            m_lightViewDirty = false;
+        }
+
+        return m_lightView;
+    }
+
+    void kfe::KFEWorld::LoadLightData(const JsonLoader& loader)
+    {
+        m_lights.clear();
+        m_lightView.clear();
+        m_lightViewDirty = true;
+
+        for (const auto& [idKey, node] : loader)
+        {
+            if (!node.Contains("Type") || !node.Contains("Data"))
+                continue;
+
+            const std::string& typeName = node["Type"].GetValue();
+            const std::string& name = node["Name"].GetValue();
+            const JsonLoader& dataNode = node["Data"];
+
+            auto light = RegistryLights::Create(typeName);
+            if (!light)
+                continue;
+
+            light->SetLightName(name);
+            light->LoadFromJson(dataNode);
+            AddLight(std::move(light));
+
+            LOG_SUCCESS("Added Light {}", typeName);
+        }
+    }
+
+    JsonLoader kfe::KFEWorld::GetLightData() const
+    {
+        JsonLoader root{};
+
+        for (const auto& [id, light] : m_lights)
+        {
+            if (!light)
+                continue;
+
+            const std::string idStr = std::to_string(id);
+
+            JsonLoader& objNode = root[idStr];
+            objNode["ID"]   = idStr;
+            objNode["Type"] = light->GetLightType();
+            objNode["Data"] = light->GetJsonData();
+            objNode["Name"] = light->GetLightName();
         }
 
         return root;

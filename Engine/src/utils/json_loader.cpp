@@ -182,6 +182,21 @@ int JsonLoader::AsInt(int defaultValue) const
     }
 }
 
+std::uint32_t JsonLoader::AsUInt(std::uint32_t defaultValue) const
+{
+    if (!IsValid())
+        return defaultValue;
+
+    try
+    {
+        return static_cast<std::uint32_t>(std::stoi(m_value));
+    }
+    catch (...)
+    {
+        return defaultValue;
+    }
+}
+
 bool JsonLoader::AsBool(bool defaultValue) const
 {
     if (!IsValid())

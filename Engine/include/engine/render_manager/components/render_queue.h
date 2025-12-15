@@ -14,11 +14,15 @@
 #include "engine/core.h"
 #include "engine/system/interface/interface_singleton.h"
 #include "engine/system/interface/interface_scene.h"
+#include "engine/system/interface/interface_light.h"
 #include "engine/render_manager/components/camera.h"
+
+//~ Test Light
 
 #include <memory>
 
 struct ID3D12Fence;
+struct ID3D12GraphicsCommandList;
 
 namespace kfe 
 {
@@ -45,12 +49,20 @@ namespace kfe
 		KFESwapChain*			pSwapChain;
 	} KFE_RENDER_QUEUE_INIT_DESC;
 
-	typedef struct _KFE_RENDER_QUEUE_RENDER_DESC
+	typedef struct _KFE_RENDER_QUEUE_MAIN_PASS_DESC
 	{
-		ID3D12Fence*			pFence;
-		std::uint64_t			FenceValue;
-		KFEGraphicsCommandList* GraphicsCommandList;
-	} KFE_RENDER_QUEUE_RENDER_DESC;
+		ID3D12Fence*				pFence;
+		std::uint64_t				FenceValue;
+		ID3D12GraphicsCommandList*	GraphicsCommandList;
+		KFEShadowMap*				ShadowMap;
+	} KFE_RENDER_QUEUE_MAIN_PASS_DESC;
+
+	typedef struct _KFE_RENDER_QUEUE_SHADOW_PASS_DESC
+	{
+		ID3D12Fence*				pFence;
+		std::uint64_t				FenceValue;
+		ID3D12GraphicsCommandList*	GraphicsCommandList;
+	} KFE_RENDER_QUEUE_SHADOW_PASS_DESC;
 
 	class KFE_API KFERenderQueue final: public ISingleton<KFERenderQueue>
 	{
@@ -68,11 +80,18 @@ namespace kfe
 
 		void Update(float deltaTime);
 
+		void RenderShadowPass(const KFE_RENDER_QUEUE_SHADOW_PASS_DESC& desc);
+		void RenderMainPass	 (const KFE_RENDER_QUEUE_MAIN_PASS_DESC& desc);
+
 		//~ Scene Object
 		void AddSceneObject	  (IKFESceneObject* scene) noexcept;
 		void RemoveSceneObject(IKFESceneObject* scene) noexcept;
 		void RemoveSceneObject(const KID id)		   noexcept;
-		void RenderSceneObject(const KFE_RENDER_QUEUE_RENDER_DESC& desc) noexcept;
+
+		//~ Light Objects
+		void AddLight	(IKFELight* light) noexcept;
+		void RemoveLight(IKFELight* light) noexcept;
+		void RemoveLight(const KID id)	   noexcept;
 
 	private:
 		friend class ISingleton<KFERenderQueue>;

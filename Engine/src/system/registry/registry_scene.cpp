@@ -77,7 +77,7 @@ namespace kfe
         return ::GetNameList();
     }
 
-    //~ Define Objects (same as before)
+    //~ Define Objects
     using KEFCubeSceneObject = kfe::KEFCubeSceneObject;
     KFE_REGISTER_SCENE_OBJECT(KEFCubeSceneObject);
     

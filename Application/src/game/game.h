@@ -13,4 +13,8 @@ public:
 	void Release		() override;
 
 	void Tick(float deltaTime) override;
+
+private:
+	float m_saveCooldown = 0.0f;
+	const float m_saveMaxCooldown = 0.75f;
 };

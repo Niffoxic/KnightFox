@@ -19,64 +19,32 @@ namespace kfe
     class KFE_API KEFCubeSceneObject final : public IKFESceneObject
     {
     public:
-        KEFCubeSceneObject();
-        KEFCubeSceneObject(const std::uint32_t multiple);
+         KEFCubeSceneObject();
         ~KEFCubeSceneObject() override;
 
-        KEFCubeSceneObject(const KEFCubeSceneObject&) = delete;
-        KEFCubeSceneObject& operator=(const KEFCubeSceneObject&) = delete;
-
-        KEFCubeSceneObject(KEFCubeSceneObject&&);
-        KEFCubeSceneObject& operator=(KEFCubeSceneObject&&);
-
         // ~ Inherited via IKFESceneObject / IKFEObject
-        std::string GetName() const noexcept override;
+        std::string GetName       () const noexcept override;
         std::string GetDescription() const noexcept override;
 
-        // Json / serialization
-        JsonLoader GetJsonData() const override;
-        void       LoadFromJson(const JsonLoader& loader) override;
+        //~ Inherited via IKFESceneObject
+        void ChildMainPass(const KFE_RENDER_OBJECT_DESC& desc) override;
+        void ChildShadowPass(const KFE_RENDER_OBJECT_DESC& desc) override;
 
-        // ~ Shader Properties 
-        void        SetVertexShader(const std::string& path) override;
-        std::string VertexShader() const override;
+        //~ Child Specifics 
+        bool ChildBuild(const KFE_BUILD_OBJECT_DESC& desc) override;
+        void ChildUpdate(const KFE_UPDATE_OBJECT_DESC& desc) override;
+        bool ChildDestroy() override;
 
-        void        SetPixelShader(const std::string& path) override;
-        std::string PixelShader() const override;
+        //~ Imgui Specifics
+        void ChildImguiViewHeader(float deltaTime) override;
+        void ChildImguiViewBody(float deltaTime) override;
 
-        void        SetGeometryShader(const std::string& path) override;
-        std::string GeometryShader() const override;
-
-        void        SetHullShader(const std::string& path) override;
-        std::string HullShader() const override;
-
-        void        SetDomainShader(const std::string& path) override;
-        std::string DomainShader() const override;
-
-        void        SetComputeShader(const std::string& path) override;
-        std::string ComputeShader() const override;
-
-        // ~ Draw Properties
-        void        SetCullMode(const ECullMode mode) override;
-        void        SetCullMode(const std::string& mode) override;
-        void        SetDrawMode(const EDrawMode mode) override;
-        void        SetDrawMode(const std::string& mode) override;
-        ECullMode   GetCullMode() const override;
-        std::string GetCullModeString() const override;
-        EDrawMode   GetDrawMode() const override;
-        std::string GetDrawModeString() const override;
-
-        void ImguiView(float deltaTime) override;
-
-        // ~ Lifecycle
-        void Update(const KFE_UPDATE_OBJECT_DESC& desc) override;
-        bool Build(_In_ const KFE_BUILD_OBJECT_DESC& desc) override;
-        bool Destroy() override;
-        void Render(_In_ const KFE_RENDER_OBJECT_DESC& desc) override;
+        //~ Serialization
+        JsonLoader ChildGetJsonData() const override;
+        void ChildLoadFromJson(const JsonLoader& loader) override;
 
     private:
         class Impl;
         std::unique_ptr<Impl> m_impl;
-
     };
 } // namespace kfe

@@ -112,6 +112,7 @@ public:
     //~ Typed access with optional defaults
     [[nodiscard]] float AsFloat(float defaultValue = 0.0f)   const;
     [[nodiscard]] int   AsInt(int   defaultValue = 0)      const;
+    [[nodiscard]] std::uint32_t   AsUInt(std::uint32_t defaultValue = 0)      const;
     [[nodiscard]] bool  AsBool(bool  defaultValue = false)  const;
 
     [[nodiscard]] bool IsValid() const;

@@ -79,6 +79,9 @@
 #include "engine/render_manager/components/render_queue.h"
 #include "engine/render_manager/assets_library/texture_library.h"
 
+//~ shadow pass
+#include "engine/render_manager/shadow/shadow_map.h"
+
 #pragma region IMPL
 
 
@@ -100,8 +103,13 @@ private:
 	bool InitializeHeaps	  ();
 	bool InitializeTextures   ();
 	void CreateViewport		  ();
+	bool InitShadowResources  ();
 
 	void HandleInput(float dt);
+
+	//~ RenderPasses
+	void RenderShadowPass(ID3D12GraphicsCommandList* cmdList);
+	void RenderMainPass  (ID3D12GraphicsCommandList* cmdList);
 
 private:
 	KFEWindows* m_pWindows{ nullptr };
@@ -138,18 +146,26 @@ private:
 	std::uint64_t						m_nFenceValue{ 0u };
 	bool m_bInitialized{ false };
 
-	//~ test render
+	//~ main render
 	D3D12_VIEWPORT m_viewport{};
 	D3D12_RECT     m_scissorRect{};
 
+	//~ shadow render
+	D3D12_VIEWPORT				  m_shadowViewport	 {};
+	D3D12_RECT					  m_shadowScissorRect{};
+	std::unique_ptr<KFEShadowMap> m_pShadowMap		 { nullptr };
+	D3D12_GPU_DESCRIPTOR_HANDLE   m_shadowCmpSampler {};
+	bool						  m_shadowMapIsSRV	 { false };
+
 	float m_totalTime{ 0.0f };
-	std::unique_ptr<KEFCubeSceneObject> m_cube{ nullptr };
-	std::unique_ptr<KEFCubeSceneObject> m_cube2{ nullptr };
 
 	bool  m_inputPaused{ false };
 	float m_spaceToggleCooldown{ 0.0f };
 	KFECamera m_camera{};
 	bool m_bSkipFirst{ true };
+
+	//~ frame data
+	KFE_SWAP_CHAIN_DATA m_frameSwap{};
 };
 
 #pragma endregion
@@ -313,6 +329,12 @@ bool kfe::KFERenderManager::Impl::Initialize()
 
 	CreateViewport();
 
+	if (!InitShadowResources()) 
+	{
+		LOG_ERROR("Failed to init shadow resources!");
+		return false;
+	}
+
 	m_bInitialized = true;
 
 	//~ Init Render Queue
@@ -381,9 +403,9 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 	++m_nFenceValue;
 
 	KFE_RESET_COMMAND_LIST resetter{};
-	resetter.Fence = m_pFence.Get();
+	resetter.Fence		= m_pFence.Get();
 	resetter.FenceValue = m_nFenceValue;
-	resetter.PSO = nullptr;
+	resetter.PSO		= nullptr;
 
 	if (!m_pGfxList->Reset(resetter))
 	{
@@ -396,54 +418,8 @@ void kfe::KFERenderManager::Impl::FrameBegin(float dt)
 		THROW_MSG("Graphics command list is null.");
 	}
 
-	auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
-		m_pFence.Get(), m_nFenceValue);
-
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = swapData.BufferResource;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-
-	cmdList->ResourceBarrier(1u, &barrier);
-
-	cmdList->RSSetViewports(1u, &m_viewport);
-	cmdList->RSSetScissorRects(1u, &m_scissorRect);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swapData.BufferHandle;
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pDSV->GetCPUHandle();
-
-	cmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
-
-	const float color[4]
-	{
-		0.f,
-		0.f,
-		0.f,
-		0.f
-	};
-
-	cmdList->ClearRenderTargetView(
-		rtvHandle,
-		color,
-		0u,
-		nullptr);
-
-	cmdList->ClearDepthStencilView(
-		dsvHandle,
-		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-		1.f,
-		0u,
-		0u,
-		nullptr);
-
-	KFE_RENDER_QUEUE_RENDER_DESC render{};
-	render.FenceValue = m_nFenceValue;
-	render.GraphicsCommandList = m_pGfxList.get();
-	render.pFence = m_pFence.Get();
-	KFERenderQueue::Instance().RenderSceneObject(render);
+	// RenderShadowPass(cmdList);
+	RenderMainPass  (cmdList);
 
 #ifdef _DEBUG
 	{
@@ -465,6 +441,8 @@ void kfe::KFERenderManager::Impl::FrameEnd()
 	}
 #if defined(DEBUG) || defined(_DEBUG)
 	ImGui::Render();
+	ID3D12DescriptorHeap* imguiHeaps[] = { m_pImguiHeap->GetNative() };
+	cmdList->SetDescriptorHeaps(1u, imguiHeaps);
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmdList);
 
 	ImGuiIO& io = ImGui::GetIO();
@@ -475,13 +453,10 @@ void kfe::KFERenderManager::Impl::FrameEnd()
 	}
 #endif
 
-	auto swapData = m_pSwapChain->GetAndMarkBackBufferData(
-					m_pFence.Get(), m_nFenceValue);
-
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type					= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags					= D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource	= swapData.BufferResource;
+	barrier.Transition.pResource	= m_frameSwap.BufferResource;
 	barrier.Transition.Subresource	= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	barrier.Transition.StateBefore	= D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter	= D3D12_RESOURCE_STATE_PRESENT;
@@ -814,4 +789,184 @@ void kfe::KFERenderManager::Impl::HandleInput(float dt)
 
 		m_camera.SetEulerAngles(pitch, yaw, roll);
 	}
+}
+
+bool kfe::KFERenderManager::Impl::InitShadowResources()
+{
+	if (!m_pDevice || !m_pDSVHeap || !m_pResourceHeap || !m_pSamplerHeap)
+	{
+		LOG_ERROR("InitShadowResources failed: one or more required heaps/device are null.");
+		return false;
+	}
+
+	if (!m_pShadowMap)
+		m_pShadowMap = std::make_unique<KFEShadowMap>();
+
+	//~ 2048x2048 shadow map
+	const std::uint32_t shadowW = 2048u;
+	const std::uint32_t shadowH = 2048u;
+
+	KFE_SHADOW_MAP_CREATE_DESC sm{};
+	sm.Device		= m_pDevice.get();
+	sm.DSVHeap		= m_pDSVHeap.get();
+	sm.ResourceHeap = m_pResourceHeap.get();
+	sm.Width		= shadowW;
+	sm.Height		= shadowH;
+	sm.DepthFormat	= DXGI_FORMAT_D32_FLOAT;
+	sm.SRVFormat	= DXGI_FORMAT_R32_FLOAT;
+	sm.DebugName	= L"KFE ShadowMap D32";
+
+	if (!m_pShadowMap->Initialize(sm))
+	{
+		LOG_ERROR("InitShadowResources failed: ShadowMap Initialize() failed.");
+		return false;
+	}
+
+	//~ Shadow viewport/scissor
+	m_shadowViewport.TopLeftX	= 0.0f;
+	m_shadowViewport.TopLeftY	= 0.0f;
+	m_shadowViewport.Width		= static_cast<float>(shadowW);
+	m_shadowViewport.Height		= static_cast<float>(shadowH);
+	m_shadowViewport.MinDepth	= 0.0f;
+	m_shadowViewport.MaxDepth	= 1.0f;
+
+	m_shadowScissorRect.left	= 0;
+	m_shadowScissorRect.top		= 0;
+	m_shadowScissorRect.right	= static_cast<LONG>(shadowW);
+	m_shadowScissorRect.bottom	= static_cast<LONG>(shadowH);
+
+	//~ Comparison sampler for shadow map sampling
+	m_shadowCmpSampler.ptr = 0u;
+	if (!m_pShadowMap->CreateComparisonSampler(
+		m_pSamplerHeap.get(),
+		m_shadowCmpSampler))
+	{
+		LOG_ERROR("InitShadowResources failed: CreateComparisonSampler() failed.");
+		return false;
+	}
+
+	LOG_SUCCESS("Shadow resources initialized (ShadowMap + viewport/scissor + comparison sampler).");
+	return true;
+}
+
+void kfe::KFERenderManager::Impl::RenderShadowPass(ID3D12GraphicsCommandList* cmdList)
+{
+	if (!cmdList || !m_pShadowMap || !m_pResourceHeap || !m_pSamplerHeap)
+		return;
+
+	ID3D12Resource* shadowRes = m_pShadowMap->GetResource();
+	if (!shadowRes)
+		return;
+
+	constexpr D3D12_RESOURCE_STATES kShadowSRVState =
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+
+	//~ Transition to DEPTH_WRITE if needed
+	if (m_shadowMapIsSRV)
+	{
+		D3D12_RESOURCE_BARRIER b{};
+		b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		b.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		b.Transition.pResource = shadowRes;
+		b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		b.Transition.StateBefore = kShadowSRVState;
+		b.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		cmdList->ResourceBarrier(1u, &b);
+
+		m_shadowMapIsSRV = false;
+	}
+
+	const auto dsv = m_pShadowMap->GetDSV();
+
+	cmdList->RSSetViewports(1u, &m_shadowViewport);
+	cmdList->RSSetScissorRects(1u, &m_shadowScissorRect);
+
+	cmdList->OMSetRenderTargets(0u, nullptr, FALSE, &dsv);
+	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0u, 0u, nullptr);
+
+	ID3D12DescriptorHeap* heaps[] =
+	{
+		m_pResourceHeap->GetNative(),
+		m_pSamplerHeap->GetNative()
+	};
+	cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+	KFE_RENDER_QUEUE_SHADOW_PASS_DESC shadow{};
+	shadow.FenceValue = m_nFenceValue;
+	shadow.GraphicsCommandList = cmdList;
+	shadow.pFence = m_pFence.Get();
+
+	//~ Draw all shadow casters
+	KFERenderQueue::Instance().RenderShadowPass(shadow);
+
+	//~ Transition back to SRV for main pass sampling
+	{
+		D3D12_RESOURCE_BARRIER b{};
+		b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		b.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		b.Transition.pResource = shadowRes;
+		b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		b.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		b.Transition.StateAfter = kShadowSRVState;
+		cmdList->ResourceBarrier(1u, &b);
+
+		m_shadowMapIsSRV = true;
+	}
+}
+
+void kfe::KFERenderManager::Impl::RenderMainPass(ID3D12GraphicsCommandList* cmdList)
+{
+	//~ swapchain for main pass
+	m_frameSwap = m_pSwapChain->GetAndMarkBackBufferData(m_pFence.Get(), m_nFenceValue);
+
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type					= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags					= D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource	= m_frameSwap.BufferResource;
+	barrier.Transition.Subresource	= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore	= D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter	= D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+	cmdList->ResourceBarrier(1u, &barrier);
+
+	cmdList->RSSetViewports(1u, &m_viewport);
+	cmdList->RSSetScissorRects(1u, &m_scissorRect);
+
+	ID3D12DescriptorHeap* heaps[] = { m_pResourceHeap->GetNative(), m_pSamplerHeap->GetNative() };
+	cmdList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_frameSwap.BufferHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_pDSV->GetCPUHandle();
+
+	cmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, &dsvHandle);
+
+	const float color[4]
+	{
+		0.f,
+		0.f,
+		0.f,
+		0.f
+	};
+
+	cmdList->ClearRenderTargetView(
+		rtvHandle,
+		color,
+		0u,
+		nullptr);
+
+	cmdList->ClearDepthStencilView(
+		dsvHandle,
+		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+		1.f,
+		0u,
+		0u,
+		nullptr);
+
+	KFE_RENDER_QUEUE_MAIN_PASS_DESC render{};
+	render.FenceValue			= m_nFenceValue;
+	render.GraphicsCommandList	= cmdList;
+	render.pFence				= m_pFence.Get();
+	render.ShadowMap			= m_pShadowMap.get();
+	KFERenderQueue::Instance().RenderMainPass(render);
 }

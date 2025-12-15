@@ -60,6 +60,15 @@ public:
         std::uint64_t                   srcOffsetBytes,
         std::uint64_t                   dstOffsetBytes) const noexcept;
 
+    NODISCARD bool RecordUploadToDefaultWithBarriers(
+        ID3D12GraphicsCommandList* cmdList,
+        std::uint64_t numBytes,
+        std::uint64_t srcOffsetBytes,
+        std::uint64_t dstOffsetBytes,
+        D3D12_RESOURCE_STATES before,
+        D3D12_RESOURCE_STATES after) const noexcept;
+
+
 private:
     KFEDevice* m_pDevice{ nullptr };
 
@@ -175,6 +184,18 @@ bool kfe::KFEStagingBuffer::RecordUploadToDefault(
     std::uint64_t                   dstOffsetBytes) const noexcept
 {
     return m_impl->RecordUploadToDefault(cmdList, numBytes, srcOffsetBytes, dstOffsetBytes);
+}
+
+bool kfe::KFEStagingBuffer::RecordUploadToDefaultWithBarriers(
+    ID3D12GraphicsCommandList* cmdList,
+    std::uint64_t numBytes,
+    std::uint64_t srcOffsetBytes,
+    std::uint64_t dstOffsetBytes, 
+    D3D12_RESOURCE_STATES before,
+    D3D12_RESOURCE_STATES after) const noexcept
+{
+    return m_impl->RecordUploadToDefaultWithBarriers(cmdList, numBytes,
+        srcOffsetBytes, dstOffsetBytes, before, after);
 }
 
 #pragma endregion
@@ -482,6 +503,100 @@ bool kfe::KFEStagingBuffer::Impl::RecordUploadToDefault(
         static_cast<UINT64>(srcOffsetBytes),
         static_cast<UINT64>(numBytes)
     );
+
+    return true;
+}
+
+_Use_decl_annotations_
+bool kfe::KFEStagingBuffer::Impl::RecordUploadToDefaultWithBarriers(
+    ID3D12GraphicsCommandList* cmdList,
+    std::uint64_t numBytes,
+    std::uint64_t srcOffsetBytes,
+    std::uint64_t dstOffsetBytes,
+    D3D12_RESOURCE_STATES before,
+    D3D12_RESOURCE_STATES after) const noexcept
+{
+    if (!m_bInitialized)
+    {
+        LOG_ERROR("KFEStagingBuffer::Impl::RecordUploadToDefaultWithBarriers: Staging buffer not initialized.");
+        return false;
+    }
+
+    if (!cmdList)
+    {
+        LOG_ERROR("KFEStagingBuffer::Impl::RecordUploadToDefaultWithBarriers: cmdList is null.");
+        return false;
+    }
+
+    if (numBytes == 0u)
+    {
+        LOG_WARNING("KFEStagingBuffer::Impl::RecordUploadToDefaultWithBarriers: numBytes == 0, nothing to copy.");
+        return true;
+    }
+
+    if (srcOffsetBytes >= m_sizeInBytes || dstOffsetBytes >= m_sizeInBytes)
+    {
+        LOG_ERROR(
+            "KFEStagingBuffer::Impl::RecordUploadToDefaultWithBarriers: srcOffsetBytes={} or dstOffsetBytes={} "
+            "is >= buffer size ({}).",
+            srcOffsetBytes, dstOffsetBytes, m_sizeInBytes);
+        return false;
+    }
+
+    if (srcOffsetBytes + numBytes > m_sizeInBytes ||
+        dstOffsetBytes + numBytes > m_sizeInBytes)
+    {
+        LOG_ERROR(
+            "KFEStagingBuffer::Impl::RecordUploadToDefaultWithBarriers: Copy range exceeds buffer size ({}). "
+            "SrcRange=[{}, {}], DstRange=[{}, {}], NumBytes={}.",
+            m_sizeInBytes,
+            srcOffsetBytes,
+            srcOffsetBytes + numBytes,
+            dstOffsetBytes,
+            dstOffsetBytes + numBytes,
+            numBytes);
+        return false;
+    }
+
+    ID3D12Resource* uploadResource = m_uploadBuffer.GetNative();
+    ID3D12Resource* defaultResource = m_defaultBuffer.GetNative();
+
+    if (!uploadResource || !defaultResource)
+    {
+        LOG_ERROR("Underlying resources are null.");
+        return false;
+    }
+
+    if (before != D3D12_RESOURCE_STATE_COPY_DEST)
+    {
+        D3D12_RESOURCE_BARRIER b{};
+        b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        b.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        b.Transition.pResource = defaultResource;
+        b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        b.Transition.StateBefore = before;
+        b.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+        cmdList->ResourceBarrier(1u, &b);
+    }
+
+    cmdList->CopyBufferRegion(
+        defaultResource,
+        static_cast<UINT64>(dstOffsetBytes),
+        uploadResource,
+        static_cast<UINT64>(srcOffsetBytes),
+        static_cast<UINT64>(numBytes));
+
+    if (after != D3D12_RESOURCE_STATE_COPY_DEST)
+    {
+        D3D12_RESOURCE_BARRIER b{};
+        b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        b.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        b.Transition.pResource = defaultResource;
+        b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        b.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+        b.Transition.StateAfter = after;
+        cmdList->ResourceBarrier(1u, &b);
+    }
 
     return true;
 }

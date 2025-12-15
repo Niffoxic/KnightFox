@@ -15,6 +15,9 @@
 #include <string>
 #include <string_view>
 
+//~ to be cleand later
+#include <windows.h>
+
 #include "engine/system/common_types.h"
 
 namespace kfe_helpers

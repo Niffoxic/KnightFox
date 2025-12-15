@@ -14,6 +14,7 @@
 #include "engine/core.h"
 
 #include "engine/system/interface/interface_scene.h"
+#include "engine/system/interface/interface_light.h"
 #include "engine/utils/json_loader.h"
 
 #include <memory>
@@ -26,7 +27,7 @@ namespace kfe
     class KFE_API KFEWorld
     {
     public:
-        KFEWorld() = default;
+        KFEWorld();
         ~KFEWorld() = default;
 
         KFEWorld(const KFEWorld&) = delete;
@@ -41,27 +42,36 @@ namespace kfe
 
         void Update(float deltaTime);
 
-        // Add an already-created scene object (any IKFESceneObject-derived type)
+        //~ Scene Object
         void AddSceneObject(std::unique_ptr<IKFESceneObject> scene);
-
-        // Create and add by registered name via RegistrySceneObject
         void AddSceneObject(const std::string& sceneName);
-
-        // Remove by pointer
         std::unique_ptr<IKFESceneObject> RemoveSceneObject(IKFESceneObject* scene);
-
-        // Remove by ID
         std::unique_ptr<IKFESceneObject> RemoveSceneObject(const KID id);
-
         const std::vector<IKFESceneObject*>& GetAllSceneObjects();
 
         void       LoadSceneData(const JsonLoader& loader);
         JsonLoader GetSceneData() const;
 
+        //~ Light Objects
+        void AddLight(std::unique_ptr<IKFELight> light);
+        void AddLight(const std::string& lightName);
+
+        std::unique_ptr<IKFELight>      RemoveLight(IKFELight* light);
+        std::unique_ptr<IKFELight>      RemoveLight(const KID id);
+        const std::vector<IKFELight*>&  GetAllLights();
+
+        void       LoadLightData(const JsonLoader& loader);
+        JsonLoader GetLightData () const;
+
     private:
-        // Scene Object Infos
+        //~ Scene Object Infos
         std::unordered_map<KID, std::unique_ptr<IKFESceneObject>> m_sceneObjects;
         std::vector<IKFESceneObject*>                             m_sceneObjectView;
         bool                                                      m_sceneViewDirty{ true };
+    
+        //~ Lights
+        std::unordered_map<KID, std::unique_ptr<IKFELight>> m_lights;
+        std::vector<IKFELight*>                             m_lightView;
+        bool                                                m_lightViewDirty{ true };
     };
 } // namespace kfe

@@ -80,7 +80,7 @@ namespace kfe
         NODISCARD bool IsValidIndex(std::uint32_t idx) const noexcept;
 
         _Maybenull_ NODISCARD
-            ID3D12DescriptorHeap* GetNative() const noexcept;
+        ID3D12DescriptorHeap* GetNative() const noexcept;
 
         /// Sets a debug name for the heap (for PIX or RenderDoc).
         void SetDebugName(_In_ const std::string& name) noexcept;

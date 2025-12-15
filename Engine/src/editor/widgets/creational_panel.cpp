@@ -17,6 +17,7 @@
 
 #include "engine/map/world.h"
 #include "engine/system/registry/registry_scene.h"
+#include "engine/system/registry/registry_light.h"
 
 namespace
 {
@@ -133,6 +134,7 @@ void kfe::ImguiCreationPanelCore::LoadIconsIfNeeded()
     }
 
     m_icons.object = TryGetIcon(m_config, "icon.object");
+    m_icons.light = TryGetIcon(m_config, "icon.light");
     m_icons.favOn = TryGetIcon(m_config, "icon.favorite_on");
     m_icons.favOff = TryGetIcon(m_config, "icon.favorite_off");
     m_icons.create = TryGetIcon(m_config, "icon.create");
@@ -145,35 +147,70 @@ bool kfe::ImguiCreationPanelCore::InitFromRegistry()
 {
     Clear();
 
-    const auto& names = kfe::RegistrySceneObject::GetRegisteredNames();
-    if (names.empty())
-    {
-        return false;
-    }
+    bool any = false;
 
-    Item base{};
-    base.category = "Objects";
-    base.tags = { "object", "scene", "entity" };
-
-    for (const auto& n : names)
+    // Scene Objects
     {
-        Item it = base;
-        it.name = n;
-        it.onCreate = [n](KFEWorld& world)
+        const auto& names = kfe::RegistrySceneObject::GetRegisteredNames();
+        if (!names.empty())
+        {
+            any = true;
+
+            Item base{};
+            base.category = "Objects";
+            base.tags = { "object", "scene", "entity" };
+
+            for (const auto& n : names)
             {
-                auto obj = kfe::RegistrySceneObject::Create(n);
-                if (!obj)
-                {
-                    return;
-                }
-                world.AddSceneObject(std::move(obj));
-            };
+                Item it = base;
+                it.name = n;
+                it.onCreate = [n](KFEWorld& world)
+                    {
+                        auto obj = kfe::RegistrySceneObject::Create(n);
+                        if (!obj)
+                            return;
 
-        it.featured = false;
-        Register(it);
+                        world.AddSceneObject(std::move(obj));
+                    };
+
+                it.featured = false;
+                Register(it);
+            }
+        }
     }
 
-    return true;
+    // Lights
+    {
+        const auto& names = kfe::RegistryLights::GetRegisteredNames();
+        if (!names.empty())
+        {
+            any = true;
+
+            Item base{};
+            base.category = "Lights";
+            base.tags = { "light", "lighting", "shadow" };
+
+            for (const auto& n : names)
+            {
+                Item it = base;
+                it.name = n;
+
+                it.onCreate = [n](KFEWorld& world)
+                    {
+                        auto light = kfe::RegistryLights::Create(n);
+                        if (!light)
+                            return;
+
+                        world.AddLight(std::move(light));
+                    };
+
+                it.featured = false;
+                Register(it);
+            }
+        }
+    }
+
+    return any;
 }
 
 void kfe::ImguiCreationPanelCore::Register(const Item& it)
@@ -343,25 +380,7 @@ void kfe::ImguiCreationPanelCore::BuildFiltered()
 
 void kfe::ImguiCreationPanelCore::HandleKeyboard(KFEWorld& world)
 {
-    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
-    {
-        if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
-        {
-            if (m_selected < (int)m_filtered.size() - 1) { ++m_selected; }
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
-        {
-            if (m_selected > 0) { --m_selected; }
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter))
-        {
-            if (m_selected >= 0 && m_selected < (int)m_filtered.size())
-            {
-                const auto& it = m_items[m_filtered[m_selected]];
-                TriggerCreate(world, it);
-            }
-        }
-    }
+
 }
 
 // toolbar
@@ -493,7 +512,7 @@ void kfe::ImguiCreationPanelCore::DrawResults(KFEWorld& world)
                 }
                 ImGui::SameLine(0.0f, 6.0f);
 
-                ImTextureID catIcon = m_icons.object;
+                ImTextureID catIcon = (it.category == "Lights") ? m_icons.light : m_icons.object;
                 RowIcon(catIcon);
 
                 if (kCreateOnLeft)
@@ -514,11 +533,6 @@ void kfe::ImguiCreationPanelCore::DrawResults(KFEWorld& world)
                     {
                         TriggerCreate(world, it);
                     }
-                }
-
-                if (selected && ImGui::IsKeyPressed(ImGuiKey_Enter))
-                {
-                    TriggerCreate(world, it);
                 }
             }
 
@@ -616,7 +630,7 @@ void kfe::ImguiCreationPanelCore::DrawCard(KFEWorld& world, const Item& it, Sect
     {
         ImGui::BeginGroup();
         {
-            ImTextureID catIcon = m_icons.object;
+            ImTextureID catIcon = (it.category == "Lights") ? m_icons.light : m_icons.object;
             RowIcon(catIcon);
             ImGui::TextUnformatted(it.name.c_str());
             ImGui::SameLine();

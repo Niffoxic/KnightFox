@@ -15,251 +15,131 @@
 #include "engine/utils/json_loader.h"
 
 #include <cstdint>
+#include <memory>
 #include <string_view>
 #include <DirectXMath.h>
 
-struct ID3D12Fence;
+//~ light
+#include "engine/render_manager/light/directional_light.h"
+#include "engine/render_manager/api/buffer/buffer.h"
+#include "engine/render_manager/api/buffer/constant_buffer.h"
+#include "engine/utils/helpers.h"
+#include "engine/render_manager/api/components/device.h"
+#include "engine/render_manager/api/commands/graphics_list.h"
+#include "engine/render_manager/api/queue/graphics_queue.h"
+#include "engine/render_manager/api/heap/heap_cbv_srv_uav.h"
+#include "engine/render_manager/api/heap/heap_sampler.h"
+#include "engine/render_manager/api/root_signature.h"
+#include "engine/render_manager/light/light_manager.h"
+#include <d3d12.h>
+#include "engine/render_manager/shadow/shadow_map.h"
+
+#include "engine/render_manager/scene/scene_types.h"
+#include "engine/render_manager/api/frame_cb.h"
 
 namespace kfe
 {
-	class KFEDevice;
-	class KFEGraphicsCommandList;
-    class KFEGraphicsCmdQ;
-    class KFEResourceHeap;
-    class KFESamplerHeap;
-
-    typedef struct _KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC
-    {
-        DirectX::XMMATRIX WorldMatrix;
-        DirectX::XMMATRIX ViewMatrix;
-        DirectX::XMMATRIX ProjectionMatrix;
-        DirectX::XMMATRIX OrthogonalMatrix;
-        DirectX::XMFLOAT2 Resolution;
-        DirectX::XMFLOAT2 MousePosition;
-        DirectX::XMFLOAT3 ObjectPosition;
-        float _PaddingObjectPos;
-
-        DirectX::XMFLOAT3 CameraPosition;
-        float _PaddingCameraPos;
-
-        DirectX::XMFLOAT3 PlayerPosition;
-        float _PaddingPlayerPos;
-
-        float         Time;
-        std::uint32_t FrameIndex;
-        float         DeltaTime;
-        float         ZNear;
-        float         ZFar;
-
-        float _PaddingFinal[3];
-
-    } KFE_COMMON_VERTEX_AND_PIXEL_CB_DESC;
-
-    typedef struct _KFE_BUILD_OBJECT_DESC
-    {
-        KFEDevice*              Device;
-        ID3D12Fence*            Fence;
-        std::uint64_t           FenceValue;
-        KFEGraphicsCmdQ*        ComandQueue;
-        KFEGraphicsCommandList* CommandList;
-        KFEResourceHeap*        ResourceHeap;
-        KFESamplerHeap*         SamplerHeap;
-    } KFE_BUILD_OBJECT_DESC;
-
-    typedef struct _KFE_RENDER_OBJECT_DESC
-    {
-        KFEGraphicsCommandList* CommandList;
-        ID3D12Fence*            Fence;
-        std::uint64_t           FenceValue;
-    } KFE_RENDER_OBJECT_DESC;
-
-    typedef struct _KFE_UPDATE_OBJECT_DESC
-    {
-        float deltaTime;
-        float ZNear;
-        float ZFar;
-        DirectX::XMFLOAT3 CameraPosition;
-        DirectX::XMFLOAT2 Resolution;
-        DirectX::XMFLOAT2 MousePosition;
-        DirectX::XMFLOAT3 PlayerPosition;
-        DirectX::XMMATRIX ViewMatrix;
-        DirectX::XMMATRIX PerpectiveMatrix;
-        DirectX::XMMATRIX OrthographicMatrix;
-    } KFE_UPDATE_OBJECT_DESC;
-
-    enum class EDrawMode 
-    {
-        Triangle,
-        Point,
-        WireFrame
-    };
-
-    inline static std::string ToString(const EDrawMode mode)
-    {
-        switch (mode)
-        {
-        case EDrawMode::Triangle:  return "Triangle";
-        case EDrawMode::Point:     return "Point";
-        case EDrawMode::WireFrame: return "WireFrame";
-        }
-        return "Triangle";
-    }
-
-    inline static EDrawMode FromStringToDraw(const std::string& mode)
-    {
-        if (mode == "Triangle")  return EDrawMode::Triangle;
-        if (mode == "Point")     return EDrawMode::Point;
-        if (mode == "WireFrame") return EDrawMode::WireFrame;
-
-        return EDrawMode::Triangle; // fallback
-    }
-
-    enum class ECullMode
-    {
-        Front,
-        Back,
-        None
-    };
-
-    inline static std::string ToString(const ECullMode mode)
-    {
-        switch (mode)
-        {
-        case ECullMode::Front: return "Front";
-        case ECullMode::Back:  return "Back";
-        case ECullMode::None:  return "None";
-        }
-        return "None"; // fallback
-    }
-
-    inline static ECullMode FromStringToCull(const std::string& mode)
-    {
-        if (mode == "Front") return ECullMode::Front;
-        if (mode == "Back")  return ECullMode::Back;
-        if (mode == "None")  return ECullMode::None;
-
-        return ECullMode::None; // fallback
-    }
-
 	/// <summary>
 	/// Base interface for any scene object
 	/// </summary>
-
     class KFE_API IKFESceneObject : public IKFEObject
     {
     public:
+        IKFESceneObject() = default;
         virtual ~IKFESceneObject() override = default;
 
+        IKFESceneObject(const IKFESceneObject&) = default;
+        IKFESceneObject(IKFESceneObject&&)      = default;
+
+        IKFESceneObject& operator=(const IKFESceneObject&) = default;
+        IKFESceneObject& operator=(IKFESceneObject&&)      = default;
+
         // Visibility
-        virtual void SetVisible(bool visible);
-        NODISCARD virtual bool IsVisible() const;
+                  void SetVisible(bool visible);
+        NODISCARD bool IsVisible    () const;
+        NODISCARD bool IsInitialized() const noexcept;
 
-        // Core lifecycle
-        virtual void Update(const KFE_UPDATE_OBJECT_DESC& desc) = 0;
+        void Update(const KFE_UPDATE_OBJECT_DESC& desc);
 
-        NODISCARD virtual bool Build(_In_ const KFE_BUILD_OBJECT_DESC& desc) = 0;
-        NODISCARD virtual bool Destroy() = 0;
+        NODISCARD bool Build(_In_ const KFE_BUILD_OBJECT_DESC& desc);
+        NODISCARD bool Destroy();
 
-        virtual void Render(_In_ const KFE_RENDER_OBJECT_DESC& desc) = 0;
+        //~ Passes
+        void MainPass  (_In_ const KFE_RENDER_OBJECT_DESC& desc);
+        void ShadowPass(_In_ const KFE_RENDER_OBJECT_DESC& desc);
 
         // Serialization
-        virtual JsonLoader GetJsonData() const = 0;
-        virtual void       LoadFromJson(const JsonLoader& loader) = 0;
-
-        // Shader properties
-        virtual void        SetVertexShader(const std::string& path) = 0;
-        NODISCARD virtual std::string VertexShader() const = 0;
-
-        virtual void        SetPixelShader(const std::string& path) = 0;
-        NODISCARD virtual std::string PixelShader() const = 0;
-
-        virtual void        SetGeometryShader(const std::string& path) = 0;
-        NODISCARD virtual std::string GeometryShader() const = 0;
-
-        virtual void        SetHullShader(const std::string& path) = 0;
-        NODISCARD virtual std::string HullShader() const = 0;
-
-        virtual void        SetDomainShader(const std::string& path) = 0;
-        NODISCARD virtual std::string DomainShader() const = 0;
-
-        virtual void        SetComputeShader(const std::string& path) = 0;
-        NODISCARD virtual std::string ComputeShader() const = 0;
+        JsonLoader GetJsonData() const;
+        void       LoadFromJson(const JsonLoader& loader);
 
         // Draw properties
-        virtual void SetCullMode(const ECullMode mode) = 0;
-        virtual void SetCullMode(const std::string& mode) = 0;
-
-        virtual void SetDrawMode(const EDrawMode mode) = 0;
-        virtual void SetDrawMode(const std::string& mode) = 0;
-
-        virtual ECullMode   GetCullMode() const = 0;
-        virtual std::string GetCullModeString() const = 0;
-        virtual EDrawMode   GetDrawMode() const = 0;
-        virtual std::string GetDrawModeString() const = 0;
-
-        virtual void ImguiView(float deltaTime) = 0;
-        void ImguiTransformView(float deltaTime);
-
-        // Transform
-        NODISCARD virtual DirectX::XMFLOAT3 GetPosition() const;
-
-        virtual void SetPosition(_In_ const DirectX::XMFLOAT3& position);
-        virtual void AddPosition(_In_ const DirectX::XMFLOAT3& delta);
-
-        virtual void AddPositionX(float x);
-        virtual void AddPositionY(float y);
-        virtual void AddPositionZ(float z);
-
-        NODISCARD virtual DirectX::XMFLOAT4 GetOrientation() const;
-
-        virtual void SetOrientation(_In_ const DirectX::XMFLOAT4& orientation);
-        virtual void SetOrientationFromEuler(float pitch, float yaw, float roll);
-
-        virtual void AddPitch(float pitch);
-        virtual void AddYaw(float yaw);
-        virtual void AddRoll(float roll);
-
-        NODISCARD virtual DirectX::XMFLOAT3 GetScale() const;
-
-        virtual void SetScale(_In_ const DirectX::XMFLOAT3& scale);
-        virtual void SetUniformScale(float s);
-        virtual void AddScale(_In_ const DirectX::XMFLOAT3& delta);
-        virtual void AddScaleX(float x);
-        virtual void AddScaleY(float y);
-        virtual void AddScaleZ(float z);
+        void ImguiView(float deltaTime);
 
         NODISCARD virtual const DirectX::XMMATRIX& GetWorldMatrix() const;
 
-        // These are non-virtual helpers -> noexcept is fine
-        NODISCARD bool IsDirty() const noexcept;
-        void SetDirty() const noexcept;
-        void ResetDirty() const noexcept;
-
-        NODISCARD bool IsInitialized() const noexcept;
-
-        JsonLoader GetTransformJsonData() const noexcept;
-        void       LoadTransformFromJson(const JsonLoader& loader) noexcept;
-
         // Type name
-        void        SetTypeName(const std::string& typeName) { m_szTypeName = typeName; }
-        std::string GetTypeName() const { return m_szTypeName; }
+        void SetTypeName  (const std::string& typeName);
+        void SetObjectName(const std::string& typeName);
+        
+        std::string GetTypeName  () const;
+        std::string GetObjectName() const;
 
-        void        SetObjectName(const std::string& typeName) { m_szName = typeName; }
-        std::string GetObjectName() const { return m_szName; }
+        //~ Light Management
+        void AttachLight(IKFELight* light);
+        void DetachLight(IKFELight* light);
+        void DetachLight(KID id);
 
     protected:
-        DirectX::XMFLOAT3 m_position    { 0.0f, 0.0f, 0.0f };
-        DirectX::XMFLOAT4 m_orientation { 0.0f, 0.0f, 0.0f, 1.0f };
-        DirectX::XMFLOAT3 m_scale       { 1.0f, 1.0f, 1.0f };
-        DirectX::XMMATRIX m_transform   { DirectX::XMMatrixIdentity() };
+        //~ Passes
+        virtual void ChildMainPass(_In_ const KFE_RENDER_OBJECT_DESC& desc)   = 0;
+        virtual void ChildShadowPass(_In_ const KFE_RENDER_OBJECT_DESC& desc) = 0;
+        
+        //~ Building and views
+        NODISCARD virtual bool ChildBuild    (_In_ const KFE_BUILD_OBJECT_DESC& desc) = 0;
+                  virtual void ChildUpdate   (const KFE_UPDATE_OBJECT_DESC& desc)     = 0;
+                  virtual void ChildImguiViewHeader(float deltaTime)                  = 0;
+                  virtual void ChildImguiViewBody(float deltaTime)                    = 0;
 
-        bool m_bVisible{ true };
-        bool m_bInitialized{ false };
+        NODISCARD virtual bool ChildDestroy() = 0;
 
-        std::string m_szName{ "No Name Given" };
-
+        NODISCARD virtual JsonLoader ChildGetJsonData() const                    = 0;
+                  virtual  void      ChildLoadFromJson(const JsonLoader& loader) = 0;
     private:
-        std::string  m_szTypeName{ "Unknown" };
-        mutable bool m_bDirty{ false };
+        //~ Main Pass
+        NODISCARD bool InitMainRootSignature    (_In_ const KFE_BUILD_OBJECT_DESC& desc);
+        NODISCARD bool InitMainPipeline         (KFEDevice* device);
+        NODISCARD bool InitPrimaryConstantBuffer(const KFE_BUILD_OBJECT_DESC& desc);
+        NODISCARD bool InitMainSampler          (_In_ const KFE_BUILD_OBJECT_DESC& desc);
+
+        //~ Shadow Pass
+        NODISCARD bool InitShadowRootSignature          (_In_ const KFE_BUILD_OBJECT_DESC& desc);
+        NODISCARD bool InitShadowPipeline               (KFEDevice* device);
+        NODISCARD bool InitShadowLightMetaConstantbuffer(_In_ const KFE_BUILD_OBJECT_DESC& desc);
+        NODISCARD bool InitShadowComparisionSampler     (_In_ const KFE_BUILD_OBJECT_DESC& desc);
+
+        //~ Updates
+        //~ Main Pass Updates
+        void UpdatePrimaryConstantBuffer(const KFE_UPDATE_OBJECT_DESC& desc);
+
+        //~ Shadow Update
+        void UpdateLightConstantBuffer(_In_ const KFE_LIGHT_DATA_GPU& desc);
+
+    public:
+        //~ Pass Informations
+        TransformInfo Transform       {};
+        ShaderInfo    m_shaderInfo    {};
+        DrawInfo      Draw            {};
+        PassInfo      m_mainPassInfo  {};
+        PassInfo      m_shadowPassInfo{};
+        SceneInfo     m_sceneInfo     {};
+        KFEDevice*    m_pDevice{ nullptr };
+
+        //~ Primary Buffer
+        const std::uint16_t    m_frameCount{ 6u };
+        KFEFrameConstantBuffer m_primaryCBFrame{};
+
+        //~ Light Management
+        KFEFrameConstantBuffer m_lightCBFrame{};
+        KFELightManager        m_lightManager{};
     };
 }

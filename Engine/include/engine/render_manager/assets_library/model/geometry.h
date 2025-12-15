@@ -38,6 +38,16 @@ namespace kfe
         bool HasUV1 = false;
     };
 
+    struct KFEVertexOnly 
+    {
+        DirectX::XMFLOAT3 Position{};
+        DirectX::XMFLOAT3 Normal{};
+        DirectX::XMFLOAT3 Tangent{};
+        DirectX::XMFLOAT3 Bitangent{};
+        DirectX::XMFLOAT2 UV0{};
+        DirectX::XMFLOAT2 UV1{};
+    };
+
     class KFE_API KFEMeshGeometry
     {
     public:
@@ -55,7 +65,6 @@ namespace kfe
 
         // Accessors
         const std::string& GetName()          const noexcept;
-        std::uint32_t      GetMaterialIndex() const noexcept;
 
         const std::vector<KFEMeshVertex>& GetVertices() const noexcept;
         const std::vector<std::uint32_t>& GetIndices()  const noexcept;
