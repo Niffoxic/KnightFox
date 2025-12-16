@@ -65,10 +65,10 @@ git clone https://github.com/microsoft/vcpkg.git C:\dev\vcpkg
 cd C:\dev\vcpkg
 .\bootstrap-vcpkg.bat
 .\vcpkg integrate install
-
 .\vcpkg install assimp:x64-windows
 
-Open the solution → set configuration to **x64** → build and run.
+https://github.com/Niffoxic/KnightFox.git
+Open the solution set configuration to **x64** (debug mode only / release is broken atm) → build and run.
 ```
 
 ---
