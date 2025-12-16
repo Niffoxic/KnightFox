@@ -273,7 +273,7 @@ namespace kfe
 
     struct DrawInfo
     {
-        ECullMode CullMode{ ECullMode::Front };
+        ECullMode CullMode{ ECullMode::Back };
         EDrawMode DrawMode{ EDrawMode::Triangle };
 
         JsonLoader GetJsonData() const
