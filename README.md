@@ -68,7 +68,7 @@ cd C:\dev\vcpkg
 .\vcpkg install assimp:x64-windows
 
 https://github.com/Niffoxic/KnightFox.git
-Open the solution set configuration to **x64** (debug mode only / release is broken atm) → build and run.
+Open the solution set configuration to **x64** (debug for editor / release for application) → build and run.
 ```
 
 ---
