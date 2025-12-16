@@ -1,0 +1,105 @@
+{
+	"69": {
+		"ID": "69",
+		"Data": {
+			"Type": "KFEPointLight",
+			"DirectionWS": {
+				"x": "0.000000",
+				"y": "-1.000000",
+				"z": "0.000000"
+			},
+			"PositionWS": {
+				"x": "-0.600000",
+				"y": "-0.200000",
+				"z": "-0.150000"
+			},
+			"LightName": "PointLight",
+			"Enabled": "true",
+			"Color": {
+				"x": "0.536650",
+				"y": "0.331747",
+				"z": "0.867647"
+			},
+			"Range": "12.000000",
+			"Intensity": "2.230000",
+			"Attenuation": "1.000000",
+			"CullRadius": "40.000000"
+		},
+		"Type": "KFEPointLight",
+		"Name": "PointLight"
+	},
+	"70": {
+		"ID": "70",
+		"Data": {
+			"Type": "KFEDirectionalLight",
+			"DirectionWS": {
+				"x": "-0.127154",
+				"y": "0.121020",
+				"z": "0.984472"
+			},
+			"LightName": "Directional",
+			"Enabled": "true",
+			"Color": {
+				"x": "0.175053",
+				"y": "0.759804",
+				"z": "0.656612"
+			},
+			"Intensity": "4.050000"
+		},
+		"Type": "KFEDirectionalLight",
+		"Name": "Directional"
+	},
+	"71": {
+		"ID": "71",
+		"Data": {
+			"Type": "KFESpotLight",
+			"DirectionWS": {
+				"x": "0.323968",
+				"y": "-0.810444",
+				"z": "0.488084"
+			},
+			"PositionWS": {
+				"x": "-3.050000",
+				"y": "2.050000",
+				"z": "-3.500000"
+			},
+			"LightName": "SpotLight",
+			"Enabled": "true",
+			"Color": {
+				"x": "0.000000",
+				"y": "0.304498",
+				"z": "0.941176"
+			},
+			"Range": "32.099998",
+			"Intensity": "5.160000",
+			"Attenuation": "0.400000",
+			"SpotInnerAngle": "0.245000",
+			"SpotOuterAngle": "0.376000",
+			"SpotSoftness": "0.000000",
+			"CullRadius": "40.200001"
+		},
+		"Type": "KFESpotLight",
+		"Name": "SpotLight"
+	},
+	"72": {
+		"ID": "72",
+		"Data": {
+			"Type": "KFEDirectionalLight",
+			"DirectionWS": {
+				"x": "0.153584",
+				"y": "-0.309381",
+				"z": "0.938454"
+			},
+			"LightName": "Directional",
+			"Enabled": "true",
+			"Color": {
+				"x": "1.000000",
+				"y": "1.000000",
+				"z": "1.000000"
+			},
+			"Intensity": "1.000000"
+		},
+		"Type": "KFEDirectionalLight",
+		"Name": "Directional"
+	}
+}
