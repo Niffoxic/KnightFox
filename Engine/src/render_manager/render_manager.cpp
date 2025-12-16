@@ -253,7 +253,7 @@ bool kfe::KFERenderManager::Impl::Initialize()
 #if defined(DEBUG) || defined(_DEBUG)
 	//~ Init Imgui
 #endif
-	m_camera.SetPosition({ 0, 0, -10.f });
+	m_camera.SetPosition({ 0, 10, -10.f });
 
 	if (!InitializeComponents())
 	{
@@ -570,11 +570,10 @@ bool kfe::KFERenderManager::Impl::InitializeComponents()
 	deviceDesc.Factory   = m_pFactory.get();
 	deviceDesc.Monitor   = m_pMonitor.get();
 
-#if defined(_DEBUG) || defined(DEBUG)
 	deviceDesc.Flags = EDeviceCreateFlags::EnableDebugLayer |
 			   EDeviceCreateFlags::EnableGPUBasedValidation |
 			EDeviceCreateFlags::EnableStablePowerState;
-#endif
+
 
 	if (!m_pDevice->Initialize(deviceDesc))
 	{
