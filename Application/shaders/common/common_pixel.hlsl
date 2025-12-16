@@ -562,51 +562,51 @@ float3 ApplyEmissiveTex(float2 uv0)
 
 float3 SampleORM(float2 uv0)
 {
-    const float hasOrm = HasTex(ORM_Meta.x);
+    const float hasOrm = step(0.5f, ORM_Meta.x);
+    const float mixed  = step(0.5f, ORM_Meta.y);
 
-    const float2 uvOrm = uv0 * ORM_Meta.zw;
+    // ORM sample
+    const float2 uvOrm  = uv0 * ORM_Meta.zw;
     const float3 ormTex = SampleTex3(gORMTex, uvOrm);
 
-    //~ R=AO, G=Rough, B=Metal
-    float aoTex    = ormTex.r;
-    float roughTex = ormTex.g;
-    float metalTex = ormTex.b;
+    const float aoTex    = ormTex.r;
+    const float roughTex = ormTex.g;
+    const float metalTex = ormTex.b;
 
-    //~ Singular
-    const float aoSingHas    = HasTex(Singular0.x);
-    const float roughSingHas = HasTex(Singular0.y);
-    const float metalSingHas = HasTex(Singular0.z);
+    // Singular enables
+    const float aoSingHas    = step(0.5f, Singular0.x);
+    const float roughSingHas = step(0.5f, Singular0.y);
+    const float metalSingHas = step(0.5f, Singular0.z);
 
+    // Singular UVs
     const float2 uvAO    = uv0 * Singular2.xy;
     const float2 uvRough = uv0 * Singular2.zw;
     const float2 uvMetal = uv0 * Singular3.xy;
 
+    // Singular samples
     const float aoSingTex    = SampleTex1(gOcclusionTex, uvAO);
     const float roughSingTex = SampleTex1(gRoughnessTex, uvRough);
     const float metalSingTex = SampleTex1(gMetallicTex, uvMetal);
 
-    //~ Singular constants
+    // Singular constants
     const float aoConst    = 1.0f;
     const float roughConst = saturate(Singular1.y);
     const float metalConst = saturate(Singular1.z);
 
+    // Final singular values
     const float aoSing    = lerp(aoConst,    aoSingTex,    aoSingHas);
     const float roughSing = lerp(roughConst, roughSingTex, roughSingHas);
     const float metalSing = lerp(metalConst, metalSingTex, metalSingHas);
 
-    const float mixed = HasTex(ORM_Meta.y);
+    const float aoFromOrm    = lerp(aoTex,    aoSing,    mixed);
+    const float roughFromOrm = lerp(roughTex, roughSing, mixed);
+    const float metalFromOrm = lerp(metalTex, metalSing, mixed);
 
-    //~ does ORM exists?
-    float ao    = lerp(aoSing,    aoTex,    hasOrm);
-    float rough = lerp(roughSing, roughTex, hasOrm);
-    float metal = lerp(metalSing, metalTex, hasOrm);
+    const float ao    = lerp(aoSing,    aoFromOrm,    hasOrm);
+    const float rough = lerp(roughSing, roughFromOrm, hasOrm);
+    const float metal = lerp(metalSing, metalFromOrm, hasOrm);
 
-    //~ If mixed==1 and ORM exists then blend ORM with singulars
-    ao    = lerp(ao,    aoSing,    mixed * hasOrm);
-    rough = lerp(rough, roughSing, mixed * hasOrm);
-    metal = lerp(metal, metalSing, mixed * hasOrm);
-
-    return float3(saturate(ao), saturate(rough), saturate(metal));
+    return saturate(float3(ao, rough, metal));
 }
 
 float SampleRoughness(float2 uv0)
