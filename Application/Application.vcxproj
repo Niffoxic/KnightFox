@@ -119,8 +119,8 @@
       <AdditionalDependencies>Engine.lib;dxgi.lib;d3d12.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(SolutionDir)External\AssimpRuntime\x64\assimp*.dll" "$(TargetDir)"
-</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>
@@ -155,8 +155,8 @@
       <AdditionalDependencies>Engine.lib;dxgi.lib;d3d12.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(SolutionDir)External\AssimpRuntime\x64\assimp*.dll" "$(TargetDir)"
-</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>

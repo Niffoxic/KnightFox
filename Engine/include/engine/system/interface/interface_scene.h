@@ -135,7 +135,7 @@ namespace kfe
         KFEDevice*    m_pDevice{ nullptr };
 
         //~ Primary Buffer
-        const std::uint16_t    m_frameCount{ 2u };
+        const std::uint16_t    m_frameCount{ 3u };
         KFEFrameConstantBuffer m_primaryCBFrame{};
 
         //~ Light Management

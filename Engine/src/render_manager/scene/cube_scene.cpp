@@ -147,7 +147,7 @@ private:
     ModelTextureMetaInformation m_metaInformation{};
     KFEResourceHeap*            m_pResourceHeap{ nullptr };
     KFEDevice*                  m_pDevice      { nullptr };
-    std::uint32_t               m_subdivisionLevel{ 10u };
+    std::uint32_t               m_subdivisionLevel{ 2u };
     bool                        m_bDirtyGeometry{ false };
 
     //~ Textures
@@ -161,6 +161,7 @@ private:
     };
     std::array<SrvData, static_cast<std::size_t>(EModelTextureSlot::Count)> m_srvs;
     std::uint32_t m_baseSrvIndex{ KFE_INVALID_INDEX };
+    std::uint32_t m_frameCounts{ 3u };
 };
 
 #pragma endregion
@@ -342,7 +343,6 @@ void kfe::KEFCubeSceneObject::Impl::Render(_In_ const KFE_RENDER_OBJECT_DESC& de
         builder.CommandList = desc.CommandList;
         BuildGeometry(builder);
     } 
-
 
     auto* cmdList = desc.CommandList;
     if (!cmdList)
@@ -567,7 +567,7 @@ bool kfe::KEFCubeSceneObject::Impl::BuildConstantBuffer(const KFE_BUILD_OBJECT_D
 
     KFE_FRAME_CONSTANT_BUFFER_DESC cb{};
     cb.Device       = desc.Device;
-    cb.FrameCount   = 6u;
+    cb.FrameCount   = m_frameCounts;
     cb.ResourceHeap = desc.ResourceHeap;
     cb.SizeInBytes = sizeof(ModelTextureMetaInformation);
 

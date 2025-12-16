@@ -149,6 +149,7 @@ private:
     std::string m_modelPathPending;
     std::unordered_map<std::uint32_t, std::string> m_pendingTexturePath;
     std::unordered_set<std::uint32_t>              m_pendingTextureDirty;
+    std::uint32_t m_frameCounts{ 3u };
 };
 
 #pragma endregion
@@ -544,7 +545,7 @@ bool kfe::KFEMeshSceneObject::Impl::BuildSubmeshConstantBuffers(const KFE_BUILD_
 
     KFE_FRAME_CONSTANT_BUFFER_DESC buffer{};
     buffer.Device       = desc.Device;
-    buffer.FrameCount   = 2u;
+    buffer.FrameCount   = m_frameCounts;
     buffer.ResourceHeap = desc.ResourceHeap;
     buffer.SizeInBytes  = sizeof(KFE_COMMON_CB_GPU);
 

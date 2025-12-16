@@ -281,7 +281,7 @@ bool kfe::KFERenderManager::Impl::Initialize()
 	swap.GraphicsQueue	= m_pGraphicsQueue.get();
 	swap.Windows		= m_pWindows;
 
-	swap.BufferCount		= 4u;
+	swap.BufferCount		= 6u;
 	swap.BackBufferFormat	= DXGI_FORMAT_R8G8B8A8_UNORM;
 	swap.DepthStencilFormat = DXGI_FORMAT_D32_FLOAT;
 

@@ -278,7 +278,7 @@ bool kfe::KFEWindows::Impl::InitWindowScreen()
         return false;
     }
 
-    DWORD style = WS_OVERLAPPEDWINDOW;
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
 
     RECT rect
     { 0, 0,
