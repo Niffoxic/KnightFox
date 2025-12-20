@@ -21,8 +21,8 @@
 
 namespace kfe
 {
-    // Final CPU-side vertex layout for the renderer.
-    // This is what you will eventually upload to your D3D12 vertex buffers.
+    //~ Final CPU-side vertex layout for the renderer.
+	//~ For every mesh to be added to the engine.
     struct KFEMeshVertex
     {
         DirectX::XMFLOAT3 Position{};

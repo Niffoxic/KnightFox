@@ -5,7 +5,6 @@
  *  -----------------------------------------------------------------------------
  *  File      : assimp_import_types.h
  *  Purpose   : CPU-side mesh + node hierarchy import types for KnightFox.
- *              (NO materials, NO textures)
  *  -----------------------------------------------------------------------------
  */
 #pragma once

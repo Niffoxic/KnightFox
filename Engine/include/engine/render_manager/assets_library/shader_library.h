@@ -88,10 +88,6 @@ namespace kfe::shaders
         }
     } // namespace detail
 
-    // ========================================================================
-    // Public API (header-only)
-    // ========================================================================
-
     _Use_decl_annotations_
         inline ID3DBlob* GetOrCompile(const SHADER_DESC& desc)
     {
@@ -109,7 +105,7 @@ namespace kfe::shaders
 
         const std::string key = detail::MakeKey(desc.SourcePath, desc.EntryPoint, desc.TargetProfile);
 
-        // 1) Cache hit
+        //~ on Cache hit
         {
             auto it = detail::g_ShaderCache.find(key);
             if (it != detail::g_ShaderCache.end() && it->second)
@@ -118,7 +114,7 @@ namespace kfe::shaders
             }
         }
 
-        // 2) Compile
+        //~ Compile
         const std::wstring widePath = kfe_helpers::AnsiToWide(desc.SourcePath);
         const UINT         flags = detail::BuildD3DCompileFlags(desc);
 
@@ -152,10 +148,10 @@ namespace kfe::shaders
     }
 
     _Use_decl_annotations_
-        inline ID3DBlob* GetOrCompile(
-            const std::string& sourcePath,
-            const std::string& entryPoint = "main",
-            const std::string& targetProfile = "vs_5_0")
+    inline ID3DBlob* GetOrCompile(
+        const std::string& sourcePath,
+        const std::string& entryPoint = "main",
+        const std::string& targetProfile = "vs_5_0")
     {
         SHADER_DESC desc{};
         desc.SourcePath    = sourcePath;
@@ -165,10 +161,10 @@ namespace kfe::shaders
     }
 
     _Use_decl_annotations_
-        inline bool Remove(
-            const std::string& sourcePath,
-            const std::string& entryPoint = "main",
-            const std::string& targetProfile = "vs_5_0")
+    inline bool Remove(
+        const std::string& sourcePath,
+        const std::string& entryPoint = "main",
+        const std::string& targetProfile = "vs_5_0")
     {
         const std::string key = detail::MakeKey(sourcePath, entryPoint, targetProfile);
         auto it = detail::g_ShaderCache.find(key);
